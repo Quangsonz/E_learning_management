@@ -4,16 +4,103 @@ const authMiddleware = require('../middlewares/auth.middleware');
 
 const router = express.Router();
 
-// Chỉ user đã đăng nhập (Học viên) mới theo dõi được tiến trình
 router.use(authMiddleware.protect);
 
-// Lấy thống kê tiến trình học tập của toàn bộ các khóa
+/**
+ * @swagger
+ * /progress/statistics:
+ *   get:
+ *     summary: Lấy thống kê học tập tổng quan
+ *     tags: [Progress]
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     statistics:
+ *                       type: object
+ *                       properties:
+ *                         totalEnrolled:
+ *                           type: integer
+ *                           example: 5
+ *                         completedCourses:
+ *                           type: integer
+ *                           example: 2
+ *                         ongoingCourses:
+ *                           type: integer
+ *                           example: 3
+ *                         details:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/Progress'
+ */
 router.get('/statistics', progressController.getLearningStatistics);
 
-// Lấy tiến trình của 1 khóa học cụ thể
+/**
+ * @swagger
+ * /progress/{courseId}:
+ *   get:
+ *     summary: Lấy tiến độ học tập của một khóa học cụ thể
+ *     tags: [Progress]
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     progress:
+ *                       $ref: '#/components/schemas/Progress'
+ */
 router.get('/:courseId', progressController.getCourseProgress);
 
-// Đánh dấu bài giảng là đã hoàn thành
+/**
+ * @swagger
+ * /progress/{courseId}/lessons/{lessonId}/complete:
+ *   post:
+ *     summary: Đánh dấu bài giảng đã hoàn thành (tự động tính %)
+ *     tags: [Progress]
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: lessonId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Cập nhật tiến độ thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     progress:
+ *                       $ref: '#/components/schemas/Progress'
+ */
 router.post('/:courseId/lessons/:lessonId/complete', progressController.markComplete);
 
 module.exports = router;
