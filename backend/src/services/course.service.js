@@ -1,0 +1,77 @@
+const courseRepository = require('../repositories/course.repository');
+const AppError = require('../utils/appError');
+const slugify = require('slugify');
+
+class CourseService {
+  async getAllCourses(query, user) {
+    let filter = { ...query };
+
+    // Nếu không đăng nhập hoặc là học viên, chỉ xem được các khóa học đã published
+    if (!user || user.role === 'student') {
+      filter.status = 'published';
+    } else if (user.role === 'teacher') {
+      // Nếu là giáo viên, cho phép xem thêm các khóa nháp (draft) do chính họ tạo ra
+      // Nhưng tạm thời cứ lấy danh sách tổng, việc lọc khóa học cá nhân sẽ do controller xử lý (thêm filter.instructor = user.id)
+    }
+
+    return await courseRepository.find(filter);
+  }
+
+  async getCourseById(id) {
+    const course = await courseRepository.findById(id);
+    if (!course) {
+      throw new AppError('Không tìm thấy khóa học này', 404);
+    }
+    return course;
+  }
+
+  async createCourse(courseData, user) {
+    if (!courseData.slug) {
+      courseData.slug = slugify(courseData.title, { lower: true, strict: true });
+    }
+
+    const existingCourse = await courseRepository.findBySlug(courseData.slug);
+    if (existingCourse) {
+      throw new AppError('Tiêu đề khóa học này đã tồn tại, vui lòng chọn tiêu đề khác', 400);
+    }
+
+    // Gắn ID của người tạo vào làm Instructor
+    courseData.instructor = user.id;
+
+    return await courseRepository.create(courseData);
+  }
+
+  async updateCourse(id, updateData, user) {
+    const course = await courseRepository.findById(id);
+    if (!course) {
+      throw new AppError('Không tìm thấy khóa học này', 404);
+    }
+
+    // Kiểm tra quyền: Chỉ Admin (manage_all) hoặc chính Teacher tạo ra khóa học mới được sửa
+    if (user.role !== 'admin' && course.instructor._id.toString() !== user.id) {
+      throw new AppError('Bạn không có quyền chỉnh sửa khóa học của người khác', 403);
+    }
+
+    if (updateData.title && !updateData.slug) {
+      updateData.slug = slugify(updateData.title, { lower: true, strict: true });
+    }
+
+    return await courseRepository.updateById(id, updateData);
+  }
+
+  async deleteCourse(id, user) {
+    const course = await courseRepository.findById(id);
+    if (!course) {
+      throw new AppError('Không tìm thấy khóa học này', 404);
+    }
+
+    // Kiểm tra quyền: Chỉ Admin hoặc chính Teacher tạo ra khóa học mới được xóa
+    if (user.role !== 'admin' && course.instructor._id.toString() !== user.id) {
+      throw new AppError('Bạn không có quyền xóa khóa học của người khác', 403);
+    }
+
+    return await courseRepository.deleteById(id);
+  }
+}
+
+module.exports = new CourseService();
