@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MotionProps, motion } from 'framer-motion';
+import { EmptyState, SkeletonCard } from '../components/ui/StateViews';
 
 type Course = {
   title: string;
@@ -193,16 +194,14 @@ const Home: React.FC = () => {
                 </div>
 
                 <div className="mt-6 space-y-4">
-                  {isLoading
-                    ? Array.from({ length: 3 }).map((_, index) => (
-                        <div key={index} className="animate-pulse rounded-3xl border border-slate-200 bg-slate-100 p-4">
-                          <div className="h-4 w-28 rounded-full bg-slate-200" />
-                          <div className="mt-4 h-5 w-3/4 rounded-full bg-slate-200" />
-                          <div className="mt-4 h-2 rounded-full bg-slate-200" />
-                          <div className="mt-3 h-8 w-20 rounded-full bg-slate-200" />
-                        </div>
-                      ))
-                    : courses.map((course, index) => (
+                  {isLoading ? (
+                    <div className="grid gap-4">
+                      <SkeletonCard />
+                      <SkeletonCard />
+                      <SkeletonCard />
+                    </div>
+                  ) : courses.length > 0 ? (
+                    courses.map((course, index) => (
                         <div key={course.title} className="rounded-3xl border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-300 hover:bg-white">
                           <div className="flex items-start justify-between gap-4">
                             <div>
@@ -224,7 +223,13 @@ const Home: React.FC = () => {
                             <span className="font-semibold text-slate-900">Resume</span>
                           </div>
                         </div>
-                      ))}
+                      ))
+                  ) : (
+                    <EmptyState
+                      title="No active courses"
+                      message="There are no courses in progress right now. Once learning starts, this section will show progress and continue actions."
+                    />
+                  )}
                 </div>
               </MotionDiv>
 

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { EmptyState, SkeletonCard } from '../components/ui/StateViews';
 
 type Course = {
   id: number;
@@ -372,9 +373,10 @@ const CourseList: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="rounded-[28px] border border-dashed border-slate-300 bg-white/70 p-10 text-center text-slate-500">
-              No popular courses match your search.
-            </div>
+            <EmptyState
+              title="No popular courses found"
+              message="Try a different keyword or category. Popular courses will appear here when your filters match available content."
+            />
           )}
         </section>
 
@@ -394,9 +396,10 @@ const CourseList: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="rounded-[28px] border border-dashed border-slate-300 bg-white/70 p-10 text-center text-slate-500">
-              No trending courses match your search.
-            </div>
+            <EmptyState
+              title="No trending courses found"
+              message="Trending content is hidden by the current filters. Adjust the search or category to reveal matching courses."
+            />
           )}
         </section>
       </div>
