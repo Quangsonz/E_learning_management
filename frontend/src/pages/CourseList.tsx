@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { EmptyState, SkeletonCard } from '../components/ui/StateViews';
+import { Button, EmptyState, PageShell, SkeletonGrid, GlassPanel, Input } from '../components/ui';
+import useSimulatedLoading from '../hooks/useSimulatedLoading';
+import { floatY } from '../animations/motionVariants';
 
 type Course = {
   id: number;
@@ -158,12 +160,12 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
 
   return (
     <MotionDiv
-      className="group overflow-hidden rounded-[28px] border border-white/70 bg-white/80 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl"
-      whileHover={{ y: -10, scale: 1.02 }}
+      className="card interactive group overflow-hidden !p-0"
+      whileHover={{ y: -8, scale: 1.01 }}
       transition={{ duration: 0.22, ease: 'easeOut' }}
     >
       <div className="relative">
-        {!thumbLoaded ? <div className="absolute inset-0 animate-pulse rounded-t-[28px] bg-slate-200" /> : null}
+        {!thumbLoaded ? <div className="absolute inset-0 skeleton skeleton-card !rounded-b-none" /> : null}
         <img
           src={course.image}
           alt={course.title}
@@ -171,7 +173,7 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
           onLoad={() => setThumbLoaded(true)}
           className={`h-52 w-full object-cover transition duration-500 group-hover:scale-105 ${thumbLoaded ? 'opacity-100' : 'opacity-0'}`}
         />
-        <div className={`absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent transition duration-300 group-hover:opacity-90`} />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent transition duration-300 group-hover:opacity-90" />
         <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-white/15 px-3 py-2 text-xs font-semibold text-white backdrop-blur-md">
           <span className={`h-2.5 w-2.5 rounded-full bg-gradient-to-r ${course.accent}`} />
           {course.category}
@@ -195,7 +197,7 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
       <div className="p-5">
         <div className="flex items-start gap-3">
           <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
-            {!avatarLoaded ? <div className="absolute inset-0 animate-pulse bg-slate-200" /> : null}
+            {!avatarLoaded ? <div className="absolute inset-0 skeleton skeleton-text" /> : null}
             <img
               src={makeAvatar(course.teacher[0])}
               alt={course.teacher}
@@ -219,9 +221,9 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
             <span>Progress</span>
             <span className="font-semibold text-slate-900">{course.progress}%</span>
           </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+          <div className="progress-track mt-3">
             <MotionDiv
-              className={`h-full rounded-full bg-gradient-to-r ${course.accent}`}
+              className={`progress-fill bg-gradient-to-r ${course.accent}`}
               initial={{ width: 0 }}
               animate={{ width: `${course.progress}%` }}
               transition={{ duration: 1.05, ease: [0.4, 0, 0.2, 1] }}
@@ -229,11 +231,10 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
           </div>
           <div className="mt-4 flex items-center justify-between gap-3">
             <span className="text-sm text-slate-500">More details available</span>
-            <Link
-              to={`/courses/${course.id}`}
-              className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800"
-            >
-              View detail
+            <Link to={`/courses/${course.id}`}>
+              <Button variant="pill" size="sm">
+                View detail
+              </Button>
             </Link>
           </div>
         </div>
@@ -245,6 +246,7 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
 const CourseList: React.FC = () => {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  const isLoading = useSimulatedLoading(1000);
 
   const filteredPopular = useMemo(() => {
     return popularCourses.filter((course) => {
@@ -263,20 +265,11 @@ const CourseList: React.FC = () => {
   }, [activeCategory, query]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(34,197,94,0.16),transparent_24%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.18),transparent_26%),linear-gradient(180deg,#f8fbff_0%,#f3f7fb_100%)] text-slate-900">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <MotionDiv
-          className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/75 p-6 shadow-[0_24px_90px_rgba(15,23,42,0.08)] backdrop-blur-2xl sm:p-8"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: 'easeOut' }}
-        >
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.85),rgba(255,255,255,0.35))]" aria-hidden="true" />
-          <div className="relative grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+    <PageShell>
+        <GlassPanel padding="lg" motionProps={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.45, ease: 'easeOut' } }}>
+          <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div className="space-y-6">
-              <div className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
-                Course List
-              </div>
+              <div className="badge">Course catalog</div>
               <div>
                 <p className="text-sm font-medium text-slate-500">Find your next learning path</p>
                 <h1 className="mt-2 max-w-2xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
@@ -294,19 +287,15 @@ const CourseList: React.FC = () => {
                   { label: 'Weekly completion', value: '86%' }
                 ].map((item) => (
                   <div key={item.label} className="rounded-3xl border border-white/60 bg-white/80 px-4 py-4 shadow-sm">
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{item.label}</p>
+                    <p className="section-label">{item.label}</p>
                     <p className="mt-2 text-2xl font-semibold text-slate-950">{item.value}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            <MotionDiv
-              className="rounded-[30px] border border-slate-200/70 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-700 p-6 text-white shadow-[0_22px_70px_rgba(15,23,42,0.22)]"
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 5.8, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
-            >
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-white/70">Hero Section</p>
+            <GlassPanel variant="dark" padding="lg" motionProps={{ animate: floatY(6, 5.8) }}>
+              <p className="section-label !text-white/70">Discover</p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight">Learn in a space that feels alive.</h2>
               <p className="mt-4 text-base leading-7 text-white/80">
                 Browse a course library built to feel polished, engaging, and easy to scan on any screen size.
@@ -318,55 +307,58 @@ const CourseList: React.FC = () => {
                   </div>
                 ))}
               </div>
-            </MotionDiv>
+            </GlassPanel>
           </div>
-        </MotionDiv>
+        </GlassPanel>
 
-        <section className="mt-6 rounded-[30px] border border-white/70 bg-white/80 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6">
+        <GlassPanel padding="sm" className="mt-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <label className="flex min-h-[54px] flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-slate-500 focus-within:border-sky-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-sky-100">
-              <span className="text-lg">⌕</span>
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                type="search"
-                placeholder="Search courses, teachers, or skills"
-                className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
-              />
-            </label>
+            <Input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search courses, teachers, or skills"
+              icon={
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              }
+              onClear={() => setQuery('')}
+              className="flex-1"
+            />
 
             <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:justify-end">
               {categories.map((category) => {
                 const isActive = activeCategory === category;
                 return (
-                  <button
+                  <Button
                     key={category}
                     type="button"
+                    variant={isActive ? 'pill' : 'outline'}
+                    size="sm"
                     onClick={() => setActiveCategory(category)}
-                    className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-4 focus:ring-sky-200 ${
-                      isActive
-                        ? 'bg-slate-950 text-white shadow-lg shadow-slate-950/20'
-                        : 'border border-slate-200 bg-white text-slate-600 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50'
-                    }`}
+                    className={`whitespace-nowrap ${!isActive ? '!rounded-full' : ''}`}
                   >
                     {category}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
           </div>
-        </section>
+        </GlassPanel>
 
         <section className="mt-8 space-y-6">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Popular Courses</p>
-              <h2 className="mt-2 text-2xl font-semibold text-slate-950">Most loved by learners</h2>
+              <p className="section-label">Popular Courses</p>
+              <h2 className="mt-2 section-title">Most loved by learners</h2>
             </div>
             <p className="text-sm text-slate-500">{filteredPopular.length} results</p>
           </div>
 
-          {filteredPopular.length > 0 ? (
+          {isLoading ? (
+            <SkeletonGrid count={3} />
+          ) : filteredPopular.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {filteredPopular.map((course) => (
                 <CourseCard key={course.id} course={course} />
@@ -383,13 +375,15 @@ const CourseList: React.FC = () => {
         <section className="mt-10 space-y-6">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Trending Courses</p>
-              <h2 className="mt-2 text-2xl font-semibold text-slate-950">What is hot right now</h2>
+              <p className="section-label">Trending Courses</p>
+              <h2 className="mt-2 section-title">What is hot right now</h2>
             </div>
             <p className="text-sm text-slate-500">Updated today</p>
           </div>
 
-          {filteredTrending.length > 0 ? (
+          {isLoading ? (
+            <SkeletonGrid count={3} />
+          ) : filteredTrending.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {filteredTrending.map((course) => (
                 <CourseCard key={course.id} course={course} />
@@ -402,8 +396,7 @@ const CourseList: React.FC = () => {
             />
           )}
         </section>
-      </div>
-    </div>
+    </PageShell>
   );
 };
 

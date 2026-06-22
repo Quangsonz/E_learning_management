@@ -16,7 +16,9 @@ export const AuthField: React.FC<AuthFieldProps> = ({ label, hint, error, id, cl
       </label>
       <input
         id={inputId}
-        className={`w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100 ${className}`}
+        className={`w-full rounded-xl border bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition duration-sm ease-standard focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 ${
+          error ? 'border-error-500 focus:ring-error-500/10' : 'border-slate-200'
+        } ${className}`}
         aria-invalid={error ? 'true' : 'false'}
         aria-describedby={hint || error ? `${inputId}-help` : undefined}
         {...props}

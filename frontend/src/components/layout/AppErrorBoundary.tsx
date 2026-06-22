@@ -1,5 +1,6 @@
 import React from 'react';
 import { ErrorState } from '../ui/StateViews';
+import PageShell from '../ui/PageShell';
 
 type Props = {
   children: React.ReactNode;
@@ -23,12 +24,13 @@ class AppErrorBoundary extends React.Component<Props, State> {
   override render() {
     if (this.state.hasError) {
       return (
-        <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-10">
+        <PageShell animate={false}>
           <ErrorState
             title="The interface could not be rendered"
             message="Refresh the page or try again in a moment. The app hit a rendering issue, but your data and logic are untouched."
+            onRetry={() => this.setState({ hasError: false })}
           />
-        </div>
+        </PageShell>
       );
     }
 

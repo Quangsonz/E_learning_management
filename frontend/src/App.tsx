@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import SiteLayout from './components/layout/SiteLayout';
 import AppErrorBoundary from './components/layout/AppErrorBoundary';
 import { LoadingScreen } from './components/ui/StateViews';
@@ -16,31 +16,48 @@ import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
 
+const authPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
+
+const AppRoutes: React.FC = () => (
+  <Routes>
+    <Route path="/" element={<Home />} />
+    <Route path="/home" element={<Home />} />
+    <Route path="/dashboard" element={<Home />} />
+    <Route path="/courses" element={<CourseList />} />
+    <Route path="/course-list" element={<CourseList />} />
+    <Route path="/courses/:courseId" element={<CourseDetail />} />
+    <Route path="/course-detail" element={<CourseDetail />} />
+    <Route path="/learning" element={<Learning />} />
+    <Route path="/quiz" element={<Quiz />} />
+    <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
+    <Route path="/course-management" element={<CourseManagement />} />
+    <Route path="/admin-dashboard" element={<AdminDashboard />} />
+    <Route path="/login" element={<Login />} />
+    <Route path="/register" element={<Register />} />
+    <Route path="/forgot-password" element={<ForgotPassword />} />
+    <Route path="/reset-password" element={<ResetPassword />} />
+    <Route path="*" element={<Navigate to="/" replace />} />
+  </Routes>
+);
+
 const App: React.FC = () => {
+  const location = useLocation();
+  const isAuthRoute = authPaths.some((path) => location.pathname.startsWith(path));
+
   return (
     <AppErrorBoundary>
-      <Suspense fallback={<LoadingScreen title="Loading application" message="Preparing your dashboard, routes, and shared UI states..." />}>
-        <SiteLayout>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/home" element={<Home />} />
-            <Route path="/dashboard" element={<Home />} />
-            <Route path="/courses" element={<CourseList />} />
-            <Route path="/course-list" element={<CourseList />} />
-            <Route path="/courses/:courseId" element={<CourseDetail />} />
-            <Route path="/course-detail" element={<CourseDetail />} />
-            <Route path="/learning" element={<Learning />} />
-            <Route path="/quiz" element={<Quiz />} />
-            <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
-            <Route path="/course-management" element={<CourseManagement />} />
-            <Route path="/admin-dashboard" element={<AdminDashboard />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </SiteLayout>
+      <Suspense
+        fallback={
+          <LoadingScreen title="Loading application" message="Preparing your dashboard, routes, and shared UI states..." />
+        }
+      >
+        {isAuthRoute ? (
+          <AppRoutes />
+        ) : (
+          <SiteLayout>
+            <AppRoutes />
+          </SiteLayout>
+        )}
       </Suspense>
     </AppErrorBoundary>
   );

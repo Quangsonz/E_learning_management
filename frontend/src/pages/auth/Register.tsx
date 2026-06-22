@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import AuthLayout from '../../components/auth/AuthLayout';
 import AuthField from '../../components/auth/AuthField';
+import { Button } from '../../components/ui';
 
 const Register: React.FC = () => {
   return (
@@ -43,14 +43,9 @@ const Register: React.FC = () => {
           </span>
         </label>
 
-        <motion.button
-          type="submit"
-          whileHover={{ y: -1, scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-          className="w-full rounded-2xl bg-gradient-to-r from-fuchsia-600 via-sky-600 to-indigo-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-fuchsia-500/20 transition focus:outline-none focus:ring-4 focus:ring-sky-200"
-        >
+        <Button type="submit" variant="gradient" fullWidth size="lg">
           Create account
-        </motion.button>
+        </Button>
       </form>
     </AuthLayout>
   );

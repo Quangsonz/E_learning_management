@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import AuthLayout from '../../components/auth/AuthLayout';
 import AuthField from '../../components/auth/AuthField';
+import { Button } from '../../components/ui';
 
 const ForgotPassword: React.FC = () => {
   return (
@@ -32,14 +32,9 @@ const ForgotPassword: React.FC = () => {
           hint="We'll send password reset instructions to this email."
         />
 
-        <motion.button
-          type="submit"
-          whileHover={{ y: -1, scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-          className="w-full rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition focus:outline-none focus:ring-4 focus:ring-sky-200"
-        >
+        <Button type="submit" variant="gradient" fullWidth size="lg">
           Send recovery link
-        </motion.button>
+        </Button>
 
         <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
           Tip: Use the same email you registered with to avoid delays.

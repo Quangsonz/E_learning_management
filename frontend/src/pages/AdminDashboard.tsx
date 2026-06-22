@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { Button, PageShell, SkeletonStats, Toast, GlassPanel } from '../components/ui';
+import useSimulatedLoading from '../hooks/useSimulatedLoading';
 
 type Metric = {
   label: string;
@@ -61,8 +63,6 @@ const realtimeEvents = [
   'Student retention rate improved'
 ];
 
-const adminSteps = ['Draft', 'Review', 'Publish'];
-
 const useCountUp = (target: number, duration = 1200) => {
   const [value, setValue] = useState(0);
 
@@ -90,6 +90,7 @@ const useCountUp = (target: number, duration = 1200) => {
 const AdminDashboard: React.FC = () => {
   const [liveTick, setLiveTick] = useState(true);
   const [systemEvent, setSystemEvent] = useState(realtimeEvents[0]);
+  const isLoading = useSimulatedLoading(900);
 
   const totalUsers = useCountUp(metrics[0].value);
   const totalCourses = useCountUp(metrics[1].value);
@@ -112,19 +113,11 @@ const AdminDashboard: React.FC = () => {
   const courseMax = useMemo(() => Math.max(...courseGrowth.map((point) => point.value)), []);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.16),transparent_24%),radial-gradient(circle_at_top_right,_rgba(99,102,241,0.14),transparent_24%),linear-gradient(180deg,#f8fbff_0%,#eef4fb_100%)] text-slate-900">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <MotionDiv
-          className="overflow-hidden rounded-[34px] border border-white/70 bg-white/75 shadow-[0_24px_90px_rgba(15,23,42,0.08)] backdrop-blur-2xl"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: 'easeOut' }}
-        >
-          <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr] lg:p-8">
+    <PageShell>
+        <GlassPanel padding="lg">
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div className="space-y-6">
-              <div className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">
-                Admin Dashboard
-              </div>
+              <div className="badge">Admin dashboard</div>
               <div>
                 <p className="text-sm font-medium text-slate-500">Vercel Dashboard • Stripe Dashboard inspired</p>
                 <h1 className="mt-2 max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
@@ -135,35 +128,30 @@ const AdminDashboard: React.FC = () => {
                 KPI counters, realtime updates, and animated charts designed for a polished admin experience with strong information density.
               </p>
               <div className="flex flex-wrap gap-3">
-                <button className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800">
-                  Manage platform
-                </button>
-                <button className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50">
-                  View reports
-                </button>
+                <Button variant="pill">Manage platform</Button>
+                <Button variant="outline">View reports</Button>
               </div>
             </div>
 
-            <MotionDiv
-              className="rounded-[30px] border border-slate-200/70 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-700 p-6 text-white shadow-[0_22px_70px_rgba(15,23,42,0.22)]"
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 5.5, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
-            >
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-white/70">Realtime Update</p>
+            <GlassPanel variant="dark" padding="lg" motionProps={{ animate: { y: [0, -6, 0] }, transition: { duration: 5.5, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' } }}>
+              <p className="section-label !text-white/70">Realtime Update</p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight">System activity remains stable.</h2>
-              <div className="mt-6 rounded-[26px] border border-white/10 bg-white/10 p-4 backdrop-blur-md">
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-md">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm uppercase tracking-[0.24em] text-white/70">Live sync</span>
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${liveTick ? 'bg-emerald-400/20 text-emerald-100' : 'bg-white/10 text-white/70'}`}>
+                  <span className="section-label !text-white/70">Live sync</span>
+                  <span className={`status-badge ${liveTick ? 'status-badge-success !border-transparent !bg-emerald-400/20 !text-emerald-100' : '!border-transparent !bg-white/10 !text-white/70'}`}>
                     {liveTick ? 'Connected' : 'Refreshing'}
                   </span>
                 </div>
                 <p className="mt-4 text-sm leading-7 text-white/80">{systemEvent}</p>
               </div>
-            </MotionDiv>
+            </GlassPanel>
           </div>
-        </MotionDiv>
+        </GlassPanel>
 
+        {isLoading ? (
+          <div className="mt-6"><SkeletonStats count={4} /></div>
+        ) : (
         <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[
             { label: 'Total Users', value: totalUsers, suffix: '' },
@@ -171,23 +159,17 @@ const AdminDashboard: React.FC = () => {
             { label: 'Active Students', value: activeStudents, suffix: '' },
             { label: 'Revenue', value: revenue, suffix: '$' }
           ].map((item, index) => (
-            <MotionDiv
-              key={item.label}
-              className="rounded-[28px] border border-white/70 bg-white/85 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-            >
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">KPI Counter</p>
-              <p className="mt-3 text-sm font-medium text-slate-500">{item.label}</p>
-              <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+            <GlassPanel key={item.label} variant="sm" padding="sm" motionProps={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.3, delay: index * 0.05 } }}>
+              <p className="kpi-label">{item.label}</p>
+              <p className="mt-2 kpi-value">
                 {item.suffix}
                 {index === 3 ? `${(item.value / 1000).toFixed(1)}k` : item.value.toLocaleString()}
               </p>
-              <p className="mt-2 text-sm text-emerald-600">{metrics[index].delta}</p>
-            </MotionDiv>
+              <p className="mt-2 kpi-delta">{metrics[index].delta}</p>
+            </GlassPanel>
           ))}
         </section>
+        )}
 
         <section className="mt-8 grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
           <div className="space-y-6">
@@ -199,7 +181,7 @@ const AdminDashboard: React.FC = () => {
                     return (
                       <div key={point.label} className="flex flex-1 flex-col items-center gap-2">
                         <MotionDiv
-                          className="w-full max-w-[42px] rounded-t-[20px] bg-gradient-to-t from-sky-500 via-indigo-500 to-violet-500 shadow-[0_14px_30px_rgba(99,102,241,0.18)]"
+                          className="w-full max-w-[42px] rounded-t-[20px] bg-gradient-to-t from-sky-500 via-indigo-500 to-violet-500 shadow-elev-2"
                           initial={{ height: 0 }}
                           animate={{ height }}
                           transition={{ duration: 0.8, delay: index * 0.05 }}
@@ -242,9 +224,9 @@ const AdminDashboard: React.FC = () => {
                         <span className="font-medium text-slate-600">{item.label}</span>
                         <span className="font-semibold text-slate-950">{item.value}{item.label === 'Error rate' ? '%' : '%'}</span>
                       </div>
-                      <div className="h-3 overflow-hidden rounded-full bg-slate-200">
+                      <div className="progress-track">
                         <MotionDiv
-                          className={`h-full rounded-full ${item.tone === 'emerald' ? 'bg-gradient-to-r from-emerald-500 to-cyan-400' : item.tone === 'sky' ? 'bg-gradient-to-r from-sky-500 to-indigo-500' : item.tone === 'violet' ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'}`}
+                          className={`progress-fill ${item.tone === 'emerald' ? 'from-emerald-500 to-cyan-400' : item.tone === 'sky' ? 'from-sky-500 to-indigo-500' : item.tone === 'violet' ? 'from-violet-500 to-fuchsia-500' : 'from-amber-500 to-orange-500'}`}
                           initial={{ width: 0 }}
                           animate={{ width: `${item.value}%` }}
                           transition={{ duration: 0.8, delay: index * 0.08 }}
@@ -270,7 +252,7 @@ const AdminDashboard: React.FC = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: index * 0.06 }}
                   >
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{item.label}</p>
+                    <p className="section-label">{item.label}</p>
                     <p className="mt-3 text-2xl font-semibold text-slate-950">{item.value}</p>
                     <div className={`mt-4 h-2 rounded-full bg-gradient-to-r ${item.tone}`} />
                   </MotionDiv>
@@ -280,26 +262,18 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           <aside className="space-y-6 xl:sticky xl:top-6 xl:self-start">
-            <MotionDiv
-              className="rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)] sm:p-6"
-              whileHover={{ y: -4 }}
-              transition={{ duration: 0.18 }}
-            >
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Realtime Update</p>
+            <GlassPanel hover>
+              <p className="section-label">Realtime Update</p>
               <h3 className="mt-2 text-2xl font-semibold text-slate-950">Platform pulse</h3>
-              <div className="mt-4 space-y-3 rounded-[26px] border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
+              <div className="mt-4 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
                 <p>• 126 new users joined in the last 24 hours.</p>
                 <p>• 18 course updates were processed today.</p>
                 <p>• 4 revenue spikes detected from enterprise plans.</p>
               </div>
-            </MotionDiv>
+            </GlassPanel>
 
-            <MotionDiv
-              className="rounded-[30px] border border-white/70 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-700 p-6 text-white shadow-[0_22px_70px_rgba(15,23,42,0.22)]"
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 5.5, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
-            >
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-white/70">System Health</p>
+            <GlassPanel variant="dark" padding="lg" motionProps={{ animate: { y: [0, -6, 0] }, transition: { duration: 5.5, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' } }}>
+              <p className="section-label !text-white/70">System Health</p>
               <h3 className="mt-3 text-2xl font-semibold tracking-tight">Infrastructure stable</h3>
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                 {[
@@ -309,21 +283,21 @@ const AdminDashboard: React.FC = () => {
                   { label: 'Edge cache', value: 'Warm' }
                 ].map((item) => (
                   <div key={item.label} className="rounded-2xl border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-md">
-                    <p className="text-xs uppercase tracking-[0.24em] text-white/70">{item.label}</p>
+                    <p className="section-label !text-white/70">{item.label}</p>
                     <p className="mt-2 text-lg font-semibold">{item.value}</p>
                   </div>
                 ))}
               </div>
-            </MotionDiv>
+            </GlassPanel>
 
-            <MotionDiv className="rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)] sm:p-6" whileHover={{ y: -4 }} transition={{ duration: 0.18 }}>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Revenue Analytics Snapshot</p>
-              <div className="mt-4 rounded-[26px] bg-slate-50 p-4">
+            <GlassPanel hover>
+              <p className="section-label">Revenue Analytics Snapshot</p>
+              <div className="mt-4 rounded-2xl bg-slate-50 p-4">
                 <div className="flex items-end justify-between gap-3">
                   {[38, 55, 49, 68, 63].map((value, index) => (
                     <MotionDiv
                       key={index}
-                      className="w-full rounded-t-[18px] bg-gradient-to-t from-emerald-500 via-cyan-500 to-sky-500"
+                      className="w-full rounded-t-lg bg-gradient-to-t from-emerald-500 via-cyan-500 to-sky-500"
                       initial={{ height: 0 }}
                       animate={{ height: `${value}%` }}
                       transition={{ duration: 0.8, delay: index * 0.06 }}
@@ -332,44 +306,33 @@ const AdminDashboard: React.FC = () => {
                   ))}
                 </div>
               </div>
-            </MotionDiv>
+            </GlassPanel>
 
-            <AnimatePresence>
-              {liveTick ? (
-                <motion.div
-                  className="rounded-[28px] border border-emerald-200 bg-white/90 px-4 py-3 text-sm font-semibold text-emerald-700 shadow-[0_20px_60px_rgba(15,23,42,0.12)] backdrop-blur-xl"
-                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.98 }}
-                  transition={{ duration: 0.22 }}
-                >
-                  Realtime update: platform metrics refreshed successfully.
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
+            <Toast
+              visible={liveTick}
+              title="Realtime update"
+              message="Platform metrics refreshed successfully."
+              variant="success"
+              position="top-right"
+              duration={3000}
+            />
           </aside>
         </section>
-      </div>
-    </div>
+    </PageShell>
   );
 };
 
 const ChartCard: React.FC<{ title: string; subtitle: string; children: React.ReactNode }> = ({ title, subtitle, children }) => (
-  <MotionDiv
-    className="rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-6"
-    initial={{ opacity: 0, y: 14 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.35, ease: 'easeOut' }}
-  >
+  <GlassPanel motionProps={{ initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.35, ease: 'easeOut' } }}>
     <div className="flex items-start justify-between gap-3">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">{subtitle}</p>
-        <h3 className="mt-2 text-2xl font-semibold text-slate-950">{title}</h3>
+        <p className="section-label">{subtitle}</p>
+        <h3 className="mt-2 section-title">{title}</h3>
       </div>
-      <div className="rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500">Animated Charts</div>
+      <div className="badge !bg-slate-50 !text-slate-500 !border-slate-200">Animated Charts</div>
     </div>
     <div className="mt-5">{children}</div>
-  </MotionDiv>
+  </GlassPanel>
 );
 
 export default AdminDashboard;

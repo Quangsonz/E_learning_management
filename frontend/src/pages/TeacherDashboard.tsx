@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { motion, MotionProps } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { Button, PageShell, SkeletonStats, GlassPanel } from '../components/ui';
+import useSimulatedLoading from '../hooks/useSimulatedLoading';
 
 type Stat = {
   label: string;
@@ -90,8 +92,7 @@ const useCountUp = (target: number, duration = 1200) => {
 };
 
 const ChartFrame: React.FC<{ title: string; subtitle: string; children: React.ReactNode }> = ({ title, subtitle, children }) => (
-  <MotionDiv
-    className="rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-6"
+  <GlassPanel
     variants={animatedReveal}
     initial="hidden"
     animate="visible"
@@ -99,17 +100,18 @@ const ChartFrame: React.FC<{ title: string; subtitle: string; children: React.Re
   >
     <div className="flex items-start justify-between gap-3">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">{subtitle}</p>
-        <h3 className="mt-2 text-2xl font-semibold text-slate-950">{title}</h3>
+        <p className="section-label">{subtitle}</p>
+        <h3 className="mt-2 section-title">{title}</h3>
       </div>
-      <div className="rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500">Live</div>
+      <div className="badge !bg-slate-50 !text-slate-500 !border-slate-200">Live</div>
     </div>
     <div className="mt-5">{children}</div>
-  </MotionDiv>
+  </GlassPanel>
 );
 
 const TeacherDashboard: React.FC = () => {
   const [showPulse, setShowPulse] = useState(true);
+  const isLoading = useSimulatedLoading(900);
   const revenueValue = useCountUp(48200);
   const studentsValue = useCountUp(3842);
   const coursesValue = useCountUp(18);
@@ -124,17 +126,11 @@ const TeacherDashboard: React.FC = () => {
   const studentMax = useMemo(() => Math.max(...studentSeries.map((item) => item.value)), []);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.16),transparent_24%),radial-gradient(circle_at_top_right,_rgba(168,85,247,0.14),transparent_24%),linear-gradient(180deg,#f7fbff_0%,#eef4fb_100%)] text-slate-900">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <MotionDiv
-          className="overflow-hidden rounded-[34px] border border-white/70 bg-white/75 shadow-[0_24px_90px_rgba(15,23,42,0.08)] backdrop-blur-2xl"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: 'easeOut' }}
-        >
-          <div className="grid gap-6 p-6 lg:grid-cols-[1.1fr_0.9fr] lg:p-8">
+    <PageShell>
+        <GlassPanel padding="lg">
+          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <div className="space-y-6">
-              <div className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">
+              <div className="badge !border-sky-200 !bg-sky-50 !text-sky-700">
                 Teacher Dashboard
               </div>
               <div>
@@ -147,27 +143,17 @@ const TeacherDashboard: React.FC = () => {
                 Clean KPI counters, animated charts, and live statistics designed to give teachers a confident, high-signal dashboard experience.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Link
-                  to="/courses"
-                  className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800"
-                >
-                  View courses
+                <Link to="/courses">
+                  <Button variant="pill">View courses</Button>
                 </Link>
-                <Link
-                  to="/quiz"
-                  className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50"
-                >
-                  Review quizzes
+                <Link to="/quiz">
+                  <Button variant="outline">Review quizzes</Button>
                 </Link>
               </div>
             </div>
 
-            <MotionDiv
-              className="rounded-[30px] border border-slate-200/70 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-700 p-6 text-white shadow-[0_22px_70px_rgba(15,23,42,0.22)]"
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 5.5, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
-            >
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-white/70">Live Statistics</p>
+            <GlassPanel variant="dark" padding="lg" motionProps={{ animate: { y: [0, -6, 0] }, transition: { duration: 5.5, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' } }}>
+              <p className="section-label !text-white/70">Live Statistics</p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight">Your LMS is performing strongly.</h2>
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 {[
@@ -177,38 +163,38 @@ const TeacherDashboard: React.FC = () => {
                   { label: 'Quiz average', value: '92.0%' }
                 ].map((item) => (
                   <div key={item.label} className="rounded-2xl border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-md">
-                    <p className="text-xs uppercase tracking-[0.24em] text-white/70">{item.label}</p>
+                    <p className="section-label !text-white/70">{item.label}</p>
                     <p className="mt-2 text-2xl font-semibold">{item.value}</p>
                   </div>
                 ))}
               </div>
-            </MotionDiv>
+            </GlassPanel>
           </div>
-        </MotionDiv>
+        </GlassPanel>
 
+        {isLoading ? (
+          <div className="mt-6"><SkeletonStats count={4} /></div>
+        ) : (
         <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((item, index) => {
             const rawValue = [revenueValue, studentsValue, coursesValue, passRateValue][index];
             const displayValue = index === 0 ? `$${(rawValue / 1000).toFixed(1)}k` : index === 1 ? rawValue.toLocaleString() : index === 2 ? rawValue.toString() : `${rawValue}%`;
 
             return (
-              <MotionDiv
+              <GlassPanel
                 key={item.label}
-                className="rounded-[28px] border border-white/70 bg-white/85 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)]"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: index * 0.05 }}
+                variant="sm"
+                padding="sm"
+                motionProps={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.35, delay: index * 0.05 } }}
               >
-                <div className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${item.tone === 'emerald' ? 'bg-emerald-50 text-emerald-700' : item.tone === 'sky' ? 'bg-sky-50 text-sky-700' : item.tone === 'violet' ? 'bg-violet-50 text-violet-700' : 'bg-amber-50 text-amber-700'}`}>
-                  KPI Counter
-                </div>
-                <p className="mt-4 text-sm font-medium text-slate-500">{item.label}</p>
-                <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{displayValue}</p>
-                <p className="mt-2 text-sm text-slate-600">{item.delta}</p>
-              </MotionDiv>
+                <p className="kpi-label">{item.label}</p>
+                <p className="mt-3 kpi-value">{displayValue}</p>
+                <p className="mt-2 kpi-delta">{item.delta}</p>
+              </GlassPanel>
             );
           })}
         </section>
+        )}
 
         <section className="mt-8 grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
           <div className="space-y-6">
@@ -220,7 +206,7 @@ const TeacherDashboard: React.FC = () => {
                     return (
                       <div key={point.label} className="flex flex-1 flex-col items-center gap-2">
                         <MotionDiv
-                          className="w-full max-w-[42px] rounded-t-[20px] bg-gradient-to-t from-sky-500 via-indigo-500 to-violet-500 shadow-[0_14px_30px_rgba(99,102,241,0.18)]"
+                          className="w-full max-w-[42px] rounded-t-[20px] bg-gradient-to-t from-sky-500 via-indigo-500 to-violet-500 shadow-elev-2"
                           initial={{ height: 0 }}
                           animate={{ height }}
                           transition={{ duration: 0.8, delay: index * 0.05 }}
@@ -263,9 +249,9 @@ const TeacherDashboard: React.FC = () => {
                         <span className="font-medium text-slate-600">{item.label}</span>
                         <span className="font-semibold text-slate-950">{item.value}%</span>
                       </div>
-                      <div className="h-3 overflow-hidden rounded-full bg-slate-200">
+                      <div className="progress-track">
                         <MotionDiv
-                          className="h-full rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500"
+                          className="progress-fill from-amber-500 via-orange-500 to-rose-500"
                           initial={{ width: 0 }}
                           animate={{ width: `${item.value}%` }}
                           transition={{ duration: 0.8, delay: index * 0.08 }}
@@ -282,7 +268,7 @@ const TeacherDashboard: React.FC = () => {
                 {courseMetrics.map((course, index) => (
                   <MotionDiv
                     key={course.title}
-                    className="rounded-[26px] border border-slate-200 bg-slate-50 p-4 transition hover:-translate-y-0.5 hover:bg-white"
+                    className="rounded-[26px] border border-slate-200 bg-slate-50 p-4 transition duration-sm hover:border-slate-300 hover:bg-white hover:shadow-elev-1"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.25, delay: index * 0.05 }}
@@ -294,7 +280,7 @@ const TeacherDashboard: React.FC = () => {
                       </div>
                       <div className="flex flex-wrap items-center gap-3 text-sm">
                         <span className="rounded-full bg-white px-3 py-1 font-semibold text-slate-700 shadow-sm">{course.completion}</span>
-                        <span className="rounded-full bg-slate-950 px-3 py-1 font-semibold text-white">{course.revenue}</span>
+                        <span className="rounded-full bg-primary-500 px-3 py-1 font-semibold text-white shadow-sm">{course.revenue}</span>
                       </div>
                     </div>
                   </MotionDiv>
@@ -304,12 +290,8 @@ const TeacherDashboard: React.FC = () => {
           </div>
 
           <aside className="space-y-6 xl:sticky xl:top-6 xl:self-start">
-            <MotionDiv
-              className="rounded-[30px] border border-white/70 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-700 p-6 text-white shadow-[0_22px_70px_rgba(15,23,42,0.22)]"
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 5.5, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
-            >
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-white/70">Live Insights</p>
+            <GlassPanel variant="dark" motionProps={{ animate: { y: [0, -6, 0] }, transition: { duration: 5.5, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' } }}>
+              <p className="section-label !text-white/70">Live Insights</p>
               <h3 className="mt-3 text-2xl font-semibold tracking-tight">What needs your attention</h3>
               <div className="mt-5 space-y-3">
                 {[
@@ -322,16 +304,16 @@ const TeacherDashboard: React.FC = () => {
                   </div>
                 ))}
               </div>
-            </MotionDiv>
+            </GlassPanel>
 
-            <MotionDiv className="rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)] sm:p-6" whileHover={{ y: -4 }} transition={{ duration: 0.18 }}>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Revenue Analytics Snapshot</p>
+            <GlassPanel hover>
+              <p className="section-label">Revenue Analytics Snapshot</p>
               <div className="mt-4 rounded-[26px] bg-slate-50 p-4">
                 <div className="flex items-end justify-between gap-3">
                   {[42, 58, 49, 71, 64].map((value, index) => (
                     <MotionDiv
                       key={index}
-                      className="w-full rounded-t-[18px] bg-gradient-to-t from-emerald-500 via-cyan-500 to-sky-500"
+                      className="w-full rounded-t-[18px] bg-gradient-to-t from-emerald-500 via-cyan-500 to-sky-500 shadow-elev-1"
                       initial={{ height: 0 }}
                       animate={{ height: `${value}%` }}
                       transition={{ duration: 0.8, delay: index * 0.06 }}
@@ -343,11 +325,10 @@ const TeacherDashboard: React.FC = () => {
               <p className="mt-4 text-sm leading-7 text-slate-600">
                 Smooth chart motion helps the dashboard feel alive while keeping the signal clear and readable.
               </p>
-            </MotionDiv>
+            </GlassPanel>
           </aside>
         </section>
-      </div>
-    </div>
+    </PageShell>
   );
 };
 

@@ -33,7 +33,29 @@ module.exports = {
         sm: '8px',
         md: '12px',
         lg: '16px',
+        xl: '28px',
+        '2xl': '32px',
         pill: '9999px'
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif']
+      },
+      fontSize: {
+        h1: ['2.5rem', { lineHeight: '1.15', letterSpacing: '-0.02em', fontWeight: '600' }],
+        h2: ['2rem', { lineHeight: '1.2', letterSpacing: '-0.02em', fontWeight: '600' }],
+        h3: ['1.5rem', { lineHeight: '1.25', letterSpacing: '-0.01em', fontWeight: '600' }],
+        'body-lg': ['1.125rem', { lineHeight: '1.7' }],
+        body: ['1rem', { lineHeight: '1.6' }],
+        caption: ['0.875rem', { lineHeight: '1.5' }]
+      },
+      transitionTimingFunction: {
+        standard: 'cubic-bezier(0.4, 0, 0.2, 1)'
+      },
+      transitionDuration: {
+        xs: '80ms',
+        sm: '150ms',
+        md: '320ms',
+        lg: '500ms'
       },
       boxShadow: {
         'elev-1': '0 1px 2px rgba(12,15,23,0.04), 0 1px 3px rgba(12,15,23,0.06)',

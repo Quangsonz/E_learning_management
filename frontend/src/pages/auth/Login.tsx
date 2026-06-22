@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import AuthLayout from '../../components/auth/AuthLayout';
 import AuthField from '../../components/auth/AuthField';
+import { Button } from '../../components/ui';
 
 const Login: React.FC = () => {
   return (
@@ -17,7 +17,7 @@ const Login: React.FC = () => {
       footer={
         <p className="text-center text-sm text-slate-500">
           New here?{' '}
-          <Link className="font-semibold text-sky-600 hover:text-sky-700" to="/register">
+          <Link className="font-semibold text-primary-500 hover:text-primary-700" to="/register">
             Create an account
           </Link>
         </p>
@@ -32,19 +32,14 @@ const Login: React.FC = () => {
             <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
             Remember me
           </label>
-          <Link className="text-sm font-semibold text-sky-600 hover:text-sky-700" to="/forgot-password">
+          <Link className="text-sm font-semibold text-primary-500 hover:text-primary-700" to="/forgot-password">
             Forgot password?
           </Link>
         </div>
 
-        <motion.button
-          type="submit"
-          whileHover={{ y: -1, scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-          className="w-full rounded-2xl bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition focus:outline-none focus:ring-4 focus:ring-sky-200"
-        >
+        <Button type="submit" variant="gradient" fullWidth size="lg">
           Sign in
-        </motion.button>
+        </Button>
 
         <div className="flex items-center gap-4 text-xs uppercase tracking-[0.25em] text-slate-400">
           <span className="h-px flex-1 bg-slate-200" />

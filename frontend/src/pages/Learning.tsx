@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { motion, MotionProps } from 'framer-motion';
+import { Button, LoadingScreen, PageShell, Toast, GlassPanel } from '../components/ui';
+import useSimulatedLoading from '../hooks/useSimulatedLoading';
 
 type Lesson = {
   id: number;
@@ -69,6 +71,7 @@ const Learning: React.FC = () => {
   const [progress, setProgress] = useState(58);
   const [showAchievement, setShowAchievement] = useState(false);
   const [notes, setNotes] = useState(notesSeed.join('\n'));
+  const isLoading = useSimulatedLoading(750);
 
   const selectedLesson = useMemo(() => {
     for (const module of modules) {
@@ -85,18 +88,20 @@ const Learning: React.FC = () => {
     window.setTimeout(() => setShowAchievement(false), 2600);
   };
 
+  if (isLoading) {
+    return (
+      <PageShell>
+        <LoadingScreen title="Loading learning space" message="Preparing lessons, video player, and study resources..." />
+      </PageShell>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),transparent_24%),radial-gradient(circle_at_top_right,_rgba(168,85,247,0.15),transparent_24%),linear-gradient(180deg,#f8fbff_0%,#eef4fb_100%)] text-slate-900">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <MotionDiv
-          className="rounded-[34px] border border-white/70 bg-white/75 p-6 shadow-[0_24px_90px_rgba(15,23,42,0.08)] backdrop-blur-2xl sm:p-8"
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: 'easeOut' }}
-        >
+    <PageShell>
+        <GlassPanel padding="lg" motionProps={{ initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.45, ease: 'easeOut' } }}>
           <div className="flex flex-col gap-4 border-b border-slate-200/70 pb-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Learning Page</p>
+              <p className="section-label">Learning Page</p>
               <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
                 Professional learning space with focus, flow, and momentum.
               </h1>
@@ -126,13 +131,13 @@ const Learning: React.FC = () => {
               animate={{ width: isSidebarCollapsed ? 96 : '100%' }}
               transition={{ duration: 0.25, ease: 'easeOut' }}
             >
-              <div className="rounded-[30px] border border-slate-200 bg-white/85 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
+              <GlassPanel padding="sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Course Content</p>
-                    {!isSidebarCollapsed ? <h2 className="mt-2 text-xl font-semibold text-slate-950">Course Content</h2> : null}
+                    <p className="section-label">Course Content</p>
+                    {!isSidebarCollapsed ? <h2 className="mt-2 text-xl font-semibold text-slate-950">Curriculum</h2> : null}
                   </div>
-                  <div className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Live</div>
+                  <div className="status-badge status-badge-success">Live</div>
                 </div>
 
                 <div className="mt-5 space-y-4">
@@ -145,7 +150,7 @@ const Learning: React.FC = () => {
                               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Module {moduleIndex + 1}</p>
                               <h3 className="mt-2 text-base font-semibold text-slate-950">{module.title}</h3>
                             </div>
-                            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">
+                            <span className="badge !border-slate-300">
                               {module.lessons.length}
                             </span>
                           </div>
@@ -159,8 +164,8 @@ const Learning: React.FC = () => {
                                   key={lesson.id}
                                   type="button"
                                   onClick={() => setSelectedLessonId(lesson.id)}
-                                  className={`flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-3 text-left transition focus:outline-none focus:ring-4 focus:ring-sky-100 ${
-                                    isActive ? 'bg-slate-950 text-white shadow-lg shadow-slate-950/15' : 'bg-white text-slate-700 hover:-translate-y-0.5 hover:bg-slate-100'
+                                  className={`flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-3 text-left transition focus:outline-none focus:ring-4 focus:ring-primary-500/10 ${
+                                    isActive ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/15' : 'bg-white text-slate-700 hover:-translate-y-0.5 hover:bg-slate-100 border border-slate-200'
                                   }`}
                                 >
                                   <div>
@@ -184,43 +189,41 @@ const Learning: React.FC = () => {
                     </div>
                   ))}
                 </div>
-              </div>
+              </GlassPanel>
             </MotionDiv>
 
             <main className="space-y-6">
-              <MotionDiv
-                className="overflow-hidden rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-6"
-                animate={{ y: [0, -4, 0] }}
-                transition={{ duration: 5.5, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
+              <GlassPanel
+                motionProps={{ animate: { y: [0, -4, 0] }, transition: { duration: 5.5, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' } }}
               >
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Video Player</p>
+                    <p className="section-label">Video Player</p>
                     <h2 className="mt-2 text-2xl font-semibold text-slate-950">{selectedLesson.title}</h2>
                     <p className="mt-1 text-sm text-slate-500">Duration: {selectedLesson.duration}</p>
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Lesson Complete</p>
-                    <button
-                      type="button"
+                    <Button
+                      variant="pill"
+                      className="mt-2 !bg-emerald-600 hover:!bg-emerald-500"
                       onClick={completeLesson}
-                      className="mt-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-emerald-500"
                     >
                       Mark complete
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
-                <div className="mt-5 overflow-hidden rounded-[28px] border border-slate-200 bg-slate-950 shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
+                <div className="mt-5 overflow-hidden rounded-[28px] border border-slate-200 bg-slate-950 shadow-elev-2">
                   <motion.div
                     className="relative aspect-video"
                     whileHover={{ scale: 1.01 }}
                     transition={{ duration: 0.2 }}
                   >
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.2),transparent_24%),linear-gradient(135deg,rgba(15,23,42,0.9),rgba(14,165,233,0.45),rgba(168,85,247,0.45))]" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="flex h-24 w-24 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white shadow-[0_16px_40px_rgba(0,0,0,0.2)] backdrop-blur-md">
+                    <div className="absolute inset-0 flex items-center justify-center cursor-pointer">
+                      <div className="flex h-24 w-24 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white shadow-elev-3 backdrop-blur-md transition hover:scale-110">
                         <span className="ml-1 text-3xl">▶</span>
                       </div>
                     </div>
@@ -242,9 +245,9 @@ const Learning: React.FC = () => {
                     <span>Course progress</span>
                     <span className="font-semibold text-slate-900">{progress}%</span>
                   </div>
-                  <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-200">
+                  <div className="progress-track mt-3">
                     <motion.div
-                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-cyan-500 to-indigo-500"
+                      className="progress-fill"
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
                       transition={{ duration: 0.9, ease: [0.4, 0, 0.2, 1] }}
@@ -259,96 +262,78 @@ const Learning: React.FC = () => {
                     { label: 'Achievement level', value: 'Gold' }
                   ].map((item) => (
                     <div key={item.label} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
-                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{item.label}</p>
+                      <p className="section-label">{item.label}</p>
                       <p className="mt-2 text-2xl font-semibold text-slate-950">{item.value}</p>
                     </div>
                   ))}
                 </div>
-              </MotionDiv>
+              </GlassPanel>
 
               <section className="grid gap-6 lg:grid-cols-2">
-                <MotionDiv className="rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)] sm:p-6" whileHover={{ y: -4 }} transition={{ duration: 0.18 }}>
-                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Lesson Complete Effect</p>
-                  <h3 className="mt-2 text-2xl font-semibold text-slate-950">Finish tasks and unlock momentum</h3>
+                <GlassPanel hover>
+                  <p className="section-label">Lesson Complete Effect</p>
+                  <h3 className="mt-2 section-title">Finish tasks and unlock momentum</h3>
                   <p className="mt-3 text-sm leading-7 text-slate-600">
                     Completing a lesson updates progress, gives instant feedback, and keeps learners engaged with a subtle success state.
                   </p>
-                  <button
-                    type="button"
-                    onClick={completeLesson}
-                    className="mt-5 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800"
-                  >
+                  <Button type="button" variant="pill" className="mt-5" onClick={completeLesson}>
                     Complete this lesson
-                  </button>
-                </MotionDiv>
+                  </Button>
+                </GlassPanel>
 
-                <MotionDiv className="rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)] sm:p-6" whileHover={{ y: -4 }} transition={{ duration: 0.18 }}>
-                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Learning Tips</p>
-                  <h3 className="mt-2 text-2xl font-semibold text-slate-950">Keep your flow sharp</h3>
+                <GlassPanel hover>
+                  <p className="section-label">Learning Tips</p>
+                  <h3 className="mt-2 section-title">Keep your flow sharp</h3>
                   <ul className="mt-4 space-y-3 text-sm leading-7 text-slate-600">
                     <li>• Pause, write one note, then continue the lesson.</li>
                     <li>• Use the resources panel to save references.</li>
                     <li>• Mark lessons complete to maintain momentum.</li>
                   </ul>
-                </MotionDiv>
+                </GlassPanel>
               </section>
             </main>
 
             <aside className="space-y-6 xl:sticky xl:top-6 xl:self-start">
-              <MotionDiv className="rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)] sm:p-6" whileHover={{ y: -4 }} transition={{ duration: 0.18 }}>
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Notes</p>
-                <h3 className="mt-2 text-2xl font-semibold text-slate-950">Capture key ideas</h3>
+              <GlassPanel hover>
+                <p className="section-label">Notes</p>
+                <h3 className="mt-2 section-title">Capture key ideas</h3>
                 <textarea
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
-                  className="mt-4 min-h-[240px] w-full rounded-[24px] border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-700 outline-none transition focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100"
+                  className="mt-4 min-h-[240px] w-full rounded-[24px] border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-700 outline-none transition focus:border-primary-400 focus:bg-white focus:ring-4 focus:ring-primary-500/10"
                   aria-label="Learning notes"
                 />
-              </MotionDiv>
+              </GlassPanel>
 
-              <MotionDiv className="rounded-[30px] border border-white/70 bg-white/85 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)] sm:p-6" whileHover={{ y: -4 }} transition={{ duration: 0.18 }}>
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Resources</p>
-                <h3 className="mt-2 text-2xl font-semibold text-slate-950">Keep reference files close</h3>
+              <GlassPanel hover>
+                <p className="section-label">Resources</p>
+                <h3 className="mt-2 section-title">Keep reference files close</h3>
                 <div className="mt-4 space-y-3">
                   {resources.map((resource) => (
-                    <div key={resource.title} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:bg-white">
-                      <div>
-                        <p className="font-semibold text-slate-950">{resource.title}</p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.24em] text-slate-500">{resource.type}</p>
+                    <div key={resource.title} className="card interactive p-4 text-left">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-slate-950">{resource.title}</p>
+                          <p className="mt-1 text-xs uppercase tracking-[0.24em] text-slate-500">{resource.type}</p>
+                        </div>
+                        <span className="badge">Open</span>
                       </div>
-                      <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white">Open</span>
                     </div>
                   ))}
                 </div>
-              </MotionDiv>
+              </GlassPanel>
             </aside>
           </div>
-        </MotionDiv>
-      </div>
+        </GlassPanel>
 
-      <AnimatePresence>
-        {showAchievement ? (
-          <motion.div
-            className="fixed right-4 top-4 z-50 max-w-sm rounded-[28px] border border-emerald-200 bg-white/90 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl"
-            initial={{ opacity: 0, y: -20, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.96 }}
-            transition={{ duration: 0.24 }}
-          >
-            <div className="flex items-start gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-xl text-emerald-700">
-                ★
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-600">Achievement Popup</p>
-                <h4 className="mt-1 text-base font-semibold text-slate-950">Lesson completed</h4>
-                <p className="mt-2 text-sm leading-6 text-slate-600">You just earned a momentum boost. Keep going to unlock the next level.</p>
-              </div>
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </div>
+      <Toast
+        visible={showAchievement}
+        title="Lesson completed"
+        message="You just earned a momentum boost. Keep going to unlock the next level."
+        variant="success"
+        position="top-right"
+      />
+    </PageShell>
   );
 };
 
