@@ -6,13 +6,21 @@ type PageShellProps = {
   children: React.ReactNode;
   className?: string;
   animate?: boolean;
+  wide?: boolean;
 };
 
-export const PageShell: React.FC<PageShellProps> = ({ children, className = '', animate = true }) => {
+export const PageShell: React.FC<PageShellProps> = ({
+  children,
+  className = '',
+  animate = true,
+  wide = false
+}) => {
+  const containerClass = wide ? 'page-container page-container-wide' : 'page-container';
+
   if (!animate) {
     return (
       <div className={`page-shell ${className}`}>
-        <div className="page-container">{children}</div>
+        <div className={containerClass}>{children}</div>
       </div>
     );
   }
@@ -25,7 +33,7 @@ export const PageShell: React.FC<PageShellProps> = ({ children, className = '', 
       animate="animate"
       exit="exit"
     >
-      <div className="page-container">{children}</div>
+      <div className={containerClass}>{children}</div>
     </motion.div>
   );
 };

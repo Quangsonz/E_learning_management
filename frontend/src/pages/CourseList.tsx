@@ -1,7 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Button, EmptyState, PageShell, SkeletonGrid, GlassPanel, Input } from '../components/ui';
+import {
+  Button,
+  CanvasHero,
+  EmptyState,
+  FilterBar,
+  MetricsSurface,
+  PageShell,
+  SectionLead,
+  SkeletonGrid
+} from '../components/ui';
+import { Input } from '../components/ui/Input';
 import useSimulatedLoading from '../hooks/useSimulatedLoading';
 import { floatY } from '../animations/motionVariants';
 
@@ -21,6 +31,13 @@ type Course = {
 };
 
 const categories = ['All', 'Design', 'Development', 'Data', 'Business', 'Marketing'];
+
+const catalogMetrics = [
+  { label: 'Active Learners', value: '24.8k' },
+  { label: 'Available Courses', value: '128' },
+  { label: 'Weekly Completion', value: '86%' },
+  { label: 'Avg. Rating', value: '4.8' }
+];
 
 const popularCourses: Course[] = [
   {
@@ -160,8 +177,8 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
 
   return (
     <MotionDiv
-      className="card interactive group overflow-hidden !p-0"
-      whileHover={{ y: -8, scale: 1.01 }}
+      className="group overflow-hidden rounded-[var(--radius-section)] bg-white/70 backdrop-blur-sm transition duration-300 hover:-translate-y-1 hover:bg-white/90"
+      whileHover={{ y: -4 }}
       transition={{ duration: 0.22, ease: 'easeOut' }}
     >
       <div className="relative">
@@ -171,33 +188,28 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
           alt={course.title}
           loading="lazy"
           onLoad={() => setThumbLoaded(true)}
-          className={`h-52 w-full object-cover transition duration-500 group-hover:scale-105 ${thumbLoaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`h-48 w-full object-cover transition duration-500 group-hover:scale-[1.02] ${thumbLoaded ? 'opacity-100' : 'opacity-0'}`}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent transition duration-300 group-hover:opacity-90" />
-        <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-white/15 px-3 py-2 text-xs font-semibold text-white backdrop-blur-md">
-          <span className={`h-2.5 w-2.5 rounded-full bg-gradient-to-r ${course.accent}`} />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent" />
+        <div className="absolute left-4 top-4 flex items-center gap-2 text-xs font-semibold text-white">
+          <span className={`h-2 w-2 rounded-full bg-gradient-to-r ${course.accent}`} />
           {course.category}
         </div>
         <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3 text-white">
-          <div className="space-y-2">
-            <div className="inline-flex rounded-full bg-white/15 px-3 py-2 text-xs font-semibold backdrop-blur-md">
-              {course.lessons}
-            </div>
-            <div className="rounded-2xl bg-slate-950/40 px-3 py-2 text-xs font-medium backdrop-blur-md">
-              {course.duration}
-            </div>
+          <div className="space-y-1 text-xs font-medium text-white/85">
+            <p>{course.lessons}</p>
+            <p>{course.duration}</p>
           </div>
-          <div className="rounded-2xl bg-white/15 px-4 py-3 text-right backdrop-blur-md">
-            <p className="text-[10px] uppercase tracking-[0.24em] text-white/75">Rating</p>
-            <p className="mt-1 text-lg font-semibold">{course.rating.toFixed(1)} <span className="text-xs text-white/70">({course.ratingCount})</span></p>
-          </div>
+          <p className="text-lg font-semibold tabular-nums">
+            {course.rating.toFixed(1)} <span className="text-xs text-white/70">({course.ratingCount})</span>
+          </p>
         </div>
       </div>
 
       <div className="p-5">
-        <div className="flex items-start gap-3">
-          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
-            {!avatarLoaded ? <div className="absolute inset-0 skeleton skeleton-text" /> : null}
+        <div className="flex items-center gap-3">
+          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-slate-100">
+            {!avatarLoaded ? <div className="absolute inset-0 skeleton skeleton-circle" /> : null}
             <img
               src={makeAvatar(course.teacher[0])}
               alt={course.teacher}
@@ -208,20 +220,18 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-slate-950">{course.teacher}</p>
-            <p className="truncate text-sm text-slate-500">{course.role}</p>
+            <p className="truncate text-xs text-slate-500">{course.role}</p>
           </div>
         </div>
 
-        <h3 className="mt-4 line-clamp-2 text-xl font-semibold tracking-tight text-slate-950">
-          {course.title}
-        </h3>
+        <h3 className="mt-3 line-clamp-2 text-lg font-semibold tracking-tight text-slate-950">{course.title}</h3>
 
-        <div className="mt-5">
+        <div className="mt-4">
           <div className="flex items-center justify-between text-sm text-slate-500">
             <span>Progress</span>
-            <span className="font-semibold text-slate-900">{course.progress}%</span>
+            <span className="font-semibold tabular-nums text-slate-900">{course.progress}%</span>
           </div>
-          <div className="progress-track mt-3">
+          <div className="progress-track mt-2">
             <MotionDiv
               className={`progress-fill bg-gradient-to-r ${course.accent}`}
               initial={{ width: 0 }}
@@ -229,8 +239,7 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
               transition={{ duration: 1.05, ease: [0.4, 0, 0.2, 1] }}
             />
           </div>
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <span className="text-sm text-slate-500">More details available</span>
+          <div className="mt-3 flex items-center justify-end">
             <Link to={`/courses/${course.id}`}>
               <Button variant="pill" size="sm">
                 View detail
@@ -250,7 +259,9 @@ const CourseList: React.FC = () => {
 
   const filteredPopular = useMemo(() => {
     return popularCourses.filter((course) => {
-      const matchesQuery = course.title.toLowerCase().includes(query.toLowerCase()) || course.teacher.toLowerCase().includes(query.toLowerCase());
+      const matchesQuery =
+        course.title.toLowerCase().includes(query.toLowerCase()) ||
+        course.teacher.toLowerCase().includes(query.toLowerCase());
       const matchesCategory = activeCategory === 'All' || course.category === activeCategory;
       return matchesQuery && matchesCategory;
     });
@@ -258,144 +269,128 @@ const CourseList: React.FC = () => {
 
   const filteredTrending = useMemo(() => {
     return trendingCourses.filter((course) => {
-      const matchesQuery = course.title.toLowerCase().includes(query.toLowerCase()) || course.teacher.toLowerCase().includes(query.toLowerCase());
+      const matchesQuery =
+        course.title.toLowerCase().includes(query.toLowerCase()) ||
+        course.teacher.toLowerCase().includes(query.toLowerCase());
       const matchesCategory = activeCategory === 'All' || course.category === activeCategory;
       return matchesQuery && matchesCategory;
     });
   }, [activeCategory, query]);
 
   return (
-    <PageShell>
-        <GlassPanel padding="lg" motionProps={{ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.45, ease: 'easeOut' } }}>
-          <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-            <div className="space-y-6">
-              <div className="badge">Course catalog</div>
-              <div>
-                <p className="text-sm font-medium text-slate-500">Find your next learning path</p>
-                <h1 className="mt-2 max-w-2xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-                  Modern courses with a calm, premium, and motivating browsing experience.
-                </h1>
-              </div>
-              <p className="max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-                Inspired by Coursera structure, Duolingo energy, and Notion clarity. Search by topic, filter by category, and jump into popular or trending learning tracks.
+    <PageShell wide>
+      <CanvasHero
+        badge={<div className="badge">Course catalog</div>}
+        eyebrow="Find your next learning path"
+        title="Modern courses with a calm, premium, and motivating browsing experience."
+        description="Inspired by Coursera structure, Duolingo energy, and Notion clarity. Search by topic, filter by category, and jump into popular or trending learning tracks."
+        glow="cool"
+        aside={
+          <MotionDiv className="mx-auto max-w-[240px] lg:-ml-16" animate={floatY(6, 5.8)}>
+            <div className="relative rounded-[var(--radius-section)] bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 px-6 py-5 text-white shadow-[0_24px_64px_rgba(15,23,42,0.2)]">
+              <p className="section-label !text-white/55">Discover</p>
+              <h2 className="mt-2 text-xl font-semibold tracking-tight">Learn in a space that feels alive.</h2>
+              <p className="mt-3 text-sm leading-relaxed text-white/70">
+                Browse a course library built to feel polished, engaging, and easy to scan.
               </p>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  { label: 'Active learners', value: '24.8k' },
-                  { label: 'Available courses', value: '128' },
-                  { label: 'Weekly completion', value: '86%' }
-                ].map((item) => (
-                  <div key={item.label} className="rounded-3xl border border-white/60 bg-white/80 px-4 py-4 shadow-sm">
-                    <p className="section-label">{item.label}</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-950">{item.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <GlassPanel variant="dark" padding="lg" motionProps={{ animate: floatY(6, 5.8) }}>
-              <p className="section-label !text-white/70">Discover</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight">Learn in a space that feels alive.</h2>
-              <p className="mt-4 text-base leading-7 text-white/80">
-                Browse a course library built to feel polished, engaging, and easy to scan on any screen size.
-              </p>
-              <div className="mt-6 grid grid-cols-2 gap-3">
+              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-xs font-medium text-white/75">
                 {['Smooth transition', 'Hover lift', 'Lazy loading', 'Progress tracking'].map((item) => (
-                  <div key={item} className="rounded-2xl border border-white/12 bg-white/10 px-4 py-4 text-sm font-medium backdrop-blur-md">
+                  <span key={item} className="flex items-center gap-1.5">
+                    <span className="h-1 w-1 rounded-full bg-cyan-400" />
                     {item}
-                  </div>
+                  </span>
                 ))}
               </div>
-            </GlassPanel>
+            </div>
+          </MotionDiv>
+        }
+      />
+
+      <MetricsSurface metrics={catalogMetrics} />
+
+      <FilterBar>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search courses, teachers, or skills"
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            }
+            onClear={() => setQuery('')}
+            className="flex-1"
+          />
+
+          <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:justify-end">
+            {categories.map((category) => {
+              const isActive = activeCategory === category;
+              return (
+                <Button
+                  key={category}
+                  type="button"
+                  variant={isActive ? 'pill' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveCategory(category)}
+                  className={`whitespace-nowrap ${!isActive ? '!rounded-full' : ''}`}
+                >
+                  {category}
+                </Button>
+              );
+            })}
           </div>
-        </GlassPanel>
+        </div>
+      </FilterBar>
 
-        <GlassPanel padding="sm" className="mt-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <Input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search courses, teachers, or skills"
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              }
-              onClear={() => setQuery('')}
-              className="flex-1"
-            />
+      <section className="mt-10 space-y-6">
+        <SectionLead
+          label="Popular Courses"
+          title="Most loved by learners"
+          meta={<p className="text-sm tabular-nums text-slate-400">{filteredPopular.length} results</p>}
+        />
 
-            <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:justify-end">
-              {categories.map((category) => {
-                const isActive = activeCategory === category;
-                return (
-                  <Button
-                    key={category}
-                    type="button"
-                    variant={isActive ? 'pill' : 'outline'}
-                    size="sm"
-                    onClick={() => setActiveCategory(category)}
-                    className={`whitespace-nowrap ${!isActive ? '!rounded-full' : ''}`}
-                  >
-                    {category}
-                  </Button>
-                );
-              })}
-            </div>
+        {isLoading ? (
+          <SkeletonGrid count={3} />
+        ) : filteredPopular.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {filteredPopular.map((course) => (
+              <CourseCard key={course.id} course={course} />
+            ))}
           </div>
-        </GlassPanel>
+        ) : (
+          <EmptyState
+            title="No popular courses found"
+            message="Try a different keyword or category. Popular courses will appear here when your filters match available content."
+          />
+        )}
+      </section>
 
-        <section className="mt-8 space-y-6">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <p className="section-label">Popular Courses</p>
-              <h2 className="mt-2 section-title">Most loved by learners</h2>
-            </div>
-            <p className="text-sm text-slate-500">{filteredPopular.length} results</p>
+      <section className="mt-12 space-y-6">
+        <SectionLead label="Trending Courses" title="What is hot right now" meta={<p className="text-sm text-slate-400">Updated today</p>} />
+
+        {isLoading ? (
+          <SkeletonGrid count={3} />
+        ) : filteredTrending.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {filteredTrending.map((course) => (
+              <CourseCard key={course.id} course={course} />
+            ))}
           </div>
-
-          {isLoading ? (
-            <SkeletonGrid count={3} />
-          ) : filteredPopular.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {filteredPopular.map((course) => (
-                <CourseCard key={course.id} course={course} />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              title="No popular courses found"
-              message="Try a different keyword or category. Popular courses will appear here when your filters match available content."
-            />
-          )}
-        </section>
-
-        <section className="mt-10 space-y-6">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <p className="section-label">Trending Courses</p>
-              <h2 className="mt-2 section-title">What is hot right now</h2>
-            </div>
-            <p className="text-sm text-slate-500">Updated today</p>
-          </div>
-
-          {isLoading ? (
-            <SkeletonGrid count={3} />
-          ) : filteredTrending.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {filteredTrending.map((course) => (
-                <CourseCard key={course.id} course={course} />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              title="No trending courses found"
-              message="Trending content is hidden by the current filters. Adjust the search or category to reveal matching courses."
-            />
-          )}
-        </section>
+        ) : (
+          <EmptyState
+            title="No trending courses found"
+            message="Trending content is hidden by the current filters. Adjust the search or category to reveal matching courses."
+          />
+        )}
+      </section>
     </PageShell>
   );
 };

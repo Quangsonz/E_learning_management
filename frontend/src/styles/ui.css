@@ -18,6 +18,29 @@
     padding: clamp(var(--space-4), 3vw, var(--space-6)) clamp(var(--space-4), 4vw, var(--space-8));
   }
 
+  .page-container-wide {
+    max-width: clamp(100rem, 94vw, 112.5rem);
+    padding-inline: clamp(var(--space-4), 2.5vw, var(--space-6));
+  }
+
+  /* ── Canvas Layout ───────────────────────────────────── */
+  .canvas-surface {
+    border-radius: var(--radius-section);
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .canvas-divide > * + * {
+    border-top: 1px solid rgba(148, 163, 184, 0.25);
+  }
+
+  .canvas-chart-area {
+    border-radius: var(--radius-2xl);
+    background: rgba(248, 250, 252, 0.65);
+    padding: var(--space-4);
+  }
+
   @media (min-width: 1024px) {
     .page-container {
       padding-block: var(--space-6);

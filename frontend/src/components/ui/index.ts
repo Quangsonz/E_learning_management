@@ -1,3 +1,15 @@
+export {
+  AmbientGlow,
+  ActivityStream,
+  CanvasHero,
+  ChartBlock,
+  FilterBar,
+  InsightCallout,
+  LiveIndicator,
+  MetricsSurface,
+  SectionLead
+} from './CanvasPrimitives';
+export type { ActivityItem, MetricItem } from './CanvasPrimitives';
 export { Button } from './Button';
 export { Card } from './Card';
 export { Modal } from './Modal';
