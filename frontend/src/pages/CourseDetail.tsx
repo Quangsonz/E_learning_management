@@ -94,7 +94,7 @@ const CourseDetail: React.FC = () => {
 
   return (
     <PageShell>
-        <GlassPanel padding="lg" motionProps={{ initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.45, ease: 'easeOut' } }}>
+        <GlassPanel padding="lg">
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div className="space-y-6">
               <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
@@ -163,8 +163,9 @@ const CourseDetail: React.FC = () => {
 
                 <MotionDiv
                   className="group relative mt-5 overflow-hidden rounded-[var(--radius-panel)] border border-slate-200 bg-slate-950 shadow-elev-2 cursor-pointer"
+                  layoutId="course-hero-video"
                   whileHover={{ scale: 1.01 }}
-                  transition={{ duration: 0.2 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 >
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.18),transparent_25%),linear-gradient(135deg,rgba(15,23,42,0.55),rgba(59,130,246,0.35),rgba(168,85,247,0.35))]" />
                   <div className="relative aspect-video overflow-hidden">
@@ -231,7 +232,7 @@ const CourseDetail: React.FC = () => {
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.24, ease: 'easeOut' }}
+                            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                             className="overflow-hidden border-t border-slate-200 bg-white px-5 py-4 text-sm leading-7 text-slate-600"
                           >
                             This module focuses on hands-on learning, visual clarity, and premium pacing that helps students stay engaged from start to finish.
@@ -317,7 +318,7 @@ const CourseDetail: React.FC = () => {
                               initial={{ height: 0, opacity: 0 }}
                               animate={{ height: 'auto', opacity: 1 }}
                               exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.24, ease: 'easeOut' }}
+                              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                               className="overflow-hidden border-t border-slate-200 bg-white px-5 py-4 text-sm leading-7 text-slate-600"
                             >
                               {item.answer}

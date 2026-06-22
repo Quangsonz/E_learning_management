@@ -204,7 +204,7 @@ const Home: React.FC = () => {
                               className="progress-fill"
                               initial={{ width: 0 }}
                               animate={{ width: `${course.progress}%` }}
-                              transition={{ duration: 1.1, delay: index * 0.15 }}
+                              transition={{ type: 'spring', stiffness: 200, damping: 25, delay: index * 0.15 }}
                             />
                           </div>
                           <div className="mt-3 flex items-center justify-between text-sm text-slate-600">

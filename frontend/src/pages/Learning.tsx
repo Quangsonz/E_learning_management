@@ -98,7 +98,7 @@ const Learning: React.FC = () => {
 
   return (
     <PageShell>
-        <GlassPanel padding="lg" motionProps={{ initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.45, ease: 'easeOut' } }}>
+        <GlassPanel padding="lg">
           <div className="flex flex-col gap-4 border-b border-slate-200/70 pb-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="section-label">Learning Page</p>
@@ -129,7 +129,7 @@ const Learning: React.FC = () => {
             <MotionDiv
               className={`xl:sticky xl:top-6 xl:self-start ${isSidebarCollapsed ? 'hidden xl:block xl:w-24' : ''}`}
               animate={{ width: isSidebarCollapsed ? 96 : '100%' }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
             >
               <GlassPanel padding="sm">
                 <div className="flex items-center justify-between gap-3">
@@ -193,9 +193,7 @@ const Learning: React.FC = () => {
             </MotionDiv>
 
             <main className="space-y-6">
-              <GlassPanel
-                motionProps={{ animate: { y: [0, -4, 0] }, transition: { duration: 5.5, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' } }}
-              >
+              <GlassPanel>
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <p className="section-label">Video Player</p>
@@ -218,8 +216,9 @@ const Learning: React.FC = () => {
                 <div className="mt-5 overflow-hidden rounded-[28px] border border-slate-200 bg-slate-950 shadow-elev-2">
                   <motion.div
                     className="relative aspect-video"
+                    layoutId="course-hero-video"
                     whileHover={{ scale: 1.01 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   >
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.2),transparent_24%),linear-gradient(135deg,rgba(15,23,42,0.9),rgba(14,165,233,0.45),rgba(168,85,247,0.45))]" />
                     <div className="absolute inset-0 flex items-center justify-center cursor-pointer">
@@ -250,7 +249,7 @@ const Learning: React.FC = () => {
                       className="progress-fill"
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.9, ease: [0.4, 0, 0.2, 1] }}
+                      transition={{ type: 'spring', stiffness: 200, damping: 25 }}
                     />
                   </div>
                 </div>

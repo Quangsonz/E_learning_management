@@ -15,19 +15,12 @@
   .page-container {
     margin-inline: auto;
     max-width: 82rem;
-    padding: var(--space-5) var(--space-4);
-  }
-
-  @media (min-width: 640px) {
-    .page-container {
-      padding-inline: var(--space-6);
-    }
+    padding: clamp(var(--space-4), 3vw, var(--space-6)) clamp(var(--space-4), 4vw, var(--space-8));
   }
 
   @media (min-width: 1024px) {
     .page-container {
-      padding-block: var(--space-8);
-      padding-inline: var(--space-8);
+      padding-block: var(--space-6);
     }
   }
 
@@ -275,14 +268,14 @@
     color: var(--color-success-600);
   }
 
-  /* ── Focus Ring ─────────────────────────────────────────── */
   .focus-ring {
     outline: none;
   }
 
   .focus-ring:focus-visible {
     outline: 2px solid var(--color-primary-500);
-    outline-offset: 2px;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
     border-radius: var(--radius-sm);
   }
 
