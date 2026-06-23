@@ -151,10 +151,12 @@ const Quiz: React.FC = () => {
         }
         aside={
           <div className="flex items-baseline gap-6 lg:flex-col lg:items-end lg:gap-1.5">
-            <span className="text-sm font-medium text-slate-500">Countdown</span>
+            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Countdown</span>
             <span
-              className={`text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl ${
-                timerWarning ? 'text-amber-600' : 'text-slate-950'
+              className={`inline-block rounded-xl px-3 py-1 text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl transition-all duration-300 ${
+                timerWarning
+                  ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200'
+                  : 'text-slate-950 dark:text-white'
               } ${pulse ? 'animate-pulse' : ''}`}
             >
               {formatTime(timeLeft)}
@@ -165,6 +167,7 @@ const Quiz: React.FC = () => {
 
       <div className="mt-6 space-y-3">
         <SectionLead
+          size="md"
           label="Progress"
           title={`Question ${currentIndex + 1} of ${questions.length}`}
           meta={
@@ -195,7 +198,7 @@ const Quiz: React.FC = () => {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p className="section-label">Question {currentIndex + 1}</p>
-                    <h3 className="mt-1.5 text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">
+                    <h3 className="mt-1.5 text-xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-2xl">
                       {currentQuestion.prompt}
                     </h3>
                   </div>
@@ -213,16 +216,16 @@ const Quiz: React.FC = () => {
                         onClick={() => selectAnswer(optionIndex)}
                         className={`flex items-center justify-between gap-4 rounded-2xl border px-5 py-4 text-left transition focus:outline-none focus:ring-4 focus:ring-primary-500/10 ${
                           isSelected
-                            ? 'border-primary-300/70 bg-primary-50/70'
-                            : 'border-slate-200/50 bg-transparent hover:bg-slate-50/80 hover:border-slate-200/80'
+                            ? 'border-primary-300/70 bg-primary-50/70 dark:bg-primary-900/50 dark:border-primary-700/50'
+                            : 'border-slate-200/50 bg-transparent hover:bg-slate-50/80 dark:hover:bg-slate-800/50 hover:border-slate-200/80 dark:hover:border-slate-700/50'
                         }`}
                       >
-                        <span className="text-sm font-medium text-slate-800">{option}</span>
+                        <span className={`text-sm font-medium ${isSelected ? 'font-semibold text-indigo-900 dark:text-indigo-200' : 'text-slate-800 dark:text-slate-200'}`}>{option}</span>
                         <span
                           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition ${
                             isSelected
                               ? 'bg-primary-600 text-white'
-                              : 'border border-slate-200/60 bg-white/80 text-slate-500'
+                              : 'border border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                           }`}
                         >
                           {String.fromCharCode(65 + optionIndex)}
@@ -257,12 +260,12 @@ const Quiz: React.FC = () => {
 
           <div className="space-y-4 border-t border-slate-200/60 pt-6">
             <div>
-              <p className="text-sm font-semibold text-slate-800">Stay calm and manage time</p>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Stay calm and manage time</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                 Submitting triggers a polished completion state and score reveal that feels like a real platform.
               </p>
             </div>
-            <ul className="space-y-1.5 text-sm leading-relaxed text-slate-500">
+            <ul className="space-y-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
               <li>Check the navigator before leaving a question.</li>
               <li>Watch the timer when it turns amber.</li>
               <li>Review marked answers before submitting.</li>
@@ -271,8 +274,8 @@ const Quiz: React.FC = () => {
         </main>
 
         <aside className="xl:sticky xl:top-6 xl:self-start">
-          <SectionLead label="Question Navigator" title="Jump between questions" />
-          <div className="mt-4 grid grid-cols-4 gap-2.5 sm:grid-cols-5 xl:grid-cols-2">
+          <SectionLead size="md" label="Question Navigator" title="Jump between questions" />
+          <div className="mt-4 grid grid-cols-4 gap-2.5 sm:grid-cols-5 xl:grid-cols-3">
             {questions.map((question, index) => {
               const isActive = index === currentIndex;
               const isAnswered = Boolean(answers[question.id] !== undefined);
@@ -286,8 +289,8 @@ const Quiz: React.FC = () => {
                     isActive
                       ? 'border-primary-500 bg-primary-500 text-white shadow-md shadow-primary-500/15'
                       : isAnswered
-                        ? 'border-emerald-200/70 bg-emerald-50/60 text-emerald-700'
-                        : 'border-slate-200/50 bg-transparent text-slate-600 hover:bg-slate-50/80 hover:border-slate-200/80'
+                        ? 'border-emerald-200/70 dark:border-emerald-700/50 bg-emerald-50/60 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                        : 'border-slate-200/50 bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 hover:border-slate-200/80 dark:hover:border-slate-700/50'
                   }`}
                 >
                   {index + 1}
@@ -295,7 +298,7 @@ const Quiz: React.FC = () => {
               );
             })}
           </div>
-          <p className="mt-4 text-sm leading-relaxed text-slate-500">
+          <p className="mt-4 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
             {completedQuestions} / {questions.length} answered. Use the navigator to review any question before
             submitting.
           </p>
@@ -308,8 +311,8 @@ const Quiz: React.FC = () => {
             ✓
           </div>
           <p className="mt-4 section-label !text-emerald-600">Achievement Popup</p>
-          <h2 className="mt-2 text-3xl font-semibold text-slate-950">Quiz submitted</h2>
-          <p className="mt-3 text-sm leading-7 text-slate-600">
+          <h2 className="mt-2 text-3xl font-semibold text-slate-950 dark:text-white">Quiz submitted</h2>
+          <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
             Your answers are recorded and the result is being revealed with a smooth score animation.
           </p>
         </div>
@@ -319,18 +322,18 @@ const Quiz: React.FC = () => {
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="section-label">Result Modal</p>
-            <h2 className="mt-2 text-3xl font-semibold text-slate-950">Quiz completed</h2>
+            <h2 className="mt-2 text-3xl font-semibold text-slate-950 dark:text-white">Quiz completed</h2>
           </div>
           <div className="text-right">
-            <p className="text-sm font-medium text-slate-500">Answered</p>
-            <p className="mt-0.5 text-xl font-semibold tabular-nums text-slate-950">
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Answered</p>
+            <p className="mt-0.5 text-xl font-semibold tabular-nums text-slate-950 dark:text-white">
               {completedQuestions}/{questions.length}
             </p>
           </div>
         </div>
 
         <div className="mt-6 text-center">
-          <p className="text-sm font-medium text-slate-500">Score</p>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Score</p>
           <motion.div
             initial={{ scale: 0.7, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -339,7 +342,7 @@ const Quiz: React.FC = () => {
           >
             {score}
           </motion.div>
-          <p className="mt-1 text-sm text-slate-500">out of {questions.length} correct answers</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">out of {questions.length} correct answers</p>
         </div>
 
         <MetricsSurface metrics={resultMetrics} className="!mt-5 sm:!px-5" delay={0.25} />

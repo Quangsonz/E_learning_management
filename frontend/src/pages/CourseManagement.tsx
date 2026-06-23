@@ -13,12 +13,13 @@ import {
   Toast
 } from '../components/ui';
 import { Input } from '../components/ui/Input';
-import useSimulatedLoading from '../hooks/useSimulatedLoading';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { courseApi } from '../services/course.api';
 
-type CourseStatus = 'Draft' | 'In Review' | 'Published';
+type CourseStatus = 'draft' | 'published';
 
 type Course = {
-  id: number;
+  id: string;
   title: string;
   category: string;
   lessons: number;
@@ -41,33 +42,42 @@ const MotionTr = motion.tr as unknown as React.FC<
   React.PropsWithChildren<React.HTMLAttributes<HTMLTableRowElement> & MotionProps>
 >;
 
-const seedCourses: Course[] = [
-  { id: 1, title: 'Product Design Masterclass', category: 'Design', lessons: 12, price: 49, students: 1240, status: 'Published', updatedAt: '2h ago' },
-  { id: 2, title: 'React System Architecture', category: 'Development', lessons: 16, price: 59, students: 980, status: 'In Review', updatedAt: '6h ago' },
-  { id: 3, title: 'Learning Analytics Strategy', category: 'Data', lessons: 9, price: 39, students: 710, status: 'Draft', updatedAt: '1d ago' },
-  { id: 4, title: 'Growth Marketing Sprint', category: 'Marketing', lessons: 11, price: 45, students: 540, status: 'Published', updatedAt: '3d ago' }
-];
-
 const emptyForm: CourseFormState = {
   title: '',
-  category: 'Design',
+  category: '',
   lessons: '8',
   price: '49',
   students: '0',
-  status: 'Draft'
+  status: 'draft'
 };
 
-const statusTone: Record<CourseStatus, string> = {
-  Draft: 'status-badge-neutral',
-  'In Review': 'status-badge-warning',
-  Published: 'status-badge-success'
+const statusTone: Record<string, string> = {
+  draft: 'status-badge-neutral',
+  published: 'status-badge-success'
 };
 
-const stepList = ['Draft', 'Review', 'Publish'];
+const stepList = ['Draft', 'Publish'];
 
 const CourseManagement: React.FC = () => {
-  const [courses, setCourses] = useState<Course[]>(seedCourses);
-  const isLoading = useSimulatedLoading(850);
+  const queryClient = useQueryClient();
+  const { data: responseData, isLoading } = useQuery({
+    queryKey: ['admin-courses'],
+    queryFn: () => courseApi.getAllCourses()
+  });
+
+  const courses: Course[] = useMemo(() => {
+    if (!responseData?.data?.courses) return [];
+    return responseData.data.courses.map((course: any) => ({
+      id: course._id,
+      title: course.title,
+      category: course.category?.name || 'Uncategorized',
+      lessons: 0,
+      price: course.price,
+      students: 0,
+      status: course.status,
+      updatedAt: new Date(course.updatedAt).toLocaleDateString()
+    }));
+  }, [responseData]);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [createOpen, setCreateOpen] = useState(false);
@@ -90,9 +100,9 @@ const CourseManagement: React.FC = () => {
   }, [courses, search, selectedCategory]);
 
   const summary = useMemo(() => {
-    const published = courses.filter((course) => course.status === 'Published').length;
-    const review = courses.filter((course) => course.status === 'In Review').length;
-    const draft = courses.filter((course) => course.status === 'Draft').length;
+    const published = courses.filter((course) => course.status === 'published').length;
+    const review = 0;
+    const draft = courses.filter((course) => course.status === 'draft').length;
     const revenue = courses.reduce((sum, course) => sum + course.price * course.students, 0);
     return { published, review, draft, revenue };
   }, [courses]);
@@ -124,51 +134,55 @@ const CourseManagement: React.FC = () => {
     setEditOpen(true);
   };
 
+  const createMutation = useMutation({
+    mutationFn: (data: any) => courseApi.createCourse(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
+      setToast('Course created successfully.');
+      setCreateOpen(false);
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => courseApi.updateCourse(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
+      setToast('Course updated successfully.');
+      setEditOpen(false);
+      setEditingCourse(null);
+    }
+  });
+
   const saveCourse = () => {
-    const nextCourse: Course = {
-      id: editingCourse?.id ?? Date.now(),
+    const payload = {
       title: form.title,
-      category: form.category,
-      lessons: Number(form.lessons),
+      category: form.category || undefined, // Real app needs category ID, we'll let API handle or fail
+      description: 'Default description',
       price: Number(form.price),
-      students: Number(form.students),
       status: form.status,
-      updatedAt: 'just now'
     };
 
-    setCourses((current) => {
-      if (editingCourse) {
-        return current.map((course) => (course.id === editingCourse.id ? nextCourse : course));
-      }
-      return [nextCourse, ...current];
-    });
-
-    setCreateOpen(false);
-    setEditOpen(false);
-    setEditingCourse(null);
-    setToast(editingCourse ? 'Course updated successfully.' : 'Course created successfully.');
+    if (editingCourse) {
+      updateMutation.mutate({ id: editingCourse.id, data: payload });
+    } else {
+      createMutation.mutate(payload);
+    }
   };
 
   const openPublish = (course: Course) => {
     setPublishingCourse(course);
-    setWorkflowStep(course.status === 'Draft' ? 0 : course.status === 'In Review' ? 1 : 2);
+    setWorkflowStep(course.status === 'draft' ? 0 : 1);
     setPublishOpen(true);
   };
 
   const advancePublish = () => {
-    setWorkflowStep((current) => Math.min(current + 1, 2));
+    setWorkflowStep((current) => Math.min(current + 1, 1));
   };
 
   const confirmPublish = () => {
     if (!publishingCourse) return;
-
-    setCourses((current) =>
-      current.map((course) =>
-        course.id === publishingCourse.id ? { ...course, status: 'Published', updatedAt: 'just now' } : course
-      )
-    );
+    updateMutation.mutate({ id: publishingCourse.id, data: { status: 'published' } });
     setPublishOpen(false);
-    setToast('Publish workflow completed successfully.');
   };
 
   return (
@@ -221,7 +235,7 @@ const CourseManagement: React.FC = () => {
                   type="button"
                   onClick={() => setSelectedCategory(category)}
                   className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition duration-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 ${
-                    isActive ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100'
+                    isActive ? 'bg-slate-950 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800/50'
                   }`}
                 >
                   {category}
@@ -247,7 +261,7 @@ const CourseManagement: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="min-w-full">
                   <thead>
-                    <tr className="border-b border-slate-200/60 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    <tr className="border-b border-slate-200/60 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                       <th className="px-5 py-4">Course</th>
                       <th className="px-5 py-4">Category</th>
                       <th className="px-5 py-4">Lessons</th>
@@ -268,10 +282,10 @@ const CourseManagement: React.FC = () => {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
                           transition={{ duration: 0.24, delay: index * 0.03 }}
-                          className="text-sm text-slate-700 transition duration-sm hover:bg-white/50"
+                          className="text-sm text-slate-700 dark:text-slate-200 transition duration-sm hover:bg-white/50 dark:bg-slate-800/50"
                         >
                           <td className="px-5 py-4">
-                            <div className="font-semibold text-slate-950">{course.title}</div>
+                            <div className="font-semibold text-slate-950 dark:text-white">{course.title}</div>
                           </td>
                           <td className="px-5 py-4">{course.category}</td>
                           <td className="px-5 py-4">{course.lessons}</td>
@@ -285,7 +299,7 @@ const CourseManagement: React.FC = () => {
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 type="button"
-                                className="rounded-full px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                                className="rounded-full px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-100 dark:bg-slate-800/50"
                                 onClick={() => openEdit(course)}
                               >
                                 Edit
@@ -352,7 +366,7 @@ const CourseManagement: React.FC = () => {
           <div>
             <p className="section-label">Publish Workflow</p>
             <h2 className="mt-2 section-title">{publishingCourse?.title}</h2>
-            <p className="mt-2 text-sm text-slate-500">Move the course through Draft → Review → Publish.</p>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Move the course through Draft → Review → Publish.</p>
           </div>
 
           <div className="flex gap-3">
@@ -362,7 +376,7 @@ const CourseManagement: React.FC = () => {
                 <div
                   key={step}
                   className={`flex-1 rounded-2xl px-4 py-3 text-center text-sm font-semibold transition ${
-                    isActive ? 'bg-primary-500 text-white' : 'bg-slate-100 text-slate-600'
+                    isActive ? 'bg-primary-500 text-white' : 'bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300'
                   }`}
                 >
                   {step}
@@ -371,17 +385,16 @@ const CourseManagement: React.FC = () => {
             })}
           </div>
 
-          <p className="text-sm leading-7 text-slate-600">
-            {workflowStep === 0 && 'Review the course draft, confirm the content structure, and send it to review.'}
-            {workflowStep === 1 && 'The course is in review. Check quality, verify assets, and prepare for publication.'}
-            {workflowStep === 2 && 'The course is ready to publish. Confirm to make it visible to students.'}
+          <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
+            {workflowStep === 0 && 'Review the course draft, confirm the content structure, and prepare for publication.'}
+            {workflowStep === 1 && 'The course is ready to publish. Confirm to make it visible to students.'}
           </p>
 
           <div className="mt-2 flex flex-wrap justify-end gap-3">
             <Button variant="ghost" onClick={() => setPublishOpen(false)}>
               Cancel
             </Button>
-            {workflowStep < 2 ? (
+            {workflowStep < 1 ? (
               <Button onClick={advancePublish}>Next step</Button>
             ) : (
               <Button onClick={confirmPublish}>Publish now</Button>
@@ -411,15 +424,14 @@ const CourseForm: React.FC<{
       <Field label="Price" value={form.price} onChange={(value) => update('price', value)} type="number" />
       <Field label="Students" value={form.students} onChange={(value) => update('students', value)} type="number" />
       <label className="block space-y-2">
-        <span className="text-sm font-semibold text-slate-700">Status</span>
+        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Status</span>
         <select
           value={form.status}
           onChange={(event) => update('status', event.target.value as CourseStatus)}
-          className="h-[46px] w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 outline-none transition duration-sm ease-standard focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
+          className="h-[46px] w-full rounded-2xl border border-slate-200 bg-white dark:bg-slate-900/50 px-4 text-sm font-medium text-slate-900 dark:text-white outline-none transition duration-sm ease-standard focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
         >
-          <option>Draft</option>
-          <option>In Review</option>
-          <option>Published</option>
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
         </select>
       </label>
     </div>
@@ -434,7 +446,7 @@ const Field: React.FC<{
   placeholder?: string;
 }> = ({ label, value, onChange, type = 'text', placeholder }) => (
   <label className="block space-y-2">
-    <span className="text-sm font-semibold text-slate-700">{label}</span>
+    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
     <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
   </label>
 );

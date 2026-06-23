@@ -164,12 +164,12 @@ const AdminDashboard: React.FC = () => {
                   return (
                     <div key={point.label} className="flex flex-1 flex-col items-center gap-2">
                       <MotionDiv
-                        className="w-full max-w-[42px] rounded-t-[20px] bg-gradient-to-t from-sky-500 via-indigo-500 to-violet-500"
+                        className="w-full max-w-[42px] rounded-t-[20px] chart-bar-growth"
                         initial={{ height: 0 }}
                         animate={{ height }}
                         transition={{ duration: 0.8, delay: index * 0.05 }}
                       />
-                      <span className="text-xs font-medium text-slate-500">{point.label}</span>
+                      <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{point.label}</span>
                     </div>
                   );
                 })}
@@ -186,12 +186,12 @@ const AdminDashboard: React.FC = () => {
                     return (
                       <div key={point.label} className="flex flex-1 flex-col items-center gap-2">
                         <MotionDiv
-                          className="w-full rounded-t-[22px] bg-gradient-to-t from-emerald-500 to-cyan-400"
+                          className="w-full rounded-t-[22px] chart-bar-success"
                           initial={{ height: 0 }}
                           animate={{ height }}
                           transition={{ duration: 0.85, delay: index * 0.06 }}
                         />
-                        <span className="text-xs font-medium text-slate-500">{point.label}</span>
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{point.label}</span>
                       </div>
                     );
                   })}
@@ -204,22 +204,19 @@ const AdminDashboard: React.FC = () => {
                 {health.map((item, index) => (
                   <div key={item.label} className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-slate-600">{item.label}</span>
-                      <span className="font-semibold tabular-nums text-slate-950">
+                      <span className="font-medium text-slate-600 dark:text-slate-300">{item.label}</span>
+                      <span className="font-semibold tabular-nums text-slate-950 dark:text-white">
                         {item.value}
                         {item.label === 'Error rate' ? '%' : '%'}
                       </span>
                     </div>
                     <div className="progress-track">
                       <MotionDiv
-                        className={`progress-fill bg-gradient-to-r ${
-                          item.tone === 'emerald'
-                            ? 'from-emerald-500 to-cyan-400'
-                            : item.tone === 'sky'
-                              ? 'from-sky-500 to-indigo-500'
-                              : item.tone === 'violet'
-                                ? 'from-violet-500 to-fuchsia-500'
-                                : 'from-amber-500 to-orange-500'
+                        className={`progress-fill ${
+                          item.tone === 'emerald' ? 'chart-bar-success'
+                          : item.tone === 'sky'    ? 'chart-bar-growth'
+                          : item.tone === 'violet' ? 'chart-bar-growth'
+                          : 'chart-bar-caution'
                         }`}
                         initial={{ width: 0 }}
                         animate={{ width: `${item.value}%` }}
@@ -233,7 +230,7 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           <div>
-            <SectionLead label="Revenue by product line" title="Revenue Analytics" />
+            <SectionLead label="Revenue by product line" title="Revenue Analytics" size="md" />
             <div className="mt-5 grid gap-y-4 sm:grid-cols-3 sm:gap-x-8">
               {[
                 { label: 'Enterprise', value: '$58.4k', tone: 'from-sky-500 to-indigo-500' },
@@ -247,8 +244,8 @@ const AdminDashboard: React.FC = () => {
                   transition={{ duration: 0.3, delay: index * 0.06 }}
                 >
                   <div className="flex items-baseline justify-between gap-4 sm:flex-col sm:items-start">
-                    <span className="text-sm font-medium text-slate-500">{item.label}</span>
-                    <span className="text-xl font-semibold tabular-nums text-slate-950">{item.value}</span>
+                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{item.label}</span>
+                    <span className="text-xl font-semibold tabular-nums text-slate-950 dark:text-white">{item.value}</span>
                   </div>
                   <div className={`mt-3 h-1 rounded-full bg-gradient-to-r ${item.tone}`} />
                 </MotionDiv>
@@ -259,15 +256,15 @@ const AdminDashboard: React.FC = () => {
 
         <aside className="space-y-8 xl:pt-1">
           <div>
-            <SectionLead label="Realtime Update" title="Platform pulse" meta={<LiveIndicator />} />
-            <div className="mt-4 space-y-2 text-sm leading-relaxed text-slate-600">
+            <SectionLead label="Realtime Update" title="Platform pulse" meta={<LiveIndicator color="emerald" />} size="md" />
+            <div className="mt-4 space-y-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
               <p>126 new users joined in the last 24 hours.</p>
               <p>18 course updates were processed today.</p>
               <p>4 revenue spikes detected from enterprise plans.</p>
             </div>
           </div>
 
-          <GlassPanel variant="dark" padding="lg" motionProps={{ animate: floatY(6, 5.5) }}>
+          <GlassPanel variant="dark" padding="lg">
             <p className="section-label !text-white/55">System Health</p>
             <h3 className="mt-2 text-xl font-semibold tracking-tight">Infrastructure stable</h3>
             <div className="mt-5 space-y-3">

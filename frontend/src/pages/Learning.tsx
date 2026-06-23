@@ -116,7 +116,7 @@ const Learning: React.FC = () => {
   return (
     <PageShell wide>
       <CanvasHero
-        eyebrow="Learning Page"
+        eyebrow="Your Learning Space"
         title="Professional learning space with focus, flow, and momentum."
         description="A structured study interface with course content, lesson tree, video player, notes, resources, and achievement feedback to optimize learning."
         glow="cool"
@@ -141,7 +141,7 @@ const Learning: React.FC = () => {
             <div className="relative text-right">
               <p className="section-label">Progress</p>
               <motion.p
-                className="mt-1 text-4xl font-semibold tabular-nums tracking-tight text-slate-950"
+                className="mt-1 text-4xl font-semibold tabular-nums tracking-tight text-slate-950 dark:text-white"
                 key={progress}
                 initial={{ opacity: 0.6, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -163,6 +163,7 @@ const Learning: React.FC = () => {
           <SectionLead
             label="Course Content"
             title="Curriculum"
+            size="md"
             meta={
               <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">
                 <LiveIndicator />
@@ -171,17 +172,17 @@ const Learning: React.FC = () => {
             }
           />
 
-          <div className="mt-5 divide-y divide-slate-200/70">
+          <div className="mt-5">
             {modules.map((module, moduleIndex) => (
               <div key={module.id} className="py-5 first:pt-0">
                 {!isSidebarCollapsed ? (
                   <>
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
                           Module {moduleIndex + 1}
                         </p>
-                        <h3 className="mt-1.5 text-base font-semibold text-slate-950">{module.title}</h3>
+                        <h3 className="mt-1.5 text-base font-semibold text-slate-950 dark:text-white">{module.title}</h3>
                       </div>
                       <span className="badge !border-slate-300">{module.lessons.length}</span>
                     </div>
@@ -195,15 +196,15 @@ const Learning: React.FC = () => {
                             key={lesson.id}
                             type="button"
                             onClick={() => setSelectedLessonId(lesson.id)}
-                            className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition focus:outline-none focus:ring-4 focus:ring-primary-500/10 ${
+                            className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left transition focus:outline-none focus:ring-4 focus:ring-indigo-500/10 ${
                               isActive
-                                ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/15'
-                                : 'text-slate-700 hover:bg-slate-50/80'
+                                ? 'border-indigo-200 bg-indigo-50 dark:bg-indigo-900/30 dark:border-indigo-700/50 text-indigo-800 dark:text-indigo-200'
+                                : 'border-transparent text-slate-700 dark:text-slate-200 hover:border-slate-100 dark:hover:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
                             }`}
                           >
                             <div>
                               <p className="text-sm font-medium">{lesson.title}</p>
-                              <p className={`mt-1 text-xs ${isActive ? 'text-white/70' : 'text-slate-500'}`}>
+                              <p className={`mt-1 text-xs ${isActive ? 'text-white/70' : 'text-slate-500 dark:text-slate-400'}`}>
                                 {lesson.duration}
                               </p>
                             </div>
@@ -211,11 +212,11 @@ const Learning: React.FC = () => {
                               className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] ${
                                 lesson.completed
                                   ? isActive
-                                    ? 'bg-white/20 text-white'
-                                    : 'bg-emerald-100 text-emerald-700'
+                                    ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300'
+                                    : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400'
                                   : isActive
-                                    ? 'bg-white/15 text-white/80'
-                                    : 'bg-slate-100 text-slate-500'
+                                    ? 'bg-indigo-100/60 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400'
+                                    : 'bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400'
                               }`}
                             >
                               {lesson.completed ? 'Done' : 'Open'}
@@ -228,7 +229,7 @@ const Learning: React.FC = () => {
                 ) : (
                   <div className="flex flex-col items-center gap-3 py-2">
                     <div className="rounded-2xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white">C</div>
-                    <p className="text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                    <p className="text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
                       Collapsed
                     </p>
                   </div>
@@ -243,8 +244,9 @@ const Learning: React.FC = () => {
             <SectionLead
               label="Video Player"
               title={selectedLesson.title}
+              size="md"
               meta={
-                <span className="text-sm text-slate-500">Duration: {selectedLesson.duration}</span>
+                <span className="text-sm text-slate-500 dark:text-slate-400">Duration: {selectedLesson.duration}</span>
               }
             />
             <Button
@@ -265,7 +267,7 @@ const Learning: React.FC = () => {
             >
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.2),transparent_24%),linear-gradient(135deg,rgba(15,23,42,0.9),rgba(14,165,233,0.45),rgba(168,85,247,0.45))]" />
               <div className="absolute inset-0 flex cursor-pointer items-center justify-center">
-                <div className="flex h-24 w-24 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white shadow-elev-3 backdrop-blur-md transition hover:scale-110">
+                <div className="flex h-24 w-24 items-center justify-center rounded-full border border-white/20 bg-white/15 dark:bg-white/10 text-white shadow-elev-3 backdrop-blur-md transition hover:scale-110">
                   <span className="ml-1 text-3xl">▶</span>
                 </div>
               </div>
@@ -274,7 +276,7 @@ const Learning: React.FC = () => {
                   <p className="text-xs uppercase tracking-[0.24em] text-white/70">Progress Animation</p>
                   <p className="mt-2 text-lg font-semibold">Stay focused, finish lessons, and track your growth.</p>
                 </div>
-                <div className="rounded-2xl bg-white/15 px-4 py-3 text-right backdrop-blur-md">
+                <div className="rounded-2xl bg-white/15 dark:bg-white/10 px-4 py-3 text-right backdrop-blur-md">
                   <p className="text-[10px] uppercase tracking-[0.24em] text-white/70">Current</p>
                   <p className="mt-1 text-sm font-semibold">Lesson 03</p>
                 </div>
@@ -283,9 +285,9 @@ const Learning: React.FC = () => {
           </div>
 
           <div>
-            <div className="flex items-center justify-between text-sm text-slate-500">
+            <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
               <span>Course progress</span>
-              <span className="font-semibold text-slate-900">{progress}%</span>
+              <span className="font-semibold text-slate-900 dark:text-white">{progress}%</span>
             </div>
             <div className="progress-track mt-3">
               <motion.div
@@ -314,8 +316,8 @@ const Learning: React.FC = () => {
               transition={{ delay: 0.55, duration: 0.45 }}
             >
               <p className="section-label">Learning Tips</p>
-              <h3 className="mt-1.5 text-lg font-semibold text-slate-950">Keep your flow sharp</h3>
-              <ul className="mt-3 space-y-2 text-sm leading-relaxed text-slate-600">
+              <h3 className="mt-1.5 text-lg font-semibold text-slate-950 dark:text-white">Keep your flow sharp</h3>
+              <ul className="mt-3 space-y-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
                 <li>Pause, write one note, then continue the lesson.</li>
                 <li>Use the resources panel to save references.</li>
                 <li>Mark lessons complete to maintain momentum.</li>
@@ -329,29 +331,29 @@ const Learning: React.FC = () => {
 
         <aside className="space-y-10 xl:sticky xl:top-6 xl:self-start">
           <section>
-            <SectionLead label="Notes" title="Capture key ideas" />
+            <SectionLead label="Notes" title="Capture key ideas" size="md" />
             <textarea
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
-              className="mt-4 min-h-[240px] w-full rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 text-sm leading-7 text-slate-700 outline-none transition focus:border-primary-400 focus:bg-white focus:ring-4 focus:ring-primary-500/10"
+              className="mt-4 min-h-[240px] w-full rounded-2xl border border-slate-200/70 dark:border-slate-700/50 bg-slate-50/80 dark:bg-slate-800/30 p-4 text-sm leading-7 text-slate-700 dark:text-slate-200 outline-none transition focus:border-primary-400 focus:bg-white dark:focus:bg-slate-900/50 focus:ring-4 focus:ring-primary-500/10"
               aria-label="Learning notes"
             />
           </section>
 
           <section>
-            <SectionLead label="Resources" title="Keep reference files close" />
+            <SectionLead label="Resources" title="Keep reference files close" size="md" />
             <div className="mt-4 divide-y divide-slate-200/70">
               {resources.map((resource) => (
                 <button
                   key={resource.title}
                   type="button"
-                  className="group flex w-full items-center justify-between gap-3 py-4 text-left transition first:pt-0 hover:bg-slate-50/60 sm:-mx-2 sm:px-2 sm:rounded-lg"
+                  className="group flex w-full items-center justify-between gap-3 py-4 text-left transition first:pt-0 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 sm:-mx-2 sm:px-2 sm:rounded-lg"
                 >
                   <div>
-                    <p className="font-semibold text-slate-950 transition-colors group-hover:text-primary-600">
+                    <p className="font-semibold text-slate-950 dark:text-white transition-colors group-hover:text-primary-600 dark:group-hover:text-primary-400">
                       {resource.title}
                     </p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.24em] text-slate-500">{resource.type}</p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">{resource.type}</p>
                   </div>
                   <span className="text-xs font-semibold text-slate-400 transition-colors group-hover:text-primary-600">
                     Open →

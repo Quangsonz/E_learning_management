@@ -1,5 +1,5 @@
 const BaseRepository = require('./base.repository');
-const User = require('../../models/User'); // Update import if model is moved to src/models later
+const User = require('../models/User'); // Update import if model is moved to src/models later
 
 class UserRepository extends BaseRepository {
   constructor() {

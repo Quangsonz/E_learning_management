@@ -151,7 +151,7 @@
 }
 
 /* ── Dark Theme Overrides ─────────────────────────────── */
-[data-theme="dark"] {
+.dark {
   --color-bg:           #0A1020;
   --color-surface-50:   rgba(22,30,46,0.95);
   --color-surface-100:  rgba(20,28,44,0.72);

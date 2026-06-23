@@ -11,25 +11,25 @@ export const AuthField: React.FC<AuthFieldProps> = ({ label, hint, error, id, cl
 
   return (
     <div className="space-y-2">
-      <label htmlFor={inputId} className="text-sm font-medium text-slate-700">
+      <label htmlFor={inputId} className="text-sm font-medium text-slate-300">
         {label}
       </label>
       <input
         id={inputId}
-        className={`w-full rounded-xl border bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition duration-sm ease-standard focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 ${
-          error ? 'border-error-500 focus:ring-error-500/10' : 'border-slate-200'
+        className={`w-full h-[52px] rounded-2xl border bg-white/5 px-4 text-white placeholder-slate-500 shadow-sm outline-none transition-all duration-300 focus:border-sky-400 focus:bg-white/10 focus:ring-4 focus:ring-sky-400/20 ${
+          error ? 'border-rose-500 focus:ring-rose-500/20' : 'border-white/10 hover:border-white/20'
         } ${className}`}
         aria-invalid={error ? 'true' : 'false'}
         aria-describedby={hint || error ? `${inputId}-help` : undefined}
         {...props}
       />
       {hint ? (
-        <p id={`${inputId}-help`} className="text-xs leading-5 text-slate-500">
+        <p id={`${inputId}-help`} className="text-xs leading-5 text-slate-400">
           {hint}
         </p>
       ) : null}
       {error ? (
-        <p id={`${inputId}-help`} className="text-xs font-medium text-rose-500">
+        <p id={`${inputId}-help`} className="text-xs font-medium text-rose-400">
           {error}
         </p>
       ) : null}

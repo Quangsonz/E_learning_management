@@ -15,12 +15,13 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
+import Splash from './pages/Splash';
 
-const authPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
+const noLayoutPaths = ['/login', '/register', '/forgot-password', '/reset-password', '/splash'];
 
 const AppRoutes: React.FC = () => (
   <Routes>
-    <Route path="/" element={<Home />} />
+    <Route path="/" element={<Splash />} />
     <Route path="/home" element={<Home />} />
     <Route path="/dashboard" element={<Home />} />
     <Route path="/courses" element={<CourseList />} />
@@ -42,7 +43,7 @@ const AppRoutes: React.FC = () => (
 
 const App: React.FC = () => {
   const location = useLocation();
-  const isAuthRoute = authPaths.some((path) => location.pathname.startsWith(path));
+  const isNoLayoutRoute = noLayoutPaths.some((path) => location.pathname.startsWith(path)) || location.pathname === '/';
 
   return (
     <AppErrorBoundary>
@@ -51,7 +52,7 @@ const App: React.FC = () => {
           <LoadingScreen title="Loading application" message="Preparing your dashboard, routes, and shared UI states..." />
         }
       >
-        {isAuthRoute ? (
+        {isNoLayoutRoute ? (
           <AppRoutes />
         ) : (
           <SiteLayout>

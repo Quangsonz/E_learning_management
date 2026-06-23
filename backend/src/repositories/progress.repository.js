@@ -1,5 +1,5 @@
 const BaseRepository = require('./base.repository');
-const Progress = require('../../models/Progress');
+const Progress = require('../models/Progress');
 
 class ProgressRepository extends BaseRepository {
   constructor() {

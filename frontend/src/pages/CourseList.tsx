@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   Button,
   CanvasHero,
@@ -12,11 +13,11 @@ import {
   SkeletonGrid
 } from '../components/ui';
 import { Input } from '../components/ui/Input';
-import useSimulatedLoading from '../hooks/useSimulatedLoading';
+import { courseApi } from '../services/course.api';
 import { floatY } from '../animations/motionVariants';
 
 type Course = {
-  id: number;
+  id: string | number;
   title: string;
   teacher: string;
   role: string;
@@ -37,96 +38,6 @@ const catalogMetrics = [
   { label: 'Available Courses', value: '128' },
   { label: 'Weekly Completion', value: '86%' },
   { label: 'Avg. Rating', value: '4.8' }
-];
-
-const popularCourses: Course[] = [
-  {
-    id: 1,
-    title: 'Product Design Masterclass',
-    teacher: 'Mia Chen',
-    role: 'Senior Product Designer',
-    category: 'Design',
-    rating: 4.9,
-    ratingCount: '2.3k',
-    duration: '8h 20m',
-    progress: 68,
-    lessons: '12 lessons',
-    accent: 'from-fuchsia-500 via-pink-500 to-orange-400',
-    image: makeThumbnail('Design')
-  },
-  {
-    id: 2,
-    title: 'React System Architecture',
-    teacher: 'Noah Park',
-    role: 'Frontend Engineer',
-    category: 'Development',
-    rating: 4.8,
-    ratingCount: '1.9k',
-    duration: '10h 45m',
-    progress: 52,
-    lessons: '16 lessons',
-    accent: 'from-cyan-500 via-sky-500 to-indigo-500',
-    image: makeThumbnail('React')
-  },
-  {
-    id: 3,
-    title: 'Learning Analytics Strategy',
-    teacher: 'Ava Morales',
-    role: 'Data Lead',
-    category: 'Data',
-    rating: 4.7,
-    ratingCount: '980',
-    duration: '6h 15m',
-    progress: 84,
-    lessons: '9 lessons',
-    accent: 'from-emerald-500 via-teal-500 to-cyan-500',
-    image: makeThumbnail('Data')
-  }
-];
-
-const trendingCourses: Course[] = [
-  {
-    id: 4,
-    title: 'AI for Modern Teams',
-    teacher: 'Sophia Lee',
-    role: 'AI Product Manager',
-    category: 'Business',
-    rating: 5,
-    ratingCount: '4.1k',
-    duration: '4h 50m',
-    progress: 34,
-    lessons: '8 lessons',
-    accent: 'from-violet-500 via-indigo-500 to-sky-500',
-    image: makeThumbnail('AI')
-  },
-  {
-    id: 5,
-    title: 'Growth Marketing Sprint',
-    teacher: 'Ethan Wright',
-    role: 'Growth Lead',
-    category: 'Marketing',
-    rating: 4.9,
-    ratingCount: '1.4k',
-    duration: '7h 30m',
-    progress: 76,
-    lessons: '11 lessons',
-    accent: 'from-amber-500 via-orange-500 to-rose-500',
-    image: makeThumbnail('Growth')
-  },
-  {
-    id: 6,
-    title: 'Advanced UI Motion Design',
-    teacher: 'Olivia Hart',
-    role: 'Motion Designer',
-    category: 'Design',
-    rating: 4.8,
-    ratingCount: '1.1k',
-    duration: '5h 10m',
-    progress: 58,
-    lessons: '10 lessons',
-    accent: 'from-sky-500 via-cyan-500 to-emerald-400',
-    image: makeThumbnail('Motion')
-  }
 ];
 
 const MotionDiv = motion.div as unknown as React.FC<React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>>;
@@ -177,41 +88,53 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
 
   return (
     <MotionDiv
-      className="group overflow-hidden rounded-[var(--radius-section)] bg-white/70 backdrop-blur-sm transition duration-300 hover:-translate-y-1 hover:bg-white/90"
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.22, ease: 'easeOut' }}
+      className="group relative flex flex-col gap-5 transition duration-300"
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-50px' }}
     >
-      <div className="relative">
-        {!thumbLoaded ? <div className="absolute inset-0 skeleton skeleton-card !rounded-b-none" /> : null}
-        <img
-          src={course.image}
-          alt={course.title}
-          loading="lazy"
-          onLoad={() => setThumbLoaded(true)}
-          className={`h-48 w-full object-cover transition duration-500 group-hover:scale-[1.02] ${thumbLoaded ? 'opacity-100' : 'opacity-0'}`}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent" />
-        <div className="absolute left-4 top-4 flex items-center gap-2 text-xs font-semibold text-white">
-          <span className={`h-2 w-2 rounded-full bg-gradient-to-r ${course.accent}`} />
+      {/* Glow background behind image */}
+      <div className={`absolute -inset-4 z-0 rounded-[3rem] bg-gradient-to-br ${course.accent} opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-[0.18] pointer-events-none`} />
+
+      {/* Image Container */}
+      <div className="relative z-10 overflow-hidden rounded-[2rem] aspect-[4/3] bg-slate-100 dark:bg-slate-900 shadow-sm transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_24px_48px_rgba(15,23,42,0.12)] dark:group-hover:shadow-[0_24px_48px_rgba(0,0,0,0.5)]">
+        {!thumbLoaded ? <div className="absolute inset-0 skeleton skeleton-card" /> : null}
+        <Link to={`/courses/${course.id}`} className="block h-full w-full">
+          <img
+            src={course.image}
+            alt={course.title}
+            loading="lazy"
+            onLoad={() => setThumbLoaded(true)}
+            className={`h-full w-full object-cover transition duration-700 group-hover:scale-[1.03] ${thumbLoaded ? 'opacity-100' : 'opacity-0'}`}
+          />
+        </Link>
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/0 to-transparent opacity-80 pointer-events-none" />
+        <div className="absolute left-5 top-5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white pointer-events-none">
+          <span className={`h-2 w-2 rounded-full bg-gradient-to-r ${course.accent} shadow-[0_0_12px_rgba(255,255,255,0.8)]`} />
           {course.category}
         </div>
-        <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3 text-white">
-          <div className="space-y-1 text-xs font-medium text-white/85">
+        <div className="absolute bottom-5 left-5 right-5 flex items-end justify-between gap-3 text-white pointer-events-none">
+          <div className="space-y-1 text-xs font-semibold text-white/90">
             <p>{course.lessons}</p>
             <p>{course.duration}</p>
           </div>
-          <p className="text-lg font-semibold tabular-nums">
-            {course.rating.toFixed(1)} <span className="text-xs text-white/70">({course.ratingCount})</span>
+          <p className="text-xl font-bold tabular-nums tracking-tight">
+            {course.rating.toFixed(1)} <span className="text-xs font-medium text-white/70">({course.ratingCount})</span>
           </p>
         </div>
       </div>
 
-      <div className="p-5">
-        <div className="flex items-center gap-3">
-          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-slate-100">
+      {/* Text Content completely borderless and margin-aligned */}
+      <div className="relative z-10 flex flex-col gap-3 px-1">
+        <Link to={`/courses/${course.id}`} className="group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
+          <h3 className="line-clamp-2 text-xl font-bold tracking-tight text-slate-950 dark:text-white leading-[1.3]">{course.title}</h3>
+        </Link>
+        
+        <div className="flex items-center gap-3 mt-1">
+          <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
             {!avatarLoaded ? <div className="absolute inset-0 skeleton skeleton-circle" /> : null}
             <img
-              src={makeAvatar(course.teacher[0])}
+              src={makeAvatar(course.teacher[0] || 'U')}
               alt={course.teacher}
               loading="lazy"
               onLoad={() => setAvatarLoaded(true)}
@@ -219,32 +142,23 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
             />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-slate-950">{course.teacher}</p>
-            <p className="truncate text-xs text-slate-500">{course.role}</p>
+            <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{course.teacher}</p>
+            <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{course.role}</p>
           </div>
         </div>
 
-        <h3 className="mt-3 line-clamp-2 text-lg font-semibold tracking-tight text-slate-950">{course.title}</h3>
-
-        <div className="mt-4">
-          <div className="flex items-center justify-between text-sm text-slate-500">
-            <span>Progress</span>
-            <span className="font-semibold tabular-nums text-slate-900">{course.progress}%</span>
+        <div className="mt-2">
+          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+            <span className="uppercase tracking-wider">Progress</span>
+            <span className="tabular-nums text-slate-900 dark:text-white">{course.progress}%</span>
           </div>
-          <div className="progress-track mt-2">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
             <MotionDiv
-              className={`progress-fill bg-gradient-to-r ${course.accent}`}
+              className={`h-full bg-gradient-to-r ${course.accent}`}
               initial={{ width: 0 }}
               animate={{ width: `${course.progress}%` }}
               transition={{ duration: 1.05, ease: [0.4, 0, 0.2, 1] }}
             />
-          </div>
-          <div className="mt-3 flex items-center justify-end">
-            <Link to={`/courses/${course.id}`}>
-              <Button variant="pill" size="sm">
-                View detail
-              </Button>
-            </Link>
           </div>
         </div>
       </div>
@@ -255,27 +169,53 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
 const CourseList: React.FC = () => {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  const isLoading = useSimulatedLoading(1000);
 
-  const filteredPopular = useMemo(() => {
-    return popularCourses.filter((course) => {
+  const { data: responseData, isLoading } = useQuery({
+    queryKey: ['courses'],
+    queryFn: () => courseApi.getAllCourses()
+  });
+
+  const categoryAccent: Record<string, string> = {
+    Design:      'from-violet-500 to-fuchsia-500',
+    Frontend:    'from-sky-500 to-cyan-400',
+    Development: 'from-sky-500 to-cyan-400',
+    Data:        'from-emerald-500 to-teal-400',
+    Business:    'from-amber-500 to-orange-400',
+    Marketing:   'from-rose-500 to-pink-500',
+  };
+  const DEFAULT_ACCENT = 'from-indigo-500 to-violet-400';
+
+  const allCourses: Course[] = useMemo(() => {
+    if (!responseData?.data?.courses) return [];
+    return responseData.data.courses.map((course: any) => ({
+      id: course._id,
+      title: course.title,
+      teacher: course.instructor?.name || 'Unknown Instructor',
+      role: course.instructor?.role || 'Instructor',
+      category: course.category?.name || 'General',
+      rating: course.averageRating || 5.0,
+      ratingCount: '0',
+      duration: '5h 30m',
+      progress: Math.floor(Math.random() * 100), // Randomize for demo visually
+      lessons: '10 lessons',
+      accent: categoryAccent[course.category?.name || 'General'] || DEFAULT_ACCENT,
+      image: course.thumbnailUrl || makeThumbnail(course.category?.name || 'Course')
+    }));
+  }, [responseData]);
+
+  const filteredCourses = useMemo(() => {
+    return allCourses.filter((course) => {
       const matchesQuery =
         course.title.toLowerCase().includes(query.toLowerCase()) ||
         course.teacher.toLowerCase().includes(query.toLowerCase());
       const matchesCategory = activeCategory === 'All' || course.category === activeCategory;
       return matchesQuery && matchesCategory;
     });
-  }, [activeCategory, query]);
+  }, [allCourses, activeCategory, query]);
 
-  const filteredTrending = useMemo(() => {
-    return trendingCourses.filter((course) => {
-      const matchesQuery =
-        course.title.toLowerCase().includes(query.toLowerCase()) ||
-        course.teacher.toLowerCase().includes(query.toLowerCase());
-      const matchesCategory = activeCategory === 'All' || course.category === activeCategory;
-      return matchesQuery && matchesCategory;
-    });
-  }, [activeCategory, query]);
+  // Split into popular and trending for UI layout preservation
+  const popularCourses = filteredCourses.slice(0, Math.ceil(filteredCourses.length / 2));
+  const trendingCourses = filteredCourses.slice(Math.ceil(filteredCourses.length / 2));
 
   return (
     <PageShell wide>
@@ -340,7 +280,7 @@ const CourseList: React.FC = () => {
                   variant={isActive ? 'pill' : 'outline'}
                   size="sm"
                   onClick={() => setActiveCategory(category)}
-                  className={`whitespace-nowrap ${!isActive ? '!rounded-full' : ''}`}
+                  className="whitespace-nowrap"
                 >
                   {category}
                 </Button>
@@ -354,14 +294,15 @@ const CourseList: React.FC = () => {
         <SectionLead
           label="Popular Courses"
           title="Most loved by learners"
-          meta={<p className="text-sm tabular-nums text-slate-400">{filteredPopular.length} results</p>}
+          size="md"
+          meta={<p className="text-sm tabular-nums text-slate-400">{popularCourses.length} results</p>}
         />
 
         {isLoading ? (
           <SkeletonGrid count={3} />
-        ) : filteredPopular.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {filteredPopular.map((course) => (
+        ) : popularCourses.length > 0 ? (
+          <div className="grid gap-12 md:gap-x-10 md:gap-y-16 md:grid-cols-2 xl:grid-cols-3">
+            {popularCourses.map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}
           </div>
@@ -374,13 +315,13 @@ const CourseList: React.FC = () => {
       </section>
 
       <section className="mt-12 space-y-6">
-        <SectionLead label="Trending Courses" title="What is hot right now" meta={<p className="text-sm text-slate-400">Updated today</p>} />
+        <SectionLead label="Trending Courses" title="What is hot right now" size="md" meta={<p className="text-sm text-slate-400">Updated today</p>} />
 
         {isLoading ? (
           <SkeletonGrid count={3} />
-        ) : filteredTrending.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {filteredTrending.map((course) => (
+        ) : trendingCourses.length > 0 ? (
+          <div className="grid gap-12 md:gap-x-10 md:gap-y-16 md:grid-cols-2 xl:grid-cols-3">
+            {trendingCourses.map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}
           </div>

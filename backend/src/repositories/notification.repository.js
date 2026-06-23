@@ -1,5 +1,5 @@
 const BaseRepository = require('./base.repository');
-const Notification = require('../../models/Notification');
+const Notification = require('../models/Notification');
 
 class NotificationRepository extends BaseRepository {
   constructor() {

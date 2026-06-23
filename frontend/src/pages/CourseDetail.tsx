@@ -111,39 +111,48 @@ const CourseDetail: React.FC = () => {
   }
 
   return (
-    <PageShell wide>
-      <CanvasHero
-        badge={
-          <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-            <Link to="/courses" className="font-semibold text-primary-600 hover:text-primary-700">
-              Courses
-            </Link>
-            <span>/</span>
-            <span>Course Detail</span>
-            <span className="badge">ID: {courseId ?? 'premium-001'}</span>
+    <>
+      <div className="absolute top-0 left-0 right-0 h-[60vh] sm:h-[75vh] z-0 pointer-events-none overflow-hidden [mask-image:linear-gradient(to_bottom,black_20%,transparent_100%)]">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-cover opacity-[0.18] mix-blend-luminosity grayscale-[30%]"
+          poster="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1600&q=80"
+        >
+          <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" type="video/mp4" />
+        </video>
+      </div>
+
+      <PageShell wide className="relative z-10 pt-10 sm:pt-16">
+        <div className="relative text-center max-w-4xl mx-auto px-4">
+          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/40 dark:bg-white/10 backdrop-blur-md border border-white/40 text-sm font-semibold text-slate-700 dark:text-slate-200 mb-8 shadow-sm">
+            <Link to="/courses" className="hover:text-primary-600 transition-colors">Courses</Link>
+            <span className="text-slate-400">/</span>
+            <span>UI Design Foundations</span>
           </div>
-        }
-        title="Product Design Masterclass for teams who want premium learning outcomes."
-        description="A polished learning page inspired by Udemy Premium and Coursera Premium, with strong hierarchy, clear section anchors, and a motivating learning flow."
-        actions={
-          <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-medium">
+          
+          <h1 className="text-5xl sm:text-6xl lg:text-[4.5rem] font-bold tracking-tight text-slate-900 dark:text-white leading-[1.1]">
+            Product Design Masterclass
+          </h1>
+          <p className="mt-6 text-lg sm:text-xl text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl mx-auto">
+            A premium learning experience inspired by the world's best platforms, with strong hierarchy, fluid typography, and a borderless learning flow.
+          </p>
+          
+          <nav className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm font-semibold">
             {navAnchors.map((item, index) => (
               <React.Fragment key={item.label}>
                 {index > 0 ? <span className="hidden text-slate-300 sm:inline" aria-hidden="true">·</span> : null}
-                <a
-                  href={`#${item.anchor}`}
-                  className="text-primary-600 transition-colors hover:text-primary-700"
-                >
+                <a href={`#${item.anchor}`} className="text-primary-600 transition-colors hover:text-primary-700 hover:underline underline-offset-4 decoration-2 decoration-primary-200">
                   {item.label}
                 </a>
               </React.Fragment>
             ))}
           </nav>
-        }
-        glow="cool"
-      />
+        </div>
 
-      <MetricsSurface metrics={stats} className="!mt-4" />
+        <MetricsSurface metrics={stats} className="!mt-16 max-w-5xl mx-auto" />
 
       <div className="mt-8 grid gap-10 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,0.45fr)] xl:gap-12">
         <main className="space-y-10">
@@ -176,7 +185,7 @@ const CourseDetail: React.FC = () => {
                     <p className="text-xs uppercase tracking-[0.24em] text-white/70">Video Hover Effects</p>
                     <p className="mt-2 text-lg font-semibold">Animated preview with premium visual treatment</p>
                   </div>
-                  <div className="rounded-2xl bg-white/15 px-4 py-3 text-right backdrop-blur-md">
+                  <div className="rounded-2xl bg-white/15 dark:bg-white/10 px-4 py-3 text-right backdrop-blur-md">
                     <p className="text-[10px] uppercase tracking-[0.24em] text-white/70">Preview</p>
                     <p className="mt-1 text-sm font-semibold">3 min intro</p>
                   </div>
@@ -192,24 +201,26 @@ const CourseDetail: React.FC = () => {
               meta={<span className="badge !border-sky-200 !bg-sky-50 !text-sky-700">5 modules</span>}
             />
 
-            <div className="mt-5 divide-y divide-slate-200/70">
+            <div className="mt-5 space-y-2">
               {curriculum.map((item, index) => {
                 const isOpen = openIndex === index;
 
                 return (
-                  <div key={item.title}>
+                  <div key={item.title} className="group relative rounded-2xl transition-all duration-300">
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(99,102,241,0.08)_0%,_transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl" />
+                    
                     <button
                       type="button"
                       onClick={() => setOpenIndex(isOpen ? -1 : index)}
-                      className="flex w-full items-center justify-between gap-4 py-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/20"
+                      className="relative z-10 flex w-full items-center justify-between gap-4 px-6 py-5 text-left focus:outline-none"
                     >
                       <div>
-                        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Module {index + 1}</p>
-                        <h3 className="mt-2 text-lg font-semibold text-slate-950">{item.title}</h3>
+                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 transition-colors group-hover:text-primary-500">Module {index + 1}</p>
+                        <h3 className="mt-1.5 text-lg font-bold text-slate-900 dark:text-white transition-colors group-hover:text-slate-950 dark:text-white">{item.title}</h3>
                       </div>
-                      <div className="text-right text-sm text-slate-500">
-                        <p>{item.duration}</p>
-                        <p className="mt-1 font-semibold text-slate-900">
+                      <div className="text-right text-sm text-slate-500 dark:text-slate-400">
+                        <p className="font-medium">{item.duration}</p>
+                        <p className="mt-1 font-semibold text-slate-400 group-hover:text-slate-500 dark:text-slate-400 transition-colors">
                           {item.lectures} lectures {item.locked ? '• Locked' : ''}
                         </p>
                       </div>
@@ -220,10 +231,10 @@ const CourseDetail: React.FC = () => {
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
-                          transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-                          className="overflow-hidden border-t border-slate-200/70 pb-4 text-sm leading-7 text-slate-600"
+                          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                          className="relative z-10 overflow-hidden px-6 pb-6 text-sm leading-relaxed text-slate-600 dark:text-slate-300"
                         >
-                          <p className="pt-4">
+                          <p>
                             This module focuses on hands-on learning, visual clarity, and premium pacing that helps students stay engaged from start to finish.
                           </p>
                         </motion.div>
@@ -243,15 +254,15 @@ const CourseDetail: React.FC = () => {
                 EH
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-2xl font-semibold text-slate-950">{instructor.name}</h3>
-                <p className="mt-1 text-slate-500">{instructor.title}</p>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">{instructor.bio}</p>
-                <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
-                  <span className="font-semibold text-slate-950">{instructor.learners}</span>
+                <h3 className="text-2xl font-semibold text-slate-950 dark:text-white">{instructor.name}</h3>
+                <p className="mt-1 text-slate-500 dark:text-slate-400">{instructor.title}</p>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-300">{instructor.bio}</p>
+                <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600 dark:text-slate-300">
+                  <span className="font-semibold text-slate-950 dark:text-white">{instructor.learners}</span>
                   <span className="text-slate-300" aria-hidden="true">·</span>
-                  <span className="font-semibold text-slate-950">{instructor.courses}</span>
+                  <span className="font-semibold text-slate-950 dark:text-white">{instructor.courses}</span>
                   <span className="text-slate-300" aria-hidden="true">·</span>
-                  <span className="font-semibold text-slate-950">{instructor.rating}</span>
+                  <span className="font-semibold text-slate-950 dark:text-white">{instructor.rating}</span>
                 </p>
               </div>
             </div>
@@ -265,12 +276,12 @@ const CourseDetail: React.FC = () => {
                 <div key={review.name} className="py-5 first:pt-0">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="font-semibold text-slate-950">{review.name}</p>
-                      <p className="text-sm text-slate-500">{review.role}</p>
+                      <p className="font-semibold text-slate-950 dark:text-white">{review.name}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">{review.role}</p>
                     </div>
                     <p className="shrink-0 text-sm font-semibold tabular-nums text-amber-700">{review.rating.toFixed(1)} ★</p>
                   </div>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">{review.text}</p>
+                  <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{review.text}</p>
                 </div>
               ))}
             </div>
@@ -290,7 +301,7 @@ const CourseDetail: React.FC = () => {
                       onClick={() => setOpenIndex(isOpen ? -1 : index + 100)}
                       className="flex w-full items-center justify-between gap-4 py-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/20"
                     >
-                      <span className="text-base font-semibold text-slate-950">{item.question}</span>
+                      <span className="text-base font-semibold text-slate-950 dark:text-white">{item.question}</span>
                       <motion.span
                         animate={{ rotate: isOpen ? 45 : 0 }}
                         transition={{ duration: 0.18 }}
@@ -306,7 +317,7 @@ const CourseDetail: React.FC = () => {
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-                          className="overflow-hidden border-t border-slate-200/70 pb-4 text-sm leading-7 text-slate-600"
+                          className="overflow-hidden border-t border-slate-200/70 pb-4 text-sm leading-7 text-slate-600 dark:text-slate-300"
                         >
                           <p className="pt-4">{item.answer}</p>
                         </motion.div>
@@ -328,7 +339,7 @@ const CourseDetail: React.FC = () => {
           >
             <p className="section-label !text-white/70">Sticky Sidebar</p>
             <h3 className="mt-3 text-2xl font-semibold tracking-tight">Enrolled now: get instant access</h3>
-            <div className="mt-5 space-y-3 rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur-md">
+            <div className="mt-5 space-y-3 rounded-[24px] border border-white/10 bg-white/10 dark:bg-white/5 p-4 backdrop-blur-md">
               <div className="flex items-center justify-between text-sm text-white/80">
                 <span>Price</span>
                 <span className="text-2xl font-semibold text-white">$49</span>
@@ -343,24 +354,25 @@ const CourseDetail: React.FC = () => {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3">
-              <Link to="/learning">
-                <Button variant="pill" className="w-full !bg-white !text-slate-950 hover:!bg-slate-100">
+            <div className="mt-8 grid gap-4">
+              <Link to="/learning" className="block w-full">
+                <button className="w-full relative overflow-hidden bg-gradient-to-b from-primary-500 to-primary-600 text-white font-bold text-[1.1rem] py-4 px-6 rounded-[2rem] shadow-[0_12px_32px_rgba(99,102,241,0.4),inset_0_2px_4px_rgba(255,255,255,0.4),inset_0_-2px_4px_rgba(0,0,0,0.2)] hover:shadow-[0_20px_48px_rgba(99,102,241,0.5),inset_0_2px_4px_rgba(255,255,255,0.5),inset_0_-2px_4px_rgba(0,0,0,0.2)] transition-all duration-300 hover:-translate-y-1 active:translate-y-0 active:shadow-[0_4px_16px_rgba(99,102,241,0.4),inset_0_2px_4px_rgba(0,0,0,0.2)]">
                   Enroll now
-                </Button>
+                </button>
               </Link>
-              <Button variant="outline" className="w-full !border-white/15 !bg-white/10 !text-white hover:!bg-white/15">
+              <Button variant="outline" className="w-full !border-white/15 !bg-white/5 dark:bg-white/5 !text-white hover:!bg-white/15 dark:bg-white/10 py-3">
                 Add to wishlist
               </Button>
             </div>
 
-            <div className="mt-6 rounded-[24px] border border-white/10 bg-white/10 p-4 text-sm leading-7 text-white/80">
+            <div className="mt-6 rounded-[24px] border border-white/10 bg-white/10 dark:bg-white/5 p-4 text-sm leading-7 text-white/80">
               Smooth scroll anchors, premium section spacing, and accordion motion keep the page calm and easy to explore.
             </div>
           </GlassPanel>
         </aside>
       </div>
-    </PageShell>
+      </PageShell>
+    </>
   );
 };
 

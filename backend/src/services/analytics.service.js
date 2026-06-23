@@ -1,15 +1,15 @@
-const Enrollment = require('../../models/Enrollment');
-const Course = require('../../models/Course');
-const User = require('../../models/User');
-const Progress = require('../../models/Progress');
-const Result = require('../../models/Result');
+const Enrollment = require('../models/Enrollment');
+const Course = require('../models/Course');
+const User = require('../models/User');
+const Progress = require('../models/Progress');
+const Result = require('../models/Result');
 
 class AnalyticsService {
   // ==================================================
   // ADMIN DASHBOARD
   // ==================================================
   async getAdminDashboard() {
-    // Chạy song song tất cả aggregations để tối ưu thời gian
+    // Chạy song song tất cả aggregations đềEtối ưu thời gian
     const [
       overviewStats,
       revenueByMonth,

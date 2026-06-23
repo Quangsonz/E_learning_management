@@ -9,6 +9,7 @@ import './styles/tailwind.css';
 import App from './App';
 import { store } from './store/store';
 import { queryClient } from './queries/queryClient';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 const container = document.getElementById('root')!;
 const root = createRoot(container);
@@ -17,9 +18,11 @@ root.render(
   <React.StrictMode>
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <ThemeProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </ThemeProvider>
       </QueryClientProvider>
     </Provider>
   </React.StrictMode>

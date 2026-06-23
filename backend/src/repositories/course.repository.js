@@ -1,5 +1,5 @@
 const BaseRepository = require('./base.repository');
-const Course = require('../../models/Course');
+const Course = require('../models/Course');
 
 class CourseRepository extends BaseRepository {
   constructor() {
@@ -10,7 +10,7 @@ class CourseRepository extends BaseRepository {
     return await this.model.findOne({ slug });
   }
 
-  // Override hàm find để tự động populate category và instructor nếu cần
+  // Override hàm find đềEtự động populate category và instructor nếu cần
   async find(query = {}) {
     return await this.model.find(query).populate('category', 'name slug').populate('instructor', 'name avatar');
   }

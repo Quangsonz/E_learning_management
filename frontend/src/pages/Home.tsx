@@ -54,12 +54,14 @@ const stats = [
 ];
 
 const heroFloatStats = [
-  { label: '+18% focus', position: 'top-0 -left-6 sm:-left-10' },
-  { label: '92% quiz avg', position: 'top-6 -right-4 sm:-right-8' },
-  { label: '3 active tracks', position: 'bottom-8 -left-2 sm:-left-6' }
+  { label: '+18% focus', position: '-top-2 -left-6 sm:-left-10' },
+  { label: '92% quiz avg', position: 'top-14 -right-12 sm:-right-16' },
+  { label: '3 active tracks', position: '-bottom-2 -left-4 sm:-left-8' }
 ];
 
-const learningRing = { size: 148, stroke: 10, value: 72 };
+const learningRing = { size: 256, stroke: 16, value: 72 };
+
+
 
 const MotionDiv = motion.div as unknown as React.FC<
   React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>
@@ -71,7 +73,7 @@ const ProgressRing: React.FC<{ value: number; size: number; stroke: number }> = 
   const dashOffset = circumference - (value / 100) * circumference;
 
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} className="relative h-36 w-36 -rotate-90 sm:h-40 sm:w-40" aria-label="Learning progress">
+    <svg viewBox={`0 0 ${size} ${size}`} className="relative h-60 w-60 -rotate-90 sm:h-72 sm:w-72 drop-shadow-md" aria-label="Learning progress">
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(148,163,184,0.18)" strokeWidth={stroke} />
       <motion.circle
         cx={size / 2}
@@ -121,7 +123,7 @@ const Home: React.FC = () => {
         }
         aside={
           <MotionDiv
-            className="relative mx-auto flex w-full max-w-[220px] shrink-0 items-center justify-center lg:-ml-20 lg:mr-4 xl:-ml-28"
+            className="relative mx-auto flex w-full max-w-[320px] shrink-0 items-center justify-center lg:-ml-6 lg:mr-4 xl:-ml-12"
             animate={floatY(6, 5.5)}
           >
             <div
@@ -131,9 +133,10 @@ const Home: React.FC = () => {
             {heroFloatStats.map((item, index) => (
               <MotionDiv
                 key={item.label}
-                className={`absolute ${item.position} z-30 whitespace-nowrap rounded-full bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-[0_4px_24px_rgba(99,102,241,0.12)] backdrop-blur-md`}
+                className={`absolute ${item.position} z-30 whitespace-nowrap rounded-full bg-white/80 dark:bg-slate-900/80 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-[0_4px_24px_rgba(99,102,241,0.12)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] backdrop-blur-md cursor-default border border-white/20 dark:border-white/10`}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.05, backgroundColor: 'var(--tw-bg-opacity)' }}
                 transition={{ delay: 0.4 + index * 0.1, duration: 0.4 }}
               >
                 {item.label}
@@ -141,9 +144,9 @@ const Home: React.FC = () => {
             ))}
             <div className="relative flex items-center justify-center">
               <ProgressRing value={learningRing.value} size={learningRing.size} stroke={learningRing.stroke} />
-              <div className="absolute text-center">
-                <p className="section-label !text-[0.65rem]">Continue</p>
-                <p className="mt-0.5 text-3xl font-semibold tabular-nums text-slate-950">{learningRing.value}%</p>
+              <div className="absolute text-center mt-2">
+                <p className="section-label !text-[0.7rem] dark:!text-slate-300">Continue</p>
+                <p className="mt-1 text-4xl font-bold tabular-nums text-slate-950 dark:text-white">{learningRing.value}%</p>
               </div>
             </div>
           </MotionDiv>
@@ -162,37 +165,38 @@ const Home: React.FC = () => {
                 <div className="space-y-4">
                   <SkeletonCard />
                   <SkeletonCard />
-                  <SkeletonCard />
                 </div>
               ) : courses.length > 0 ? (
-                <div className="divide-y divide-slate-200/70">
+                <div className="space-y-2">
                   {courses.map((course, index) => (
                     <MotionDiv
                       key={course.title}
                       variants={staggerItem}
-                      className="group cursor-pointer py-5 transition-colors duration-200 first:pt-0 hover:bg-slate-50/60 sm:-mx-3 sm:rounded-xl sm:px-3"
+                      whileHover={{ scale: 1.015 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                      className="group relative cursor-pointer rounded-2xl p-4 transition-all duration-300 sm:-mx-4 sm:p-5 hover:bg-white/60 dark:hover:bg-white/5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:hover:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:backdrop-blur-md"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{course.category}</p>
-                          <h3 className="mt-1 text-lg font-semibold text-slate-950 transition-colors group-hover:text-primary-600">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">{course.category}</p>
+                          <h3 className="mt-1 text-lg font-semibold text-slate-950 dark:text-white transition-colors group-hover:text-sky-600 dark:group-hover:text-sky-400">
                             {course.title}
                           </h3>
                         </div>
-                        <span className="shrink-0 text-xs font-medium text-slate-400">{course.lesson}</span>
+                        <span className="shrink-0 text-xs font-medium text-slate-400 dark:text-slate-500">{course.lesson}</span>
                       </div>
-                      <div className="progress-track mt-3.5">
+                      <div className="progress-track mt-4">
                         <MotionDiv
-                          className="progress-fill"
+                          className="progress-fill group-hover:shadow-[0_0_12px_rgba(99,102,241,0.4)]"
                           initial={{ width: 0 }}
                           animate={{ width: `${course.progress}%` }}
                           transition={{ type: 'spring', stiffness: 200, damping: 25, delay: index * 0.12 }}
                         />
                       </div>
-                      <div className="mt-2.5 flex items-center justify-between text-sm">
-                        <span className="tabular-nums text-slate-500">{course.progress}% complete</span>
-                        <span className="font-semibold text-primary-600 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                          Resume →
+                      <div className="mt-3 flex items-center justify-between text-sm">
+                        <span className="tabular-nums text-slate-500 dark:text-slate-400 font-medium">{course.progress}% complete</span>
+                        <span className="font-bold text-sky-600 dark:text-sky-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100 flex items-center gap-1">
+                          Resume <span className="text-lg leading-none">→</span>
                         </span>
                       </div>
                     </MotionDiv>

@@ -20,16 +20,61 @@ const MotionDiv = motion.div as unknown as React.FC<
 
 export const AmbientGlow: React.FC<{ variant?: 'default' | 'warm' | 'cool' }> = ({ variant = 'default' }) => {
   const tones = {
-    default: ['bg-indigo-400/15', 'bg-cyan-400/12'],
-    warm: ['bg-amber-400/12', 'bg-rose-400/10'],
-    cool: ['bg-sky-400/14', 'bg-violet-400/12']
+    default: ['from-indigo-400/25 to-purple-400/25', 'from-cyan-400/25 to-blue-400/25'],
+    warm: ['from-amber-400/25 to-orange-400/25', 'from-rose-400/25 to-pink-400/25'],
+    cool: ['from-sky-400/25 to-cyan-400/25', 'from-violet-400/25 to-purple-400/25']
   }[variant];
 
   return (
     <>
-      <div className={`pointer-events-none absolute -right-8 top-0 h-56 w-56 rounded-full blur-3xl ${tones[0]}`} aria-hidden="true" />
-      <div className={`pointer-events-none absolute -left-4 bottom-0 h-40 w-40 rounded-full blur-3xl ${tones[1]}`} aria-hidden="true" />
+      <MotionDiv
+        className={`pointer-events-none absolute -right-12 -top-12 h-72 w-72 rounded-full bg-gradient-to-br blur-3xl ${tones[0]}`}
+        animate={{ scale: [1, 1.1, 1], opacity: [0.6, 0.9, 0.6] }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+        aria-hidden="true"
+      />
+      <MotionDiv
+        className={`pointer-events-none absolute -left-8 -bottom-8 h-56 w-56 rounded-full bg-gradient-to-tr blur-3xl ${tones[1]}`}
+        animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
+        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+        aria-hidden="true"
+      />
     </>
+  );
+};
+
+const heroBackgroundImages = [
+  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&q=80",
+  "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80",
+  "https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800&q=80",
+  "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800&q=80"
+];
+
+const HeroBackgroundSlideshow = () => {
+  const [index, setIndex] = React.useState(0);
+  
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % heroBackgroundImages.length);
+    }, 2500); // 2.5 seconds per slide (2s display + 0.5s transition feels best)
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="absolute -inset-x-10 -inset-y-16 z-0 overflow-hidden pointer-events-none [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_75%)]">
+      {heroBackgroundImages.map((src, i) => (
+        <motion.img
+          key={src}
+          src={src}
+          className="absolute inset-0 h-full w-full object-cover mix-blend-luminosity"
+          style={{ filter: 'grayscale(50%)' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: i === index ? 0.35 : 0 }}
+          transition={{ duration: 0.8 }}
+          alt=""
+        />
+      ))}
+    </div>
   );
 };
 
@@ -53,8 +98,9 @@ export const CanvasHero: React.FC<CanvasHeroProps> = ({
   glow = 'default'
 }) => (
   <section className="relative overflow-visible">
+    <HeroBackgroundSlideshow />
     <AmbientGlow variant={glow} />
-    <div className={`relative grid items-center gap-2 ${aside ? 'lg:grid-cols-[1.15fr_auto] lg:gap-0' : ''}`}>
+    <div className={`relative z-20 grid items-center gap-2 ${aside ? 'lg:grid-cols-[1.15fr_auto] lg:gap-0' : ''}`}>
       <MotionDiv
         className="relative z-10 max-w-xl space-y-3.5 py-2 sm:space-y-4 sm:py-3"
         initial={{ opacity: 0, x: -12 }}
@@ -63,15 +109,15 @@ export const CanvasHero: React.FC<CanvasHeroProps> = ({
       >
         {badge}
         <div>
-          {eyebrow ? <p className="text-sm font-medium text-slate-500">{eyebrow}</p> : null}
-          <h1 className="mt-1.5 text-[clamp(1.75rem,3.5vw,2.75rem)] font-semibold leading-[1.12] tracking-tight text-slate-950">
+          {eyebrow ? <p className="text-sm font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">{eyebrow}</p> : null}
+          <h1 className="mt-2.5 text-[clamp(2.25rem,4vw,3.5rem)] font-bold leading-[1.15] tracking-tight text-slate-900 dark:text-white">
             {title}
           </h1>
         </div>
         {description ? (
-          <p className="max-w-lg text-[0.9375rem] leading-relaxed text-slate-600 sm:text-base">{description}</p>
+          <p className="max-w-2xl text-[1.0625rem] leading-[1.65] text-slate-600 dark:text-slate-300 sm:text-[1.125rem]">{description}</p>
         ) : null}
-        {actions ? <div className="flex flex-wrap gap-2.5 pt-0.5">{actions}</div> : null}
+        {actions ? <div className="flex flex-wrap gap-3 pt-3">{actions}</div> : null}
       </MotionDiv>
       {aside ? <div className="relative z-20 shrink-0">{aside}</div> : null}
     </div>
@@ -96,15 +142,15 @@ export const MetricsSurface: React.FC<MetricsSurfaceProps> = ({ metrics, classNa
         <div
           key={item.label}
           className={`flex items-baseline justify-between gap-4 ${
-            index < metrics.length - 1 ? 'lg:border-r lg:border-slate-200/60 lg:pr-6' : ''
+            index < metrics.length - 1 ? 'lg:border-r lg:border-slate-200/60 dark:lg:border-white/10 lg:pr-6' : ''
           }`}
         >
-          <span className="text-sm font-medium text-slate-500">{item.label}</span>
+          <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{item.label}</span>
           <div className="text-right">
-            <span className="text-xl font-semibold tabular-nums tracking-tight text-slate-950 sm:text-2xl">
+            <span className="text-xl font-semibold tabular-nums tracking-tight text-slate-950 dark:text-white sm:text-2xl">
               {item.value}
             </span>
-            {item.delta ? <p className="mt-0.5 text-xs font-medium text-emerald-600">{item.delta}</p> : null}
+            {item.delta ? <p className="mt-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">{item.delta}</p> : null}
           </div>
         </div>
       ))}
@@ -122,8 +168,8 @@ type SectionLeadProps = {
 export const SectionLead: React.FC<SectionLeadProps> = ({ label, title, meta, className = '' }) => (
   <div className={`flex items-end justify-between gap-4 ${className}`}>
     <div>
-      <p className="section-label">{label}</p>
-      <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">{title}</h2>
+      <p className="section-label dark:text-slate-400">{label}</p>
+      <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-2xl">{title}</h2>
     </div>
     {meta}
   </div>
@@ -137,7 +183,7 @@ type ActivityStreamProps = {
 export const ActivityStream: React.FC<ActivityStreamProps> = ({ items, className = '' }) => (
   <MotionDiv className={`relative pl-7 ${className}`} variants={staggerContainer} initial="initial" animate="animate">
     <div
-      className="absolute bottom-1 left-[7px] top-1 w-px bg-gradient-to-b from-indigo-300/80 via-slate-200/80 to-transparent"
+      className="absolute bottom-1 left-[7px] top-1 w-px bg-gradient-to-b from-indigo-300/80 via-slate-200/80 dark:from-indigo-500/50 dark:via-white/10 to-transparent"
       aria-hidden="true"
     />
     {items.map((activity, index) => (
@@ -147,15 +193,15 @@ export const ActivityStream: React.FC<ActivityStreamProps> = ({ items, className
         className={`relative ${index < items.length - 1 ? 'pb-8' : ''}`}
       >
         <div
-          className="absolute -left-7 top-1.5 flex h-[14px] w-[14px] items-center justify-center rounded-full bg-white ring-[3px] ring-white"
+          className="absolute -left-7 top-1.5 flex h-[14px] w-[14px] items-center justify-center rounded-full bg-white dark:bg-slate-950 ring-[3px] ring-white dark:ring-slate-950"
           aria-hidden="true"
         >
           <div className="h-2 w-2 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400" />
         </div>
         <div className="space-y-1">
-          <h3 className="font-semibold leading-snug text-slate-950">{activity.title}</h3>
-          <p className="text-sm leading-relaxed text-slate-500">{activity.detail}</p>
-          <p className="text-xs font-medium text-slate-400">{activity.time}</p>
+          <h3 className="font-semibold leading-snug text-slate-950 dark:text-white">{activity.title}</h3>
+          <p className="text-sm leading-relaxed text-slate-500 dark:text-slate-400">{activity.detail}</p>
+          <p className="text-xs font-medium text-slate-400 dark:text-slate-500">{activity.time}</p>
         </div>
       </MotionDiv>
     ))}
@@ -180,7 +226,7 @@ export const ChartBlock: React.FC<ChartBlockProps> = ({ label, title, badge, chi
     <div className="flex items-start justify-between gap-3">
       <div>
         <p className="section-label">{label}</p>
-        <h3 className="mt-1.5 text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">{title}</h3>
+        <h3 className="mt-1.5 text-xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-2xl">{title}</h3>
       </div>
       {badge}
     </div>
@@ -212,13 +258,13 @@ type InsightCalloutProps = {
 
 export const InsightCallout: React.FC<InsightCalloutProps> = ({ title, description, className = '' }) => (
   <MotionDiv
-    className={`rounded-2xl bg-gradient-to-br from-emerald-50/80 to-cyan-50/60 px-5 py-4 ${className}`}
+    className={`rounded-2xl bg-gradient-to-br from-emerald-50/80 to-cyan-50/60 dark:from-emerald-900/30 dark:to-cyan-900/20 px-5 py-4 border border-transparent dark:border-white/5 ${className}`}
     initial={{ opacity: 0, y: 8 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: 0.5, duration: 0.45 }}
   >
-    <p className="text-sm font-semibold text-slate-800">{title}</p>
-    <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{description}</p>
+    <p className="text-sm font-semibold text-slate-800 dark:text-emerald-100">{title}</p>
+    <p className="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-emerald-200/70">{description}</p>
   </MotionDiv>
 );
 

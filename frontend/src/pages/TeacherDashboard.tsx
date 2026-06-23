@@ -161,12 +161,12 @@ const TeacherDashboard: React.FC = () => {
                   return (
                     <div key={point.label} className="flex flex-1 flex-col items-center gap-2">
                       <MotionDiv
-                        className="w-full max-w-[42px] rounded-t-[20px] bg-gradient-to-t from-sky-500 via-indigo-500 to-violet-500"
+                        className="w-full max-w-[42px] rounded-t-[20px] chart-bar-growth"
                         initial={{ height: 0 }}
                         animate={{ height }}
                         transition={{ duration: 0.8, delay: index * 0.05 }}
                       />
-                      <span className="text-xs font-medium text-slate-500">{point.label}</span>
+                      <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{point.label}</span>
                     </div>
                   );
                 })}
@@ -185,14 +185,14 @@ const TeacherDashboard: React.FC = () => {
                         <MotionDiv
                           className={`w-full rounded-t-[22px] ${
                             showPulse && index === studentSeries.length - 1
-                              ? 'bg-gradient-to-t from-emerald-500 to-cyan-400'
-                              : 'bg-gradient-to-t from-slate-700 to-slate-500'
+                              ? 'chart-bar-success'
+                              : 'chart-bar-neutral'
                           }`}
                           initial={{ height: 0 }}
                           animate={{ height }}
                           transition={{ duration: 0.85, delay: index * 0.06 }}
                         />
-                        <span className="text-xs font-medium text-slate-500">{point.label}</span>
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{point.label}</span>
                       </div>
                     );
                   })}
@@ -205,12 +205,12 @@ const TeacherDashboard: React.FC = () => {
                 {quizPerformance.map((item, index) => (
                   <div key={item.label} className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-slate-600">{item.label}</span>
-                      <span className="font-semibold tabular-nums text-slate-950">{item.value}%</span>
+                      <span className="font-medium text-slate-600 dark:text-slate-300">{item.label}</span>
+                      <span className="font-semibold tabular-nums text-slate-950 dark:text-white">{item.value}%</span>
                     </div>
                     <div className="progress-track">
                       <MotionDiv
-                        className="progress-fill bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500"
+                        className="progress-fill chart-bar-growth"
                         initial={{ width: 0 }}
                         animate={{ width: `${item.value}%` }}
                         transition={{ duration: 0.8, delay: index * 0.08 }}
@@ -223,21 +223,21 @@ const TeacherDashboard: React.FC = () => {
           </div>
 
           <div>
-            <SectionLead label="Course health overview" title="Course Analytics" />
-            <div className="mt-5 divide-y divide-slate-200/70">
+            <SectionLead label="Course health overview" title="Course Analytics" size="md" />
+            <div className="mt-5">
               {courseMetrics.map((course, index) => (
                 <MotionDiv
                   key={course.title}
-                  className="flex flex-col gap-3 py-5 first:pt-0 lg:flex-row lg:items-center lg:justify-between"
+                  className="flex flex-col gap-3 py-4 border-b border-slate-100 last:border-0 lg:flex-row lg:items-center lg:justify-between"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.25, delay: index * 0.05 }}
                 >
                   <div>
-                    <h4 className="text-lg font-semibold text-slate-950">{course.title}</h4>
-                    <p className="mt-1 text-sm text-slate-500">{course.students}</p>
+                    <h4 className="text-lg font-semibold text-slate-950 dark:text-white">{course.title}</h4>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{course.students}</p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-slate-600">
+                  <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-slate-600 dark:text-slate-300">
                     <span>{course.completion}</span>
                     <span className="font-semibold text-primary-600">{course.revenue}</span>
                   </div>
@@ -248,7 +248,7 @@ const TeacherDashboard: React.FC = () => {
         </div>
 
         <aside className="space-y-8 xl:pt-1">
-          <GlassPanel variant="dark" padding="lg" motionProps={{ animate: floatY(6, 5.5) }}>
+          <GlassPanel variant="dark" padding="lg">
             <p className="section-label !text-white/55">Live Insights</p>
             <h3 className="mt-2 text-xl font-semibold tracking-tight">What needs your attention</h3>
             <div className="mt-5 space-y-4">

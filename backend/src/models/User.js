@@ -28,13 +28,12 @@ userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 
 // Middleware: Mã hóa password trước khi save
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function() {
   // Chỉ mã hóa nếu password bị thay đổi (tạo mới hoặc update password)
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password')) return;
   
   // Hash với cost là 12
   this.password = await bcrypt.hash(this.password, 12);
-  next();
 });
 
 // Instance Method: Kiểm tra password
