@@ -7,6 +7,5 @@ const categorySchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Tìm kiếm danh mục theo slug để làm URL thân thiện
-categorySchema.index({ slug: 1 });
 
 module.exports = mongoose.model('Category', categorySchema);

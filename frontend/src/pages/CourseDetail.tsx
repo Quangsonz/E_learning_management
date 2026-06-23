@@ -3,22 +3,26 @@ import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { Link, useParams } from 'react-router-dom';
 import {
   Button,
-  CanvasHero,
   EmptyState,
   GlassPanel,
   LoadingScreen,
-  MetricsSurface,
   PageShell,
   SectionLead
 } from '../components/ui';
 import { floatY } from '../animations/motionVariants';
 import useSimulatedLoading from '../hooks/useSimulatedLoading';
 
+type CurriculumLesson = {
+  title: string;
+  duration: string;
+  status: 'completed' | 'current' | 'locked';
+};
+
 type CurriculumItem = {
   title: string;
   duration: string;
   lectures: number;
-  locked?: boolean;
+  lessons: CurriculumLesson[];
 };
 
 type FAQItem = {
@@ -28,20 +32,58 @@ type FAQItem = {
 
 const MotionDiv = motion.div as unknown as React.FC<React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>>;
 
-const navAnchors = [
-  { label: 'Preview video', anchor: 'preview-video' },
-  { label: 'Curriculum', anchor: 'curriculum' },
-  { label: 'Instructor', anchor: 'instructor' },
-  { label: 'Reviews', anchor: 'reviews' },
-  { label: 'FAQ', anchor: 'faq' }
+const highlights = [
+  'Build complete UI systems from scratch',
+  'Master design hierarchy and spatial composition',
+  'Learn subtle, premium motion design',
+  'Create production-ready interactive products',
+  'Understand fluid typography and dynamic spacing',
+  'Design for dark mode and dynamic themes'
 ];
 
 const curriculum: CurriculumItem[] = [
-  { title: 'Course overview and success roadmap', duration: '22 min', lectures: 4 },
-  { title: 'Core concepts and practical setup', duration: '1h 15m', lectures: 8 },
-  { title: 'Building high-converting learning experiences', duration: '1h 40m', lectures: 10 },
-  { title: 'Design systems, motion, and polish', duration: '1h 05m', lectures: 6 },
-  { title: 'Final project and review checklist', duration: '45 min', lectures: 5, locked: true }
+  { 
+    title: 'Course overview and success roadmap', 
+    duration: '22 min', 
+    lectures: 3,
+    lessons: [
+      { title: 'Welcome to the Masterclass', duration: '5 min', status: 'completed' },
+      { title: 'Setting up your workspace', duration: '12 min', status: 'completed' },
+      { title: 'How to get feedback and support', duration: '5 min', status: 'current' }
+    ]
+  },
+  { 
+    title: 'Core concepts and practical setup', 
+    duration: '1h 15m', 
+    lectures: 4,
+    lessons: [
+      { title: 'The philosophy of borderless design', duration: '18 min', status: 'locked' },
+      { title: 'Typography as structure', duration: '25 min', status: 'locked' },
+      { title: 'Color theory for modern SaaS', duration: '20 min', status: 'locked' },
+      { title: 'Grid systems vs Canvas layouts', duration: '12 min', status: 'locked' }
+    ]
+  },
+  { 
+    title: 'Building high-converting learning experiences', 
+    duration: '1h 40m', 
+    lectures: 4,
+    lessons: [
+      { title: 'Designing the Hero section', duration: '30 min', status: 'locked' },
+      { title: 'Creating immersive metadata', duration: '20 min', status: 'locked' },
+      { title: 'Interactive components', duration: '25 min', status: 'locked' },
+      { title: 'Progress and motivation indicators', duration: '25 min', status: 'locked' }
+    ]
+  },
+  { 
+    title: 'Design systems, motion, and polish', 
+    duration: '1h 05m', 
+    lectures: 3,
+    lessons: [
+      { title: 'Micro-interactions', duration: '20 min', status: 'locked' },
+      { title: 'Framer Motion fundamentals', duration: '25 min', status: 'locked' },
+      { title: 'Performance and perceived speed', duration: '20 min', status: 'locked' }
+    ]
+  }
 ];
 
 const faqs: FAQItem[] = [
@@ -55,34 +97,35 @@ const faqs: FAQItem[] = [
   },
   {
     question: 'Is there a certificate after completion?',
-    answer: 'A completion certificate can be issued after finishing all core modules and the final project review.'
+    answer: 'A completion certificate can be issued after finishing all core modules and the final project review. It can be added directly to your LinkedIn profile.'
+  },
+  {
+    question: 'What software do I need?',
+    answer: 'We primarily use Figma for design exercises, and VS Code for any frontend implementation details. A modern browser is all you need to consume the content.'
   }
 ];
 
 const reviews = [
-  { name: 'Anika', role: 'Product Designer', rating: 5, text: 'Feels like a premium Coursera/Udemy hybrid. The pacing and visuals are excellent.' },
-  { name: 'Minh', role: 'Frontend Developer', rating: 4.8, text: 'The curriculum is clear, the interface is calm, and the progress tracking is motivating.' },
-  { name: 'Sarah', role: 'Learning Manager', rating: 5, text: 'Our team adopted the course quickly because the structure is so easy to scan.' }
+  { name: 'Anika Singh', role: 'Product Designer', rating: 5, date: '2 weeks ago', text: 'Feels like a premium Coursera/Udemy hybrid. The pacing and visuals are absolutely excellent. I applied these principles to my startup the next day.' },
+  { name: 'Minh Tran', role: 'Frontend Developer', rating: 5, date: '1 month ago', text: 'The curriculum is clear, the interface is calm, and the progress tracking is motivating. Highly recommend for developers wanting to improve UI.' },
+  { name: 'Sarah Jenkins', role: 'Learning Manager', rating: 4, date: '2 months ago', text: 'Our team adopted the course quickly because the structure is so easy to scan. Would love a few more exercises, but overall fantastic.' },
+  { name: 'David Chen', role: 'UX Researcher', rating: 5, date: '3 months ago', text: 'The section on borderless design completely changed how I think about layout. Outstanding production value.' }
 ];
 
 const instructor = {
   name: 'Dr. Evelyn Hart',
   title: 'Lead Learning Experience Designer',
-  bio: 'Evelyn has designed learning products for SaaS teams, enterprise academies, and modern creator platforms with a focus on engagement and clarity.',
-  learners: '42k learners',
-  courses: '16 courses',
-  rating: '4.9 average rating'
+  bio: 'Evelyn has designed learning products for top-tier SaaS teams, enterprise academies, and modern creator platforms. Her focus is on engagement, cognitive load reduction, and absolute visual clarity.',
+  learners: '42k',
+  courses: '16',
+  rating: '4.9',
+  reviews: '12k'
 };
-
-const stats = [
-  { label: 'Enrolled', value: '18.2k' },
-  { label: 'Rating', value: '4.9/5' },
-  { label: 'Duration', value: '12h 40m' }
-];
 
 const CourseDetail: React.FC = () => {
   const { courseId } = useParams();
-  const [openIndex, setOpenIndex] = useState(0);
+  const [openCurriculum, setOpenCurriculum] = useState<number>(0);
+  const [openFaq, setOpenFaq] = useState<number>(0);
   const isLoading = useSimulatedLoading(800);
   const hasError = !courseId;
 
@@ -111,268 +154,451 @@ const CourseDetail: React.FC = () => {
   }
 
   return (
-    <>
-      <div className="absolute top-0 left-0 right-0 h-[60vh] sm:h-[75vh] z-0 pointer-events-none overflow-hidden [mask-image:linear-gradient(to_bottom,black_20%,transparent_100%)]">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full object-cover opacity-[0.18] mix-blend-luminosity grayscale-[30%]"
-          poster="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1600&q=80"
-        >
-          <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" type="video/mp4" />
-        </video>
+    <div className="relative w-full">
+      {/* Hero Background - Reduced Height */}
+      <div className="absolute top-0 left-0 right-0 h-[45vh] z-0 pointer-events-none overflow-hidden [mask-image:linear-gradient(to_bottom,black_40%,transparent_100%)]">
+        <div className="absolute inset-0 bg-slate-50/90 dark:bg-slate-900/95" />
+        <div 
+          className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop')] bg-cover bg-center opacity-[0.05] dark:opacity-20 mix-blend-luminosity" 
+        />
+        {/* Glows */}
+        <div className="absolute -top-[30%] left-[10%] w-[50%] h-[50%] rounded-full bg-[radial-gradient(circle,rgba(99,102,241,0.1),transparent_60%)] dark:bg-[radial-gradient(circle,rgba(99,102,241,0.2),transparent_60%)] blur-[100px]" />
       </div>
 
-      <PageShell wide className="relative z-10 pt-10 sm:pt-16">
-        <div className="relative text-center max-w-4xl mx-auto px-4">
-          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/40 dark:bg-white/10 backdrop-blur-md border border-white/40 text-sm font-semibold text-slate-700 dark:text-slate-200 mb-8 shadow-sm">
-            <Link to="/courses" className="hover:text-primary-600 transition-colors">Courses</Link>
-            <span className="text-slate-400">/</span>
-            <span>UI Design Foundations</span>
+      <PageShell wide className="relative z-10 pt-12 lg:pt-20">
+        <div className="max-w-[1300px] mx-auto">
+          
+          {/* 70/30 Split Layout */}
+          <div className="grid gap-12 lg:grid-cols-[1fr_340px] items-start pb-24">
+            
+            {/* Left Column */}
+            <div className="flex flex-col max-w-[900px] w-full">
+              
+              {/* Hero Content */}
+              <div className="relative px-4 lg:px-0 mb-14">
+            {/* Breadcrumbs */}
+            <div className="inline-flex items-center gap-2 mb-6 text-sm font-semibold text-slate-400 dark:text-slate-500">
+              <Link to="/courses" className="hover:text-primary-500 transition-colors">Design Hub</Link>
+              <span>/</span>
+              <span className="text-slate-800 dark:text-slate-300">UI Foundations</span>
+            </div>
+            
+            <h1 className="text-4xl sm:text-5xl lg:text-[4rem] font-bold tracking-tight text-slate-900 dark:text-white leading-[1.1]">
+              Product Design Masterclass
+            </h1>
+            
+            <p className="mt-5 text-lg sm:text-xl text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl">
+              A premium learning experience inspired by the world's best platforms. Master visual hierarchy, fluid typography, and borderless layouts.
+            </p>
+            
+            {/* Metadata Row */}
+            <div className="mt-8 flex flex-wrap items-center gap-4 text-sm font-medium text-slate-600 dark:text-slate-400">
+              <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-500">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                </svg>
+                <span className="font-bold">4.9</span>
+                <span className="text-slate-500 dark:text-slate-500 ml-1">(12k ratings)</span>
+              </div>
+              <span className="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
+              <div className="flex items-center gap-1.5">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100-8 4 4 0 000 8z" />
+                  <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+                </svg>
+                18,200 learners
+              </div>
+              <span className="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
+              <div>Beginner to Intermediate</div>
+              <span className="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
+              <div>12h 40m</div>
+              <span className="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
+              <div className="flex items-center gap-1.5">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="8" r="7" />
+                  <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+                </svg>
+                Certificate
+              </div>
+              <span className="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
+              <div>Updated Aug 2026</div>
+            </div>
           </div>
-          
-          <h1 className="text-5xl sm:text-6xl lg:text-[4.5rem] font-bold tracking-tight text-slate-900 dark:text-white leading-[1.1]">
-            Product Design Masterclass
-          </h1>
-          <p className="mt-6 text-lg sm:text-xl text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl mx-auto">
-            A premium learning experience inspired by the world's best platforms, with strong hierarchy, fluid typography, and a borderless learning flow.
-          </p>
-          
-          <nav className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm font-semibold">
-            {navAnchors.map((item, index) => (
-              <React.Fragment key={item.label}>
-                {index > 0 ? <span className="hidden text-slate-300 sm:inline" aria-hidden="true">·</span> : null}
-                <a href={`#${item.anchor}`} className="text-primary-600 transition-colors hover:text-primary-700 hover:underline underline-offset-4 decoration-2 decoration-primary-200">
-                  {item.label}
-                </a>
-              </React.Fragment>
-            ))}
-          </nav>
-        </div>
 
-        <MetricsSurface metrics={stats} className="!mt-16 max-w-5xl mx-auto" />
-
-      <div className="mt-8 grid gap-10 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,0.45fr)] xl:gap-12">
-        <main className="space-y-10">
-          <section id="preview-video" className="scroll-mt-24">
-            <SectionLead
-              label="Course Preview Video"
-              title="See the learning style before you enroll"
-              meta={<span className="status-badge status-badge-success">Hover effects enabled</span>}
-            />
-
-            <MotionDiv
-              className="group relative mt-5 overflow-hidden rounded-[var(--radius-panel)] border border-slate-200 bg-slate-950 shadow-elev-2 cursor-pointer"
-              layoutId="course-hero-video"
-              whileHover={{ scale: 1.01 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.18),transparent_25%),linear-gradient(135deg,rgba(15,23,42,0.55),rgba(59,130,246,0.35),rgba(168,85,247,0.35))]" />
-              <div className="relative aspect-video overflow-hidden">
-                <video
-                  className="h-full w-full object-cover opacity-80 transition duration-500 group-hover:scale-105 group-hover:opacity-95"
-                  controls
-                  preload="metadata"
-                  poster="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1600&q=80"
-                >
-                  <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" type="video/mp4" />
-                </video>
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-4 text-white">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-white/70">Video Hover Effects</p>
-                    <p className="mt-2 text-lg font-semibold">Animated preview with premium visual treatment</p>
-                  </div>
-                  <div className="rounded-2xl bg-white/15 dark:bg-white/10 px-4 py-3 text-right backdrop-blur-md">
-                    <p className="text-[10px] uppercase tracking-[0.24em] text-white/70">Preview</p>
-                    <p className="mt-1 text-sm font-semibold">3 min intro</p>
-                  </div>
-                </div>
-              </div>
-            </MotionDiv>
-          </section>
-
-          <section id="curriculum" className="scroll-mt-24">
-            <SectionLead
-              label="Curriculum"
-              title="Structured modules with clear progression"
-              meta={<span className="badge !border-sky-200 !bg-sky-50 !text-sky-700">5 modules</span>}
-            />
-
-            <div className="mt-5 space-y-2">
-              {curriculum.map((item, index) => {
-                const isOpen = openIndex === index;
-
-                return (
-                  <div key={item.title} className="group relative rounded-2xl transition-all duration-300">
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(99,102,241,0.08)_0%,_transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl" />
-                    
-                    <button
-                      type="button"
-                      onClick={() => setOpenIndex(isOpen ? -1 : index)}
-                      className="relative z-10 flex w-full items-center justify-between gap-4 px-6 py-5 text-left focus:outline-none"
+          {/* Main Content */}
+          <main className="space-y-16 px-4 lg:px-0">
+              
+              {/* Highlights & Video Preview Split */}
+              <section className="grid gap-10 md:grid-cols-2 items-start">
+                {/* Video Preview */}
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-[0.15em] text-slate-500 mb-4">Course Preview</h3>
+                  <MotionDiv
+                    className="group relative overflow-hidden rounded-2xl bg-slate-950 shadow-elev-2 cursor-pointer aspect-video"
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <div className="absolute inset-0 bg-slate-900" />
+                    <video
+                      className="h-full w-full object-cover opacity-80 transition duration-500 group-hover:opacity-100"
+                      poster="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80"
                     >
-                      <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 transition-colors group-hover:text-primary-500">Module {index + 1}</p>
-                        <h3 className="mt-1.5 text-lg font-bold text-slate-900 dark:text-white transition-colors group-hover:text-slate-950 dark:text-white">{item.title}</h3>
+                    </video>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white transition-transform duration-300 group-hover:scale-110">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                          <polygon points="5 3 19 12 5 21 5 3" />
+                        </svg>
                       </div>
-                      <div className="text-right text-sm text-slate-500 dark:text-slate-400">
-                        <p className="font-medium">{item.duration}</p>
-                        <p className="mt-1 font-semibold text-slate-400 group-hover:text-slate-500 dark:text-slate-400 transition-colors">
-                          {item.lectures} lectures {item.locked ? '• Locked' : ''}
-                        </p>
-                      </div>
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {isOpen ? (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                          className="relative z-10 overflow-hidden px-6 pb-6 text-sm leading-relaxed text-slate-600 dark:text-slate-300"
-                        >
-                          <p>
-                            This module focuses on hands-on learning, visual clarity, and premium pacing that helps students stay engaged from start to finish.
-                          </p>
-                        </motion.div>
-                      ) : null}
-                    </AnimatePresence>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          <section id="instructor" className="scroll-mt-24">
-            <SectionLead label="Instructor Info" title="Learn from a proven learning experience designer" />
-
-            <div className="mt-5 flex flex-col gap-5 md:flex-row md:items-start">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 via-indigo-500 to-fuchsia-500 text-xl font-semibold text-white shadow-lg shadow-sky-500/20">
-                EH
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-2xl font-semibold text-slate-950 dark:text-white">{instructor.name}</h3>
-                <p className="mt-1 text-slate-500 dark:text-slate-400">{instructor.title}</p>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-300">{instructor.bio}</p>
-                <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600 dark:text-slate-300">
-                  <span className="font-semibold text-slate-950 dark:text-white">{instructor.learners}</span>
-                  <span className="text-slate-300" aria-hidden="true">·</span>
-                  <span className="font-semibold text-slate-950 dark:text-white">{instructor.courses}</span>
-                  <span className="text-slate-300" aria-hidden="true">·</span>
-                  <span className="font-semibold text-slate-950 dark:text-white">{instructor.rating}</span>
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section id="reviews" className="scroll-mt-24">
-            <SectionLead label="Reviews" title="Learners trust the structure and polish" />
-
-            <div className="mt-5 divide-y divide-slate-200/70">
-              {reviews.map((review) => (
-                <div key={review.name} className="py-5 first:pt-0">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="font-semibold text-slate-950 dark:text-white">{review.name}</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">{review.role}</p>
                     </div>
-                    <p className="shrink-0 text-sm font-semibold tabular-nums text-amber-700">{review.rating.toFixed(1)} ★</p>
-                  </div>
-                  <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{review.text}</p>
+                  </MotionDiv>
                 </div>
-              ))}
-            </div>
-          </section>
 
-          <section id="faq" className="scroll-mt-24">
-            <SectionLead label="FAQ" title="Common questions before enrollment" />
-
-            <div className="mt-5 divide-y divide-slate-200/70">
-              {faqs.map((item, index) => {
-                const isOpen = openIndex === index + 100;
-
-                return (
-                  <div key={item.question}>
-                    <button
-                      type="button"
-                      onClick={() => setOpenIndex(isOpen ? -1 : index + 100)}
-                      className="flex w-full items-center justify-between gap-4 py-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/20"
-                    >
-                      <span className="text-base font-semibold text-slate-950 dark:text-white">{item.question}</span>
-                      <motion.span
-                        animate={{ rotate: isOpen ? 45 : 0 }}
-                        transition={{ duration: 0.18 }}
-                        className="text-2xl font-light text-slate-400"
+                {/* Highlights */}
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-[0.15em] text-slate-500 mb-4">What you'll learn</h3>
+                  <ul className="space-y-3">
+                    {highlights.map((item, i) => (
+                      <motion.li 
+                        key={i}
+                        initial={{ opacity: 0, x: -10 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: i * 0.1 }}
+                        className="flex items-start gap-3"
                       >
-                        +
-                      </motion.span>
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {isOpen ? (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-                          className="overflow-hidden border-t border-slate-200/70 pb-4 text-sm leading-7 text-slate-600 dark:text-slate-300"
-                        >
-                          <p className="pt-4">{item.answer}</p>
-                        </motion.div>
-                      ) : null}
-                    </AnimatePresence>
+                        <svg className="shrink-0 mt-0.5 h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">{item}</span>
+                      </motion.li>
+                    ))}
+                  </ul>
+                </div>
+              </section>
+
+              {/* Learning Impact (Social Proof) */}
+              <section className="rounded-3xl border border-slate-200/60 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] p-8 sm:p-10">
+                <div className="grid grid-cols-2 gap-8 md:grid-cols-4 text-center">
+                  <div>
+                    <div className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">18k+</div>
+                    <div className="mt-1 text-xs uppercase tracking-[0.1em] text-slate-500">Learners</div>
                   </div>
-                );
-              })}
-            </div>
-          </section>
-        </main>
+                  <div>
+                    <div className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">92%</div>
+                    <div className="mt-1 text-xs uppercase tracking-[0.1em] text-slate-500">Completion</div>
+                  </div>
+                  <div>
+                    <div className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">4.9</div>
+                    <div className="mt-1 text-xs uppercase tracking-[0.1em] text-slate-500">Avg Rating</div>
+                  </div>
+                  <div>
+                    <div className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">850+</div>
+                    <div className="mt-1 text-xs uppercase tracking-[0.1em] text-slate-500">Certificates</div>
+                  </div>
+                </div>
+              </section>
 
-        <aside className="xl:sticky xl:top-6 xl:self-start">
-          <GlassPanel
-            variant="dark"
-            padding="lg"
-            className="!shadow-[0_24px_64px_rgba(15,23,42,0.18)]"
-            motionProps={{ animate: floatY(6, 5.5) }}
-          >
-            <p className="section-label !text-white/70">Sticky Sidebar</p>
-            <h3 className="mt-3 text-2xl font-semibold tracking-tight">Enrolled now: get instant access</h3>
-            <div className="mt-5 space-y-3 rounded-[24px] border border-white/10 bg-white/10 dark:bg-white/5 p-4 backdrop-blur-md">
-              <div className="flex items-center justify-between text-sm text-white/80">
-                <span>Price</span>
-                <span className="text-2xl font-semibold text-white">$49</span>
-              </div>
-              <div className="flex items-center justify-between text-sm text-white/80">
-                <span>Level</span>
-                <span className="font-semibold text-white">Intermediate</span>
-              </div>
-              <div className="flex items-center justify-between text-sm text-white/80">
-                <span>Certificate</span>
-                <span className="font-semibold text-white">Included</span>
-              </div>
-            </div>
+              {/* Interactive Curriculum */}
+              <section>
+                <SectionLead label="Curriculum Roadmap" title="Structured path to mastery" />
+                <div className="mt-6 space-y-3">
+                  {curriculum.map((item, index) => {
+                    const isOpen = openCurriculum === index;
+                    return (
+                      <div key={index} className="group relative rounded-2xl border border-slate-200/60 dark:border-white/5 bg-white dark:bg-slate-900/50 transition-shadow hover:shadow-md dark:hover:shadow-none overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setOpenCurriculum(isOpen ? -1 : index)}
+                          className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left focus:outline-none"
+                        >
+                          <div className="flex-1 pr-4">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-primary-600 dark:text-primary-400">Module {index + 1}</p>
+                            <h4 className="mt-1 text-base font-semibold text-slate-900 dark:text-white">{item.title}</h4>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-sm font-medium text-slate-900 dark:text-white">{item.duration}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{item.lectures} lectures</div>
+                          </div>
+                          <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className="shrink-0 text-slate-400 ml-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </motion.div>
+                        </button>
 
-            <div className="mt-8 grid gap-4">
-              <Link to="/learning" className="block w-full">
-                <button className="w-full relative overflow-hidden bg-gradient-to-b from-primary-500 to-primary-600 text-white font-bold text-[1.1rem] py-4 px-6 rounded-[2rem] shadow-[0_12px_32px_rgba(99,102,241,0.4),inset_0_2px_4px_rgba(255,255,255,0.4),inset_0_-2px_4px_rgba(0,0,0,0.2)] hover:shadow-[0_20px_48px_rgba(99,102,241,0.5),inset_0_2px_4px_rgba(255,255,255,0.5),inset_0_-2px_4px_rgba(0,0,0,0.2)] transition-all duration-300 hover:-translate-y-1 active:translate-y-0 active:shadow-[0_4px_16px_rgba(99,102,241,0.4),inset_0_2px_4px_rgba(0,0,0,0.2)]">
-                  Enroll now
-                </button>
-              </Link>
-              <Button variant="outline" className="w-full !border-white/15 !bg-white/5 dark:bg-white/5 !text-white hover:!bg-white/15 dark:bg-white/10 py-3">
-                Add to wishlist
-              </Button>
-            </div>
+                        <AnimatePresence>
+                          {isOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                            >
+                              <div className="px-6 pb-5 pt-1 border-t border-slate-100 dark:border-white/5">
+                                <ul className="space-y-1">
+                                  {item.lessons.map((lesson, lIdx) => (
+                                    <li key={lIdx} className="flex items-center justify-between py-2.5 group/lesson">
+                                      <div className="flex items-center gap-3">
+                                        {/* Status Icon */}
+                                        <div className="shrink-0 flex items-center justify-center w-6 h-6">
+                                          {lesson.status === 'completed' ? (
+                                            <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
+                                          ) : lesson.status === 'current' ? (
+                                            <span className="flex h-4 w-4 relative"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span><span className="relative inline-flex rounded-full h-4 w-4 bg-primary-500 border-2 border-white dark:border-slate-900"></span></span>
+                                          ) : (
+                                            <svg className="w-4 h-4 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
+                                          )}
+                                        </div>
+                                        <span className={`text-sm ${lesson.status === 'locked' ? 'text-slate-500 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200 font-medium group-hover/lesson:text-primary-600 dark:group-hover/lesson:text-primary-400 transition-colors'}`}>
+                                          {lesson.title}
+                                        </span>
+                                      </div>
+                                      <div className="text-xs text-slate-400 dark:text-slate-500">{lesson.duration}</div>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
 
-            <div className="mt-6 rounded-[24px] border border-white/10 bg-white/10 dark:bg-white/5 p-4 text-sm leading-7 text-white/80">
-              Smooth scroll anchors, premium section spacing, and accordion motion keep the page calm and easy to explore.
-            </div>
-          </GlassPanel>
-        </aside>
-      </div>
+              {/* Instructor Profile */}
+              <section>
+                <SectionLead label="Instructor" title="Learn from an industry expert" />
+                <div className="mt-6 rounded-3xl border border-slate-200/60 dark:border-white/5 bg-white dark:bg-slate-900/40 p-6 sm:p-8">
+                  <div className="flex flex-col sm:flex-row gap-6 items-start">
+                    <img 
+                      src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&q=80" 
+                      alt={instructor.name}
+                      className="w-24 h-24 rounded-full object-cover shadow-lg"
+                    />
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{instructor.name}</h3>
+                      <p className="text-primary-600 dark:text-primary-400 font-medium mt-1">{instructor.title}</p>
+                      
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-4 text-sm text-slate-600 dark:text-slate-300">
+                        <div className="flex items-center gap-1.5">
+                          <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
+                          <span className="font-semibold">{instructor.rating}</span> Instructor Rating
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100-8 4 4 0 000 8z" /></svg>
+                          <span className="font-semibold">{instructor.reviews}</span> Reviews
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 14l9-5-9-5-9 5 9 5z" /><path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" /><path d="M12 14l9-5-9-5-9 5 9 5zm0 0v6" /></svg>
+                          <span className="font-semibold">{instructor.learners}</span> Students
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></svg>
+                          <span className="font-semibold">{instructor.courses}</span> Courses
+                        </div>
+                      </div>
+
+                      <p className="mt-5 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                        {instructor.bio}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Reviews - Testimonial Stream */}
+              <section>
+                <div className="flex items-end justify-between mb-6">
+                  <SectionLead label="Testimonials" title="Student Reviews" className="mb-0" />
+                  <div className="text-right">
+                    <div className="text-3xl font-bold text-slate-900 dark:text-white">4.9</div>
+                    <div className="flex items-center text-amber-500 mt-1">
+                      <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                      <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                      <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                      <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                      <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {reviews.map((review, i) => (
+                    <div key={i} className="rounded-3xl border border-slate-200/60 dark:border-white/5 bg-white dark:bg-slate-900/30 p-6 flex flex-col h-full">
+                      <div className="flex items-center gap-1 text-amber-500 mb-3">
+                        {[...Array(review.rating)].map((_, idx) => (
+                          <svg key={idx} className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                        ))}
+                      </div>
+                      <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 flex-1">"{review.text}"</p>
+                      <div className="mt-5 pt-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300">
+                            {review.name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-slate-900 dark:text-white">{review.name}</div>
+                            <div className="text-[11px] text-slate-500">{review.role}</div>
+                          </div>
+                        </div>
+                        <div className="text-[11px] text-slate-400">{review.date}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* FAQ Accordion */}
+              <section>
+                <SectionLead label="FAQ" title="Common questions" />
+                <div className="mt-6 space-y-2">
+                  {faqs.map((item, index) => {
+                    const isOpen = openFaq === index;
+                    return (
+                      <div key={index} className="border-b border-slate-200 dark:border-slate-800/80">
+                        <button
+                          type="button"
+                          onClick={() => setOpenFaq(isOpen ? -1 : index)}
+                          className="w-full flex items-center justify-between py-5 text-left focus:outline-none"
+                        >
+                          <span className="text-base font-medium text-slate-900 dark:text-white pr-4">{item.question}</span>
+                          <motion.span animate={{ rotate: isOpen ? 45 : 0 }} className="text-2xl font-light text-slate-400">+</motion.span>
+                        </button>
+                        <AnimatePresence>
+                          {isOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.3 }}
+                              className="overflow-hidden"
+                            >
+                              <p className="pb-6 pr-8 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                                {item.answer}
+                              </p>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            </main>
+          </div>
+
+          {/* Right Column: Sticky CTA Panel */}
+          <aside className="hidden lg:block sticky top-24">
+              <div className="relative rounded-3xl p-[1px] bg-gradient-to-b from-primary-500/30 to-transparent shadow-[0_32px_64px_rgba(15,23,42,0.08)] dark:shadow-[0_32px_64px_rgba(0,0,0,0.5)]">
+                <GlassPanel
+                  variant="dark"
+                  padding="none"
+                  className="relative overflow-hidden !border-none !bg-white/95 dark:!bg-slate-900/95"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary-500/5 via-transparent to-fuchsia-500/5 pointer-events-none" />
+                {/* Thumbnail */}
+                <div className="aspect-video relative overflow-hidden bg-slate-900">
+                  <img src="https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&w=800&q=80" alt="Course thumbnail" className="w-full h-full object-cover opacity-80" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">Course Progress</span>
+                      <span className="font-bold text-primary-600 dark:text-primary-400">25%</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-primary-500 to-primary-400 w-1/4 rounded-full" />
+                    </div>
+                  </div>
+
+                  {/* Next Up to fill space */}
+                  <div className="mb-6 p-4 rounded-xl border border-slate-200/60 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02]">
+                    <div className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500 mb-2">Up Next</div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2">How to get feedback and support</div>
+                    <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+                      <svg className="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      5 min video
+                    </div>
+                  </div>
+
+                  <div className="flex items-end gap-3 mb-1">
+                    <div className="text-4xl font-bold text-slate-900 dark:text-white">$49</div>
+                    <div className="text-xl font-medium text-slate-400 line-through mb-1">$99</div>
+                    <div className="px-2.5 py-1 text-xs font-bold text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-500/20 rounded-full mb-1.5 ml-auto">
+                      Save 50%
+                    </div>
+                  </div>
+                  <div className="text-sm text-red-500 dark:text-red-400 font-medium mb-6 flex items-center gap-1.5">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Offer ends in 2 days
+                  </div>
+                  
+                  <Link to="/learning" className="block w-full">
+                    <button className="group w-full relative overflow-hidden bg-gradient-to-r from-primary-600 via-indigo-500 to-primary-600 bg-[length:200%_auto] animate-gradient text-white font-bold text-lg py-4 px-6 rounded-2xl shadow-[0_8px_24px_rgba(99,102,241,0.4),inset_0_1px_2px_rgba(255,255,255,0.4)] hover:-translate-y-1 transition-all duration-300 active:translate-y-0">
+                      <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      Enroll Now
+                    </button>
+                  </Link>
+                  <p className="text-center text-xs text-slate-500 mt-3 font-medium">30-Day Money-Back Guarantee</p>
+
+                  <div className="flex gap-3 mt-3">
+                    <Button variant="outline" className="flex-1 py-3 border-slate-200 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10">
+                      Wishlist
+                    </Button>
+                    <Button variant="outline" className="flex-1 py-3 border-slate-200 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10">
+                      Share
+                    </Button>
+                  </div>
+
+                  <div className="mt-6 pt-6 border-t border-slate-100 dark:border-white/10 text-sm text-slate-600 dark:text-slate-400 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      12h 40m on-demand video
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      Certificate of completion
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
+                      100% online & self-paced
+                    </div>
+                  </div>
+                </div>
+              </GlassPanel>
+              </div>
+            </aside>
+          </div>
+        </div>
       </PageShell>
-    </>
+
+      {/* Mobile Sticky CTA */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-200 dark:border-white/10 z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+        <div className="flex items-center justify-between gap-4 max-w-lg mx-auto">
+          <div className="flex flex-col">
+            <div className="flex items-end gap-2">
+              <div className="text-xl font-bold text-slate-900 dark:text-white">$49</div>
+              <div className="text-sm font-medium text-slate-400 line-through mb-0.5">$99</div>
+            </div>
+            <div className="text-[10px] font-bold text-red-500 uppercase tracking-wider">Ends in 2 days</div>
+          </div>
+          <Link to="/learning" className="flex-1">
+            <button className="w-full bg-gradient-to-r from-primary-600 via-indigo-500 to-primary-600 bg-[length:200%_auto] animate-gradient text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-primary-500/25 active:scale-95 transition-transform">
+              Enroll Now
+            </button>
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 };
 

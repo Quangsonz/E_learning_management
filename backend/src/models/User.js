@@ -24,7 +24,6 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Tối ưu hóa truy vấn đăng nhập và lấy người dùng theo vai trò
-userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 
 // Middleware: Mã hóa password trước khi save
