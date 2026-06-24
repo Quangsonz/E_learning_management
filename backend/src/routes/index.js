@@ -10,6 +10,7 @@ const quizRoutes = require('./quiz.routes');
 const certificateRoutes = require('./certificate.routes');
 const notificationRoutes = require('./notification.routes');
 const analyticsRoutes = require('./analytics.routes');
+const dashboardRoutes = require('./dashboard.routes');
 
 const router = express.Router();
 
@@ -24,6 +25,8 @@ router.use('/quizzes', quizRoutes);
 router.use('/certificates', certificateRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/analytics', analyticsRoutes);
+// Student Dashboard — Nested route: /students/:id/dashboard/*
+router.use('/students/:id/dashboard', dashboardRoutes);
 
 // Mount nested quiz creation route in course
 // But since we can use /api/quizzes directly or nested, we mounted it on /quizzes

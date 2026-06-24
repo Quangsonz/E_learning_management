@@ -4,7 +4,10 @@ const quizSchema = new mongoose.Schema({
   course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
   title: { type: String, required: true, trim: true },
   passingScore: { type: Number, required: true, min: 0, max: 100 }, // Tính theo %
-  timeLimit: { type: Number } // Phút (có thể không gò bó thời gian)
+  timeLimit: { type: Number }, // Phút (có thể không gò bó thời gian)
+  // Dashboard fields
+  scheduledAt: { type: Date, default: null }, // Thời điểm bắt đầu kiểm tra
+  dueDate: { type: Date, default: null }      // Hạn chật nộp bài
 }, { timestamps: true });
 
 quizSchema.index({ course: 1 });

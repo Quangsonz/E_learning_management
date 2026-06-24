@@ -20,7 +20,11 @@ const userSchema = new mongoose.Schema({
   verificationToken: String,
   passwordResetToken: String,
   passwordResetExpires: Date,
-  refreshToken: String
+  refreshToken: String,
+  // Dashboard / Learning Profile fields
+  studyStreakDays: { type: Number, default: 0 }, // Số ngày học liên tiếp
+  preferences: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }], // Sở thích danh mục để gợi ý
+  totalFocusMinutes: { type: Number, default: 0 } // Tổng thời gian học (phút)
 }, { timestamps: true });
 
 // Tối ưu hóa truy vấn đăng nhập và lấy người dùng theo vai trò

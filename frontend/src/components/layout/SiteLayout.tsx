@@ -5,136 +5,72 @@ import { useTheme } from '../../contexts/ThemeContext';
 
 /* ── Navigation items ───────────────────────────────────── */
 const sidebarItems = [
-  {
-    label: 'Home',
-    to: '/home',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  },
-  {
-    label: 'Admin',
-    to: '/admin-dashboard',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  },
-  {
-    label: 'Teacher',
-    to: '/teacher-dashboard',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  },
-  {
-    label: 'Courses',
-    to: '/courses',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  },
-  {
-    label: 'Manage',
-    to: '/course-management',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-        <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-        <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-        <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  },
-  {
-    label: 'Learning',
-    to: '/learning',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <polygon points="5 3 19 12 5 21 5 3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  },
-  {
-    label: 'Quiz',
-    to: '/quiz',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-        <rect x="9" y="3" width="6" height="4" rx="2" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  }
+  { label: 'Home', to: '/home' },
+  { label: 'Admin', to: '/admin-dashboard' },
+  { label: 'Teacher', to: '/teacher-dashboard' },
+  { label: 'Courses', to: '/courses' },
+  { label: 'Manage', to: '/course-management' },
+  { label: 'Learning', to: '/learning' },
+  { label: 'Quiz', to: '/quiz' }
 ];
 
-/* ── Sidebar Item ────────────────────────────────────────── */
-const NavItem: React.FC<{ item: typeof sidebarItems[0]; collapsed: boolean; onClick: () => void }> = ({
-  item,
-  collapsed,
-  onClick
-}) => (
+/* ── Desktop Nav Item ────────────────────────────────────── */
+const DesktopNavItem: React.FC<{ item: typeof sidebarItems[0]; onClick: () => void }> = ({ item, onClick }) => (
   <NavLink
     to={item.to}
     end={item.to === '/'}
     onClick={onClick}
-    title={collapsed ? item.label : undefined}
     className={({ isActive }) =>
-      `group relative flex items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
+      `relative px-6 py-2.5 text-base font-semibold transition-colors duration-300 rounded-full ${
         isActive
-          ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/25 dark:bg-sky-500/20 dark:text-sky-300 dark:shadow-none'
-          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
+          ? 'text-slate-900 dark:text-white'
+          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
       }`
     }
   >
     {({ isActive }) => (
       <>
-        <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-            isActive
-              ? 'bg-white/20 text-white dark:bg-sky-500/20'
-              : 'bg-slate-100 dark:bg-white/5 text-slate-500 group-hover:bg-slate-200 dark:group-hover:bg-white/10 group-hover:text-slate-700 dark:group-hover:text-white'
-          }`}
-        >
-          {item.icon}
-        </span>
-
-        <span
-          className={`whitespace-nowrap font-medium transition-all duration-300 ${
-            collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'
-          }`}
-        >
-          {item.label}
-        </span>
-
-        {/* Active indicator */}
-        {isActive && !collapsed ? (
-          <motion.span
-            layoutId="nav-active-dot"
-            className="ml-auto h-2 w-2 rounded-full bg-white/60"
+        <span className="relative z-10">{item.label}</span>
+        {isActive && (
+          <motion.div
+            layoutId="desktop-nav-active"
+            className="absolute inset-0 bg-slate-100 dark:bg-white/10 rounded-full"
+            transition={{ type: "spring", stiffness: 350, damping: 30 }}
           />
-        ) : null}
+        )}
       </>
     )}
   </NavLink>
 );
 
+/* ── Mobile Nav Item ─────────────────────────────────────── */
+const MobileNavItem: React.FC<{ item: typeof sidebarItems[0]; onClick: () => void; index: number }> = ({ item, onClick, index }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 40 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: 20 }}
+    transition={{ delay: index * 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+  >
+    <NavLink
+      to={item.to}
+      end={item.to === '/'}
+      onClick={onClick}
+      className={({ isActive }) =>
+        `block text-4xl font-bold tracking-tighter transition-colors duration-300 ${
+          isActive
+            ? 'text-indigo-500 dark:text-indigo-400'
+            : 'text-slate-400 dark:text-slate-600 hover:text-slate-900 dark:hover:text-white'
+        }`
+      }
+    >
+      {item.label}
+    </NavLink>
+  </motion.div>
+);
+
 /* ── Main Layout ─────────────────────────────────────────── */
 const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -164,273 +100,218 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
+  // Lock scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
+  }, [mobileOpen]);
+
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
-      {/* ── Mobile backdrop ──────────────────────────────── */}
-      <AnimatePresence>
-        {mobileOpen ? (
-          <motion.div
-            className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm md:hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={() => setMobileOpen(false)}
-            aria-hidden="true"
-          />
-        ) : null}
-      </AnimatePresence>
-
-      {/* ── Sidebar ──────────────────────────────────────── */}
-      <aside
-        className={`
-          fixed inset-y-0 left-0 z-50 flex flex-col
-          border-r border-slate-200 dark:border-white/5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl
-          transition-all duration-300 ease-out
-          md:sticky md:top-0 md:h-screen
-          ${collapsed ? 'w-[72px]' : 'w-[260px]'}
-          ${mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}
-        `}
-      >
-        {/* Logo area */}
-        <div className="flex h-16 items-center justify-between px-3 border-b border-slate-200 dark:border-white/5">
-          <Link
-            to="/home"
-            className="flex items-center gap-3 overflow-hidden rounded-xl p-1 transition hover:bg-slate-50 dark:hover:bg-white/5"
-            aria-label="E-Learning Home"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 text-sm font-bold text-white shadow-md shadow-sky-500/25">
-              E
-            </span>
-            <span
-              className={`whitespace-nowrap text-base font-bold tracking-tight text-slate-900 dark:text-white transition-all duration-300 ${
-                collapsed ? 'max-w-0 opacity-0' : 'max-w-[160px] opacity-100'
-              }`}
-            >
-              E-Learning
-            </span>
+    <div className="flex flex-col min-h-[100dvh] bg-[#FBFBFA] dark:bg-[#080808] transition-colors duration-300 relative selection:bg-indigo-500/30">
+      
+      {/* ── Fluid Island Desktop Nav ─────────────────────── */}
+      <header className="fixed top-6 left-1/2 -translate-x-1/2 z-50 hidden md:flex items-center gap-3 p-2 rounded-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-black/5 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+        <div className="pl-4 pr-3 border-r border-slate-200 dark:border-white/10 flex items-center">
+          <Link to="/home" className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 text-white font-bold tracking-tighter text-base">
+            E
           </Link>
-
-          {/* Collapse toggle (desktop) */}
-          <button
-            type="button"
-            onClick={() => setCollapsed((c) => !c)}
-            className={`hidden md:flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-slate-400 transition hover:bg-slate-50 dark:hover:bg-white/10 hover:text-slate-700 dark:hover:text-slate-200 ${collapsed ? 'mx-auto' : ''}`}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <motion.span
-              animate={{ rotate: collapsed ? 180 : 0 }}
-              transition={{ duration: 0.25 }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </motion.span>
-          </button>
         </div>
-
-        {/* Nav Items */}
-        <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5" aria-label="Main navigation">
+        
+        <nav className="flex items-center px-3 gap-2">
           {sidebarItems.map((item) => (
-            <NavItem
-              key={item.to}
-              item={item}
-              collapsed={collapsed}
-              onClick={() => setMobileOpen(false)}
-            />
+            <DesktopNavItem key={item.to} item={item} onClick={() => {}} />
           ))}
         </nav>
 
-        {/* Notification card (only when expanded) */}
-        <AnimatePresence>
-          {!collapsed ? (
-            <motion.div
-              className="mx-2.5 mb-3 rounded-xl border border-sky-100 dark:border-sky-500/10 bg-sky-50/50 dark:bg-sky-500/5 p-3"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              transition={{ duration: 0.2 }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-slate-700 dark:text-sky-300">New enrollments</p>
-                  <p className="mt-0.5 text-xs text-slate-500 dark:text-sky-200/70">2 new students today</p>
-                </div>
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 text-[10px] font-bold text-white shadow-sm shadow-sky-500/30">
-                  2
-                </span>
-              </div>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-
-        {/* Profile area */}
-        <div className="border-t border-slate-200 dark:border-white/5 p-2.5">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setProfileOpen((c) => !c)}
-              className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-slate-100 dark:hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-              aria-expanded={profileOpen}
-              aria-haspopup="menu"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-slate-600 dark:from-white/10 dark:to-white/5 text-xs font-bold text-white">
-                AD
-              </span>
-              <div
-                className={`min-w-0 flex-1 transition-all duration-300 ${
-                  collapsed ? 'max-w-0 opacity-0' : 'max-w-[160px] opacity-100'
-                }`}
-              >
-                <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">Admin User</p>
-                <p className="truncate text-xs text-slate-500 dark:text-slate-400">admin@elearning.app</p>
-              </div>
-              {!collapsed ? (
-                <motion.span
-                  animate={{ rotate: profileOpen ? 180 : 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="text-slate-400"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </motion.span>
-              ) : null}
-            </button>
-
-            {/* Profile dropdown */}
-            <AnimatePresence>
-              {profileOpen ? (
-                <motion.div
-                  className="absolute bottom-14 left-0 right-0 z-50 overflow-hidden rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
-                  initial={{ opacity: 0, y: 8, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                  transition={{ duration: 0.18 }}
-                  role="menu"
-                >
-                  {[
-                    { label: 'Profile', icon: '👤' },
-                    { label: 'Settings', icon: '⚙️' },
-                    { label: 'Billing', icon: '💳' },
-                    { label: 'Sign out', icon: '🚪' }
-                  ].map((item, i) => (
-                    <button
-                      key={item.label}
-                      type="button"
-                      role="menuitem"
-                      className={`flex w-full items-center gap-3 px-3.5 py-2.5 text-sm text-slate-600 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white ${
-                        i === 3 ? 'border-t border-slate-100 dark:border-white/10 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400' : ''
-                      }`}
-                    >
-                      <span className="text-base">{item.icon}</span>
-                      {item.label}
-                    </button>
-                  ))}
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-          </div>
-        </div>
-      </aside>
-
-      {/* ── Main Content ──────────────────────────────────── */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile top bar */}
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-slate-200 dark:border-white/5 bg-white/90 dark:bg-slate-900/90 px-4 backdrop-blur-xl md:hidden">
+        <div className="pl-3 pr-2 border-l border-slate-200 dark:border-white/10 flex items-center gap-2">
           <button
-            type="button"
-            onClick={() => setMobileOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-white/10"
-            aria-label="Open navigation"
+            onClick={toggleTheme}
+            className="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+            aria-label="Toggle theme"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+            {theme === 'dark' ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            )}
           </button>
 
-          {/* Page title */}
-          <span className="text-sm font-semibold text-slate-900 dark:text-white">{activeLabel}</span>
-
-          <div className="flex items-center gap-3">
-            {/* Theme Toggle Mobile */}
+          <div className="relative">
             <button
-              onClick={toggleTheme}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 transition hover:bg-slate-200 dark:hover:bg-white/10"
-              aria-label="Toggle theme"
-            >
-              {theme === 'dark' ? '☀️' : '🌙'}
-            </button>
-            {/* Profile button */}
-            <button
-              type="button"
-              onClick={() => setProfileOpen((c) => !c)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 text-xs font-bold text-white shadow-sm"
+              onClick={() => setProfileOpen(!profileOpen)}
+              className="w-10 h-10 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center text-sm font-bold transition-transform hover:scale-105"
             >
               AD
             </button>
-          </div>
-        </header>
-
-        {/* Desktop breadcrumb bar */}
-        <div className="hidden items-center justify-between border-b border-slate-200/60 dark:border-white/5 bg-white/60 dark:bg-slate-900/60 px-8 py-3 text-sm text-slate-400 backdrop-blur-sm md:flex">
-          <div className="flex items-center gap-2">
-            <span className="text-slate-300 dark:text-slate-600">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <span className="text-slate-300 dark:text-slate-600">/</span>
-            <span className="font-medium text-slate-600 dark:text-slate-300">{activeLabel}</span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {/* Theme Toggle Desktop */}
-            <button
-              onClick={toggleTheme}
-              className="group flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 transition hover:bg-slate-200 dark:hover:bg-white/10"
-              aria-label="Toggle theme"
-            >
-              <motion.span
-                initial={false}
-                animate={{ rotate: theme === 'dark' ? 180 : 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                {theme === 'dark' ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="5" />
-                    <line x1="12" y1="1" x2="12" y2="3" />
-                    <line x1="12" y1="21" x2="12" y2="23" />
-                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                    <line x1="1" y1="12" x2="3" y2="12" />
-                    <line x1="21" y1="12" x2="23" y2="12" />
-                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                  </svg>
-                ) : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                  </svg>
-                )}
-              </motion.span>
-            </button>
+            <AnimatePresence>
+              {profileOpen && (
+                <motion.div
+                  className="absolute top-12 right-0 w-48 overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-2xl origin-top-right"
+                  initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <div className="p-2 border-b border-slate-100 dark:border-white/5">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white px-2 pt-1">Admin User</p>
+                    <p className="text-xs text-slate-500 px-2 pb-1">admin@elearning.app</p>
+                  </div>
+                  <div className="p-1">
+                    {['Profile', 'Settings', 'Sign out'].map((lbl, i) => (
+                      <button key={lbl} className={`w-full text-left px-3 py-2 text-sm rounded-xl transition-colors ${i === 2 ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'}`}>
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
+      </header>
 
-        {/* Page content */}
-        <main className="flex-1 min-w-0">
-          {children}
-        </main>
+      {/* ── Mobile Top Bar ─────────────────────────────── */}
+      <header className="sticky top-0 z-40 flex h-16 items-center justify-between px-4 border-b border-black/5 dark:border-white/5 bg-white/80 dark:bg-[#080808]/80 backdrop-blur-xl md:hidden">
+        <Link to="/home" className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 text-white font-bold tracking-tighter text-sm">
+          E
+        </Link>
+        <div className="flex items-center gap-3">
+          <button onClick={toggleTheme} className="w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300">
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+          <button
+            className="w-10 h-10 flex flex-col items-center justify-center gap-1.5 z-50 relative"
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
+            <motion.span animate={{ rotate: mobileOpen ? 45 : 0, y: mobileOpen ? 8 : 0 }} className="w-5 h-[2px] bg-slate-900 dark:bg-white block origin-center transition-all" />
+            <motion.span animate={{ opacity: mobileOpen ? 0 : 1 }} className="w-5 h-[2px] bg-slate-900 dark:bg-white block transition-opacity" />
+            <motion.span animate={{ rotate: mobileOpen ? -45 : 0, y: mobileOpen ? -8 : 0 }} className="w-5 h-[2px] bg-slate-900 dark:bg-white block origin-center transition-all" />
+          </button>
+        </div>
+      </header>
 
-        {/* Footer */}
-        <footer className="border-t border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm">
-          <div className="mx-auto max-w-7xl px-4 py-3.5 text-center text-xs text-slate-400 dark:text-slate-500 sm:px-6 lg:px-8">
-            © 2026 E-Learning — Built for modern student experiences.
+      {/* ── Mobile Fullscreen Menu ─────────────────────── */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            className="fixed inset-0 z-30 bg-white/95 dark:bg-[#080808]/95 backdrop-blur-3xl pt-24 px-8 pb-12 flex flex-col justify-between overflow-y-auto"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <nav className="flex flex-col gap-6">
+              {sidebarItems.map((item, i) => (
+                <MobileNavItem key={item.to} item={item} onClick={() => setMobileOpen(false)} index={i} />
+              ))}
+            </nav>
+            <motion.div 
+              className="pt-8 border-t border-slate-200 dark:border-slate-800 flex items-center gap-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              <div className="w-12 h-12 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center font-bold">
+                AD
+              </div>
+              <div>
+                <p className="font-bold text-slate-900 dark:text-white">Admin User</p>
+                <p className="text-sm text-slate-500">admin@elearning.app</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Main Content ──────────────────────────────────── */}
+      <main className="flex-1 w-full min-w-0 md:pt-24 relative z-0">
+        {children}
+      </main>
+
+      {/* ── High-End Footer ────────────────────────────────────────── */}
+      <footer className="mt-24 border-t border-slate-200/50 dark:border-white/10 relative z-0 bg-white/40 dark:bg-black/20 backdrop-blur-xl">
+        {/* Subtle mesh background for the footer */}
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-30 dark:opacity-20 overflow-hidden mix-blend-multiply dark:mix-blend-screen">
+          <div className="absolute -bottom-[50%] -left-[10%] w-[50%] h-[100%] rounded-full bg-indigo-500/20 blur-[120px]" />
+          <div className="absolute bottom-[0%] -right-[10%] w-[40%] h-[80%] rounded-full bg-cyan-400/20 blur-[140px]" />
+        </div>
+
+        <div className="mx-auto max-w-[1400px] px-6 lg:px-12 py-16 lg:py-24 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-8 mb-16">
+            
+            {/* Brand Section */}
+            <div className="md:col-span-5 lg:col-span-4 pr-8">
+              <Link to="/home" className="flex items-center gap-3 mb-6">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 text-white font-bold tracking-tighter text-base shadow-lg shadow-indigo-500/20">
+                  E
+                </div>
+                <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">E-Learning.</span>
+              </Link>
+              <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed max-w-[30ch] font-medium">
+                Elevating the educational experience through intentional design, advanced component composition, and emotional interaction.
+              </p>
+              
+              {/* Social Links */}
+              <div className="flex items-center gap-4 mt-8">
+                {['Twitter', 'GitHub', 'Dribbble'].map((social) => (
+                  <button key={social} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/30">
+                    <span className="text-xs font-bold">{social[0]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Links Section */}
+            <div className="md:col-span-7 lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-8">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-6">Platform</h4>
+                <ul className="space-y-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                  <li><Link to="/courses" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Courses</Link></li>
+                  <li><Link to="/learning" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Learning Path</Link></li>
+                  <li><Link to="/quiz" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Assessments</Link></li>
+                  <li><a href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Certifications</a></li>
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-6">Management</h4>
+                <ul className="space-y-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                  <li><Link to="/admin-dashboard" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Admin Console</Link></li>
+                  <li><Link to="/teacher-dashboard" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Teacher Portal</Link></li>
+                  <li><Link to="/course-management" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Content Editor</Link></li>
+                  <li><a href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center gap-2">Analytics <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-[9px] font-bold uppercase tracking-widest">New</span></a></li>
+                </ul>
+              </div>
+
+              <div className="col-span-2 sm:col-span-1">
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-6">Stay Updated</h4>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-4">Join our newsletter for weekly educational design patterns.</p>
+                <div className="relative group">
+                  <input type="email" placeholder="Email address" className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-full py-3 pl-5 pr-12 text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400 transition-colors placeholder:text-slate-400 shadow-sm" />
+                  <button className="absolute right-1.5 top-1.5 bottom-1.5 w-9 rounded-full bg-slate-950 dark:bg-white flex items-center justify-center text-white dark:text-slate-950 group-hover:bg-indigo-600 dark:group-hover:bg-indigo-400 transition-colors shadow-md">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </footer>
-      </div>
+
+          {/* Bottom Bar */}
+          <div className="pt-8 border-t border-slate-200/50 dark:border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="text-sm font-bold text-slate-400 dark:text-slate-500">
+              © 2026 E-Learning. Crafted with purpose.
+            </div>
+            <div className="flex flex-wrap items-center gap-6 text-sm font-bold text-slate-400 dark:text-slate-500">
+              <a href="#" className="hover:text-slate-900 dark:hover:text-white transition-colors">Privacy Policy</a>
+              <a href="#" className="hover:text-slate-900 dark:hover:text-white transition-colors">Terms of Service</a>
+              <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-white/10">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-slate-700 dark:text-slate-300">All Systems Operational</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
