@@ -182,7 +182,7 @@ const Home: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-[#FBFBFA]/70 via-[#FBFBFA]/60 to-[#FBFBFA] dark:from-[#080808]/80 dark:via-[#080808]/70 dark:to-[#080808] backdrop-blur-[4px]" />
       </div>
 
-      <div className="max-w-[1400px] mx-auto pt-12 pb-32 px-4 sm:px-6 lg:px-12 space-y-20 relative z-10">
+      <div className="max-w-[1400px] mx-auto pt-12 pb-8 px-4 sm:px-6 lg:px-12 space-y-20 relative z-10">
         
         {/* ================= HEADER ================= */}
         <section className="flex flex-col lg:flex-row items-center justify-between gap-16 min-h-[55vh]">

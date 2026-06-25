@@ -169,7 +169,7 @@ const CourseDetail: React.FC = () => {
         <div className="max-w-[1300px] mx-auto">
           
           {/* 70/30 Split Layout */}
-          <div className="grid gap-12 lg:grid-cols-[1fr_340px] items-start pb-24">
+          <div className="grid gap-12 lg:grid-cols-[1fr_340px] items-start pb-8">
             
             {/* Left Column */}
             <div className="flex flex-col max-w-[900px] w-full">

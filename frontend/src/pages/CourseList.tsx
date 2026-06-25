@@ -270,7 +270,7 @@ const CourseList: React.FC = () => {
             className="flex-1"
           />
 
-          <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:justify-end">
+          <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:justify-end hide-scrollbar">
             {categories.map((category) => {
               const isActive = activeCategory === category;
               return (

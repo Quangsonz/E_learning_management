@@ -1,18 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { motion, MotionProps } from 'framer-motion';
-import {
-  Button,
-  CanvasHero,
-  InsightCallout,
-  LoadingScreen,
-  LiveIndicator,
-  MetricsSurface,
-  PageShell,
-  SectionLead,
-  Toast
-} from '../components/ui';
+import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { LoadingScreen, Toast } from '../components/ui';
 import useSimulatedLoading from '../hooks/useSimulatedLoading';
-import { floatY } from '../animations/motionVariants';
 
 type Lesson = {
   id: number;
@@ -31,8 +21,6 @@ type Resource = {
   title: string;
   type: string;
 };
-
-const MotionDiv = motion.div as unknown as React.FC<React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>>;
 
 const modules: Module[] = [
   {
@@ -70,12 +58,6 @@ const resources: Resource[] = [
   { title: 'Community discussion', type: 'LINK' }
 ];
 
-const lessonMetrics = [
-  { label: 'Completed lessons', value: '12' },
-  { label: 'Focus streak', value: '7 days' },
-  { label: 'Achievement level', value: 'Gold' }
-];
-
 const notesSeed = [
   'Focus on the learning objective before each session.',
   'Pause the video and write one insight per lesson.',
@@ -83,7 +65,6 @@ const notesSeed = [
 ];
 
 const Learning: React.FC = () => {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedLessonId, setSelectedLessonId] = useState(103);
   const [progress, setProgress] = useState(58);
   const [showAchievement, setShowAchievement] = useState(false);
@@ -95,7 +76,6 @@ const Learning: React.FC = () => {
       const lesson = module.lessons.find((item) => item.id === selectedLessonId);
       if (lesson) return lesson;
     }
-
     return modules[0].lessons[0];
   }, [selectedLessonId]);
 
@@ -105,274 +85,243 @@ const Learning: React.FC = () => {
     window.setTimeout(() => setShowAchievement(false), 2600);
   };
 
-  if (isLoading) {
+    if (isLoading) {
     return (
-      <PageShell wide>
-        <LoadingScreen title="Loading learning space" message="Preparing lessons, video player, and study resources..." />
-      </PageShell>
+      <div className="bg-[#FBFBFA] dark:bg-[#111111] flex items-center justify-center py-32">
+        <LoadingScreen title="Loading workspace" message="Preparing video stream and curriculum..." />
+      </div>
     );
   }
 
   return (
-    <PageShell wide>
-      <CanvasHero
-        eyebrow="Your Learning Space"
-        title="Professional learning space with focus, flow, and momentum."
-        description="A structured study interface with course content, lesson tree, video player, notes, resources, and achievement feedback to optimize learning."
-        glow="cool"
-        actions={
-          <button
-            type="button"
-            onClick={() => setIsSidebarCollapsed((current) => !current)}
-            className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800"
-          >
-            {isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          </button>
-        }
-        aside={
-          <MotionDiv
-            className="relative mx-auto flex w-full max-w-[180px] shrink-0 items-center justify-center lg:-ml-16 lg:mr-2 xl:-ml-20"
-            animate={floatY(5, 5)}
-          >
-            <div
-              className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-emerald-300/20 via-cyan-300/15 to-indigo-400/15 blur-2xl"
-              aria-hidden="true"
-            />
-            <div className="relative text-right">
-              <p className="section-label">Progress</p>
-              <motion.p
-                className="mt-1 text-4xl font-semibold tabular-nums tracking-tight text-slate-950 dark:text-white"
-                key={progress}
-                initial={{ opacity: 0.6, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-              >
-                {progress}%
-              </motion.p>
-            </div>
-          </MotionDiv>
-        }
-      />
+    <div className="bg-[#FBFBFA] dark:bg-[#111111] text-[#111111] dark:text-[#FBFBFA] selection:bg-slate-200 dark:selection:bg-slate-800">
+      
+      {/* Top minimal nav */}
+      <nav className="h-14 border-b border-[#EAEAEA] dark:border-white/10 flex items-center px-6 lg:px-8 bg-[#FBFBFA]/80 dark:bg-[#111111]/80 backdrop-blur-md sticky top-0 z-40">
+        <div className="flex items-center gap-4 w-full max-w-[1400px] mx-auto">
+          <Link to="/courses" className="text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors flex items-center gap-1.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back to Course
+          </Link>
+          <div className="w-[1px] h-4 bg-slate-200 dark:bg-white/10"></div>
+          <span className="text-sm font-semibold tracking-tight">Product Design Masterclass</span>
+        </div>
+      </nav>
 
-      <div className="mt-8 grid gap-10 xl:grid-cols-[minmax(0,0.26fr)_minmax(0,1fr)_minmax(0,0.28fr)] xl:gap-8">
-        <MotionDiv
-          className={`xl:sticky xl:top-6 xl:self-start ${isSidebarCollapsed ? 'hidden xl:block xl:w-24' : ''}`}
-          animate={{ width: isSidebarCollapsed ? 96 : '100%' }}
-          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-        >
-          <SectionLead
-            label="Course Content"
-            title="Curriculum"
-            size="md"
-            meta={
-              <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">
-                <LiveIndicator />
-                Live
-              </span>
-            }
-          />
-
-          <div className="mt-5">
-            {modules.map((module, moduleIndex) => (
-              <div key={module.id} className="py-5 first:pt-0">
-                {!isSidebarCollapsed ? (
-                  <>
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                          Module {moduleIndex + 1}
-                        </p>
-                        <h3 className="mt-1.5 text-base font-semibold text-slate-950 dark:text-white">{module.title}</h3>
-                      </div>
-                      <span className="badge !border-slate-300">{module.lessons.length}</span>
-                    </div>
-
-                    <div className="mt-4 space-y-1">
-                      {module.lessons.map((lesson) => {
-                        const isActive = lesson.id === selectedLessonId;
-
-                        return (
-                          <button
-                            key={lesson.id}
-                            type="button"
-                            onClick={() => setSelectedLessonId(lesson.id)}
-                            className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left transition focus:outline-none focus:ring-4 focus:ring-indigo-500/10 ${
-                              isActive
-                                ? 'border-indigo-200 bg-indigo-50 dark:bg-indigo-900/30 dark:border-indigo-700/50 text-indigo-800 dark:text-indigo-200'
-                                : 'border-transparent text-slate-700 dark:text-slate-200 hover:border-slate-100 dark:hover:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/50'
-                            }`}
-                          >
-                            <div>
-                              <p className="text-sm font-medium">{lesson.title}</p>
-                              <p className={`mt-1 text-xs ${isActive ? 'text-white/70' : 'text-slate-500 dark:text-slate-400'}`}>
-                                {lesson.duration}
-                              </p>
-                            </div>
-                            <div
-                              className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] ${
-                                lesson.completed
-                                  ? isActive
-                                    ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300'
-                                    : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400'
-                                  : isActive
-                                    ? 'bg-indigo-100/60 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400'
-                                    : 'bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400'
-                              }`}
-                            >
-                              {lesson.completed ? 'Done' : 'Open'}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center gap-3 py-2">
-                    <div className="rounded-2xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white">C</div>
-                    <p className="text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                      Collapsed
-                    </p>
+      <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8 lg:py-12">
+        
+        {/* Asymmetrical Layout */}
+        <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
+          
+          {/* Left Column (Video + Notes) */}
+          <div className="lg:col-span-8 flex flex-col gap-10">
+            
+            {/* Cinematic Video Player */}
+            <div className="flex flex-col gap-5">
+              <div className="relative aspect-video w-full bg-black rounded-xl overflow-hidden group shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+                <img src="https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&w=1600&q=80" alt="Video cover" className="w-full h-full object-cover opacity-60 transition-opacity duration-500 group-hover:opacity-40" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <button className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transition-transform duration-300 hover:scale-105 hover:bg-white/20 active:scale-95">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                  </button>
+                </div>
+                {/* Minimal Control Bar */}
+                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-between text-white text-xs font-medium">
+                  <div className="flex items-center gap-3">
+                    <button className="hover:opacity-80 transition-opacity"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>
+                    <span>02:14 / {selectedLesson.duration}</span>
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </MotionDiv>
-
-        <main className="space-y-6">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <SectionLead
-              label="Video Player"
-              title={selectedLesson.title}
-              size="md"
-              meta={
-                <span className="text-sm text-slate-500 dark:text-slate-400">Duration: {selectedLesson.duration}</span>
-              }
-            />
-            <Button
-              variant="pill"
-              className="!bg-emerald-600 hover:!bg-emerald-500"
-              onClick={completeLesson}
-            >
-              Mark complete
-            </Button>
-          </div>
-
-          <div className="overflow-hidden rounded-[28px] bg-slate-950 shadow-elev-2">
-            <motion.div
-              className="relative aspect-video"
-              layoutId="course-hero-video"
-              whileHover={{ scale: 1.01 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.2),transparent_24%),linear-gradient(135deg,rgba(15,23,42,0.9),rgba(14,165,233,0.45),rgba(168,85,247,0.45))]" />
-              <div className="absolute inset-0 flex cursor-pointer items-center justify-center">
-                <div className="flex h-24 w-24 items-center justify-center rounded-full border border-white/20 bg-white/15 dark:bg-white/10 text-white shadow-elev-3 backdrop-blur-md transition hover:scale-110">
-                  <span className="ml-1 text-3xl">▶</span>
+                  <div className="flex items-center gap-4">
+                    <button className="hover:opacity-80 transition-opacity">1x</button>
+                    <button className="hover:opacity-80 transition-opacity">CC</button>
+                    <button className="hover:opacity-80 transition-opacity"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
+                  </div>
                 </div>
               </div>
-              <div className="absolute bottom-5 left-5 right-5 flex items-end justify-between gap-4 text-white">
+
+              {/* Lesson Metadata */}
+              <div className="flex items-start justify-between gap-6 pb-8 border-b border-[#EAEAEA] dark:border-white/10">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-white/70">Progress Animation</p>
-                  <p className="mt-2 text-lg font-semibold">Stay focused, finish lessons, and track your growth.</p>
+                  <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{selectedLesson.title}</h1>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Lesson • {selectedLesson.duration}</p>
                 </div>
-                <div className="rounded-2xl bg-white/15 dark:bg-white/10 px-4 py-3 text-right backdrop-blur-md">
-                  <p className="text-[10px] uppercase tracking-[0.24em] text-white/70">Current</p>
-                  <p className="mt-1 text-sm font-semibold">Lesson 03</p>
-                </div>
+                <button 
+                  onClick={completeLesson}
+                  className="shrink-0 rounded-md bg-[#111111] dark:bg-white px-5 py-2.5 text-sm font-medium text-white dark:text-[#111111] transition-transform active:scale-95 hover:bg-slate-800 dark:hover:bg-slate-200"
+                >
+                  Mark Complete
+                </button>
               </div>
-            </motion.div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
-              <span>Course progress</span>
-              <span className="font-semibold text-slate-900 dark:text-white">{progress}%</span>
             </div>
-            <div className="progress-track mt-3">
-              <motion.div
-                className="progress-fill"
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+
+            {/* Notion-style Notes Editor */}
+            <div className="flex flex-col gap-4 mt-2">
+              <h2 className="text-3xl font-bold tracking-tight text-slate-300 dark:text-slate-700 select-none">Notes</h2>
+              <textarea
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                placeholder="Start typing your notes..."
+                className="w-full min-h-[100px] resize-none bg-transparent border-none outline-none text-base leading-relaxed text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:ring-0 p-0"
               />
             </div>
+
           </div>
 
-          <MetricsSurface
-            metrics={lessonMetrics}
-            className="!mt-0 [&>div]:lg:grid-cols-3"
-            delay={0.25}
-          />
+          {/* Right Column (Curriculum) */}
+          <div className="lg:col-span-4 flex flex-col gap-10 lg:sticky lg:top-24">
+            
+            {/* Ultra-minimal Progress */}
+            <div>
+              <div className="flex items-center justify-between text-xs font-semibold tracking-widest uppercase mb-3 text-slate-500">
+                <span>Progress</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="h-[2px] w-full bg-[#EAEAEA] dark:bg-white/10 rounded-full overflow-hidden">
+                <motion.div 
+                  className="h-full bg-[#111111] dark:bg-white"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                />
+              </div>
+            </div>
 
-          <div className="space-y-5 pt-2">
-            <InsightCallout
-              title="Finish tasks and unlock momentum"
-              description="Completing a lesson updates progress, gives instant feedback, and keeps learners engaged with a subtle success state."
-            />
-            <MotionDiv
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.55, duration: 0.45 }}
-            >
-              <p className="section-label">Learning Tips</p>
-              <h3 className="mt-1.5 text-lg font-semibold text-slate-950 dark:text-white">Keep your flow sharp</h3>
-              <ul className="mt-3 space-y-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                <li>Pause, write one note, then continue the lesson.</li>
-                <li>Use the resources panel to save references.</li>
-                <li>Mark lessons complete to maintain momentum.</li>
-              </ul>
-              <Button type="button" variant="pill" className="mt-4" onClick={completeLesson}>
-                Complete this lesson
-              </Button>
-            </MotionDiv>
-          </div>
-        </main>
-
-        <aside className="space-y-10 xl:sticky xl:top-6 xl:self-start">
-          <section>
-            <SectionLead label="Notes" title="Capture key ideas" size="md" />
-            <textarea
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              className="mt-4 min-h-[240px] w-full rounded-2xl border border-slate-200/70 dark:border-slate-700/50 bg-slate-50/80 dark:bg-slate-800/30 p-4 text-sm leading-7 text-slate-700 dark:text-slate-200 outline-none transition focus:border-primary-400 focus:bg-white dark:focus:bg-slate-900/50 focus:ring-4 focus:ring-primary-500/10"
-              aria-label="Learning notes"
-            />
-          </section>
-
-          <section>
-            <SectionLead label="Resources" title="Keep reference files close" size="md" />
-            <div className="mt-4 divide-y divide-slate-200/70">
-              {resources.map((resource) => (
-                <button
-                  key={resource.title}
-                  type="button"
-                  className="group flex w-full items-center justify-between gap-3 py-4 text-left transition first:pt-0 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 sm:-mx-2 sm:px-2 sm:rounded-lg"
-                >
-                  <div>
-                    <p className="font-semibold text-slate-950 dark:text-white transition-colors group-hover:text-primary-600 dark:group-hover:text-primary-400">
-                      {resource.title}
-                    </p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">{resource.type}</p>
+            {/* Typography-driven Curriculum */}
+            <div className="flex flex-col">
+              {modules.map((module, mIdx) => (
+                <div key={module.id} className="pt-6 first:pt-0 pb-6 border-b border-[#EAEAEA] dark:border-white/10 last:border-0">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
+                    {mIdx + 1}. {module.title}
+                  </h3>
+                  <div className="flex flex-col gap-1">
+                    {module.lessons.map((lesson) => {
+                      const isActive = lesson.id === selectedLessonId;
+                      return (
+                        <button
+                          key={lesson.id}
+                          onClick={() => setSelectedLessonId(lesson.id)}
+                          className={`group flex items-center justify-between py-2 text-left w-full transition-colors ${isActive ? 'text-[#111111] dark:text-white font-medium' : 'text-slate-600 dark:text-slate-400 hover:text-[#111111] dark:hover:text-white'}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {/* Checkmark indicator */}
+                            <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                              {lesson.completed ? (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-400"><path d="M20 6L9 17l-5-5"/></svg>
+                              ) : isActive ? (
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#111111] dark:bg-white" />
+                              ) : null}
+                            </div>
+                            <span className="text-sm">{lesson.title}</span>
+                          </div>
+                          <span className={`text-xs ${isActive ? 'text-slate-500' : 'text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity'}`}>{lesson.duration}</span>
+                        </button>
+                      )
+                    })}
                   </div>
-                  <span className="text-xs font-semibold text-slate-400 transition-colors group-hover:text-primary-600">
-                    Open →
-                  </span>
-                </button>
+                </div>
               ))}
             </div>
-          </section>
-        </aside>
+
+            {/* Resources minimal list */}
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">Resources</h3>
+              <div className="flex flex-col gap-2">
+                {resources.map((res) => (
+                  <a key={res.title} href="#" className="flex items-center justify-between group py-1">
+                    <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-[#111111] dark:group-hover:text-white transition-colors underline decoration-slate-300 dark:decoration-slate-700 underline-offset-4">{res.title}</span>
+                    <span className="text-[10px] font-mono text-slate-400 uppercase">{res.type}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* Discussion / Q&A Section (Full Width) */}
+        <div className="flex flex-col gap-8 pt-8 border-t border-[#EAEAEA] dark:border-white/10 w-full">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Discussion</h2>
+            <span className="text-sm font-medium text-slate-500">12 Comments</span>
+          </div>
+          
+          {/* Input */}
+          <div className="flex gap-4">
+            <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center font-bold shrink-0">
+              U
+            </div>
+            <div className="flex-1 flex flex-col gap-3">
+              <textarea 
+                placeholder="Ask a question or share an insight..." 
+                className="w-full min-h-[100px] resize-none bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+              />
+              <div className="flex justify-end">
+                <button className="px-5 py-2 bg-[#111111] dark:bg-white text-white dark:text-[#111111] text-sm font-medium rounded-lg hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors">
+                  Post Comment
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Comments List */}
+          <div className="flex flex-col gap-8 mt-4">
+            <div className="flex gap-4">
+              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-slate-200">
+                <img src="https://i.pravatar.cc/150?u=12" alt="User" className="w-full h-full object-cover" />
+              </div>
+              <div className="flex flex-col gap-1.5 w-full">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm text-slate-900 dark:text-white">Sarah Jenkins</span>
+                  <span className="text-xs text-slate-500">2 days ago</span>
+                </div>
+                <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                  I found the explanation on component architecture really helpful! Does anyone know if there's a specific pattern for handling global state in this setup?
+                </p>
+                <div className="flex items-center gap-4 mt-1 text-xs font-medium text-slate-500">
+                  <button className="hover:text-indigo-500 transition-colors">Reply</button>
+                  <button className="hover:text-indigo-500 transition-colors flex items-center gap-1">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                    12
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-slate-200">
+                <img src="https://i.pravatar.cc/150?u=34" alt="User" className="w-full h-full object-cover" />
+              </div>
+              <div className="flex flex-col gap-1.5 w-full">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm text-slate-900 dark:text-white">Michael Chang</span>
+                  <span className="text-xs text-slate-500">4 days ago</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Instructor</span>
+                </div>
+                <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                  Great question Sarah. In the next module, we dive deep into Context API vs Redux. For now, keep your state localized as much as possible to avoid unnecessary re-renders.
+                </p>
+                <div className="flex items-center gap-4 mt-1 text-xs font-medium text-slate-500">
+                  <button className="hover:text-indigo-500 transition-colors">Reply</button>
+                  <button className="hover:text-indigo-500 transition-colors flex items-center gap-1">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                    34
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <Toast
         visible={showAchievement}
         title="Lesson completed"
-        message="You just earned a momentum boost. Keep going to unlock the next level."
+        message="Progress saved. Continue to the next module."
         variant="success"
-        position="top-right"
+        position="bottom-right"
       />
-    </PageShell>
+    </div>
   );
 };
 

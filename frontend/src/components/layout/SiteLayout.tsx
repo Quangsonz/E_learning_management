@@ -6,10 +6,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 /* ── Navigation items ───────────────────────────────────── */
 const sidebarItems = [
   { label: 'Home', to: '/home' },
-  { label: 'Admin', to: '/admin-dashboard' },
-  { label: 'Teacher', to: '/teacher-dashboard' },
   { label: 'Courses', to: '/courses' },
-  { label: 'Manage', to: '/course-management' },
   { label: 'Learning', to: '/learning' },
   { label: 'Quiz', to: '/quiz' }
 ];
@@ -107,7 +104,7 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }, [mobileOpen]);
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-[#FBFBFA] dark:bg-[#080808] transition-colors duration-300 relative selection:bg-indigo-500/30">
+    <div className="flex flex-col min-h-[100dvh] bg-[#FBFBFA] dark:bg-[#080808] transition-colors duration-300 relative selection:bg-indigo-500/30 w-full max-w-[100vw]">
       
       {/* ── Fluid Island Desktop Nav ─────────────────────── */}
       <header className="fixed top-6 left-1/2 -translate-x-1/2 z-50 hidden md:flex items-center gap-3 p-2 rounded-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-black/5 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
@@ -157,11 +154,21 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     <p className="text-xs text-slate-500 px-2 pb-1">admin@elearning.app</p>
                   </div>
                   <div className="p-1">
-                    {['Profile', 'Settings', 'Sign out'].map((lbl, i) => (
-                      <button key={lbl} className={`w-full text-left px-3 py-2 text-sm rounded-xl transition-colors ${i === 2 ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'}`}>
-                        {lbl}
-                      </button>
-                    ))}
+                    <Link to="/admin-dashboard" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
+                      Admin Dashboard
+                    </Link>
+                    <Link to="/teacher-dashboard" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
+                      Teacher Dashboard
+                    </Link>
+                    <Link to="/profile" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
+                      Profile
+                    </Link>
+                    <Link to="/settings" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
+                      Settings
+                    </Link>
+                    <button className="w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10">
+                      Sign out
+                    </button>
                   </div>
                 </motion.div>
               )}
@@ -276,9 +283,6 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <div>
                 <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-6">Management</h4>
                 <ul className="space-y-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                  <li><Link to="/admin-dashboard" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Admin Console</Link></li>
-                  <li><Link to="/teacher-dashboard" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Teacher Portal</Link></li>
-                  <li><Link to="/course-management" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Content Editor</Link></li>
                   <li><a href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center gap-2">Analytics <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-[9px] font-bold uppercase tracking-widest">New</span></a></li>
                 </ul>
               </div>
