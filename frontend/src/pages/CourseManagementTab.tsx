@@ -13,23 +13,29 @@ import {
 import { Input } from '../components/ui/Input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { courseApi } from '../services/course.api';
+import { categoryApi } from '../services/category.api';
+import { userApi } from '../services/user.api';
+import { LessonManager } from '../components/admin/LessonManager';
 
 type CourseStatus = 'draft' | 'published';
 
 type Course = {
   id: string;
   title: string;
-  category: string;
+  categoryId: string;
+  categoryName: string;
   lessons: number;
   price: number;
   students: number;
   status: CourseStatus;
   updatedAt: string;
+  instructorId?: string;
 };
 
 type CourseFormState = {
   title: string;
-  category: string;
+  categoryId: string;
+  instructorId: string;
   lessons: string;
   price: string;
   students: string;
@@ -42,7 +48,8 @@ const MotionTr = motion.tr as unknown as React.FC<
 
 const emptyForm: CourseFormState = {
   title: '',
-  category: '',
+  categoryId: '',
+  instructorId: '',
   lessons: '8',
   price: '49',
   students: '0',
@@ -56,46 +63,69 @@ const statusTone: Record<string, string> = {
 
 const stepList = ['Draft', 'Publish'];
 
-const CourseManagementTab: React.FC = () => {
+interface CourseManagementTabProps {
+  teacherMode?: boolean;
+}
+
+const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode = false }) => {
   const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+
   const { data: responseData, isLoading } = useQuery({
-    queryKey: ['admin-courses'],
-    queryFn: () => courseApi.getAllCourses()
+    queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses', page, search, selectedCategory],
+    queryFn: () => {
+      const params = { page, limit: 10, search: search || undefined, category: selectedCategory === 'All' ? undefined : selectedCategory };
+      return teacherMode ? courseApi.getMyCourses(params) : courseApi.getAllCourses(params);
+    }
   });
+  
+  const totalPages = responseData?.data?.totalPages || 1;
+
+  const { data: categoryData } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => categoryApi.getAllCategories()
+  });
+
+  const { data: teacherData } = useQuery({
+    queryKey: ['teachers'],
+    queryFn: () => userApi.getAllUsers({ role: 'teacher' }),
+    enabled: !teacherMode
+  });
+
+  const categoriesData = useMemo(() => categoryData?.data?.categories || [], [categoryData]);
+  const teachers = useMemo(() => teacherData?.data?.users || [], [teacherData]);
 
   const courses: Course[] = useMemo(() => {
     if (!responseData?.data?.courses) return [];
     return responseData.data.courses.map((course: any) => ({
       id: course._id,
       title: course.title,
-      category: course.category?.name || 'Uncategorized',
+      categoryId: course.category?._id || '',
+      categoryName: course.category?.name || 'Uncategorized',
       lessons: 0,
       price: course.price,
       students: 0,
       status: course.status,
-      updatedAt: new Date(course.updatedAt).toLocaleDateString()
+      updatedAt: new Date(course.updatedAt).toLocaleDateString(),
+      instructorId: course.instructor?._id
     }));
   }, [responseData]);
-  const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [publishingCourse, setPublishingCourse] = useState<Course | null>(null);
+  const [managingLessonsCourse, setManagingLessonsCourse] = useState<Course | null>(null);
   const [workflowStep, setWorkflowStep] = useState(0);
   const [form, setForm] = useState<CourseFormState>(emptyForm);
 
-  const filteredCourses = useMemo(() => {
-    return courses.filter((course) => {
-      const matchesSearch =
-        course.title.toLowerCase().includes(search.toLowerCase()) ||
-        course.category.toLowerCase().includes(search.toLowerCase());
-      const matchesCategory = selectedCategory === 'All' || course.category === selectedCategory;
-      return matchesSearch && matchesCategory;
-    });
-  }, [courses, search, selectedCategory]);
+  const filteredCourses = courses;
+
+  const handleNextPage = () => setPage(p => Math.min(p + 1, totalPages));
+  const handlePrevPage = () => setPage(p => Math.max(p - 1, 1));
 
   const summary = useMemo(() => {
     const published = courses.filter((course) => course.status === 'published').length;
@@ -105,7 +135,7 @@ const CourseManagementTab: React.FC = () => {
     return { published, review, draft, revenue };
   }, [courses]);
 
-  const categories = ['All', ...new Set(courses.map((course) => course.category))];
+  const categoryNames = ['All', ...new Set(courses.map((course) => course.categoryName))];
 
   const metrics = [
     { label: 'Total Revenue', value: `$${(summary.revenue / 1000).toFixed(1)}k`, delta: '+12.4%' },
@@ -123,7 +153,8 @@ const CourseManagementTab: React.FC = () => {
     setEditingCourse(course);
     setForm({
       title: course.title,
-      category: course.category,
+      categoryId: course.categoryId,
+      instructorId: course.instructorId || '',
       lessons: course.lessons.toString(),
       price: course.price.toString(),
       students: course.students.toString(),
@@ -135,26 +166,42 @@ const CourseManagementTab: React.FC = () => {
   const createMutation = useMutation({
     mutationFn: (data: any) => courseApi.createCourse(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
+      queryClient.invalidateQueries({ queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses'] });
       setToast('Course created successfully.');
       setCreateOpen(false);
+    },
+    onError: (error: any) => {
+      setToast(error.response?.data?.message || 'Failed to create course. Please check all fields.');
     }
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => courseApi.updateCourse(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
+      queryClient.invalidateQueries({ queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses'] });
       setToast('Course updated successfully.');
       setEditOpen(false);
       setEditingCourse(null);
+    },
+    onError: (error: any) => {
+      setToast(error.response?.data?.message || 'Failed to update course. Please check all fields.');
     }
   });
 
   const saveCourse = () => {
+    if (!form.title.trim()) {
+      setToast('Title is required');
+      return;
+    }
+    if (!form.categoryId) {
+      setToast('Category is required');
+      return;
+    }
+
     const payload = {
       title: form.title,
-      category: form.category || undefined,
+      category: form.categoryId,
+      instructor: form.instructorId,
       description: 'Default description',
       price: Number(form.price),
       status: form.status,
@@ -205,8 +252,8 @@ const CourseManagementTab: React.FC = () => {
           <Input
             type="search"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search courses or categories"
+            onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+            placeholder="Search courses..."
             icon={
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 <path
@@ -218,18 +265,22 @@ const CourseManagementTab: React.FC = () => {
                 />
               </svg>
             }
-            onClear={() => setSearch('')}
+            onClear={() => { setSearch(''); setPage(1); }}
             className="max-w-lg flex-1"
           />
 
           <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:justify-end hide-scrollbar">
-            {categories.map((category) => {
+            {categoryNames.map((category) => {
               const isActive = selectedCategory === category;
               return (
                 <button
                   key={category}
                   type="button"
-                  onClick={() => setSelectedCategory(category)}
+                  onClick={() => {
+                    const categoryId = categoriesData.find(c => c.name === category)?._id || 'All';
+                    setSelectedCategory(categoryId === 'All' ? 'All' : categoryId);
+                    setPage(1);
+                  }}
                   className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition duration-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 ${
                     isActive ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/50'
                   }`}
@@ -246,7 +297,7 @@ const CourseManagementTab: React.FC = () => {
         <SectionLead
           label="Course catalog"
           title="All courses"
-          meta={<span className="text-sm tabular-nums text-slate-400">{filteredCourses.length} courses</span>}
+          meta={<span className="text-sm tabular-nums text-slate-400">Page {page} of {totalPages}</span>}
         />
 
         <div className="canvas-surface mt-5 overflow-hidden">
@@ -283,7 +334,7 @@ const CourseManagementTab: React.FC = () => {
                           <td className="px-5 py-4">
                             <div className="font-semibold text-slate-950 dark:text-white">{course.title}</div>
                           </td>
-                          <td className="px-5 py-4">{course.category}</td>
+                          <td className="px-5 py-4">{course.categoryName}</td>
                           <td className="px-5 py-4">{course.lessons}</td>
                           <td className="px-5 py-4">${course.price}</td>
                           <td className="px-5 py-4">{course.students.toLocaleString()}</td>
@@ -293,6 +344,13 @@ const CourseManagementTab: React.FC = () => {
                           <td className="px-5 py-4 text-slate-400">{course.updatedAt}</td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                className="rounded-full px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-100 dark:hover:bg-slate-800/50"
+                                onClick={() => setManagingLessonsCourse(course)}
+                              >
+                                Lessons
+                              </button>
                               <button
                                 type="button"
                                 className="rounded-full px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-100 dark:hover:bg-slate-800/50"
@@ -320,6 +378,18 @@ const CourseManagementTab: React.FC = () => {
                   />
                 </div>
               ) : null}
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-5 py-4 border-t border-slate-200/60 dark:border-slate-800">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    Showing page {page} of {totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={page === 1}>Previous</Button>
+                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={page === totalPages}>Next</Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -331,7 +401,7 @@ const CourseManagementTab: React.FC = () => {
             <p className="section-label">Create Course Modal</p>
             <h2 className="mt-2 section-title">Create a new course</h2>
           </div>
-          <CourseForm form={form} setForm={setForm} />
+          <CourseForm form={form} setForm={setForm} categories={categoriesData} teachers={teachers} teacherMode={teacherMode} />
           <div className="mt-4 flex flex-wrap justify-end gap-3">
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
               Cancel
@@ -347,7 +417,7 @@ const CourseManagementTab: React.FC = () => {
             <p className="section-label">Edit Course Modal</p>
             <h2 className="mt-2 section-title">Edit course details</h2>
           </div>
-          <CourseForm form={form} setForm={setForm} />
+          <CourseForm form={form} setForm={setForm} categories={categoriesData} teachers={teachers} teacherMode={teacherMode} />
           <div className="mt-4 flex flex-wrap justify-end gap-3">
             <Button variant="ghost" onClick={() => setEditOpen(false)}>
               Cancel
@@ -399,7 +469,21 @@ const CourseManagementTab: React.FC = () => {
         </div>
       </Modal>
 
-      <Toast visible={Boolean(toast)} message={toast} title="Success" variant="success" onClose={() => setToast('')} />
+      {managingLessonsCourse && (
+        <LessonManager 
+          courseId={managingLessonsCourse.id} 
+          courseTitle={managingLessonsCourse.title} 
+          onClose={() => setManagingLessonsCourse(null)} 
+        />
+      )}
+
+      <Toast 
+        visible={Boolean(toast)} 
+        message={toast} 
+        title={toast.includes('successfully') || toast.includes('synced') ? "Success" : "Error"} 
+        variant={toast.includes('successfully') || toast.includes('synced') ? "success" : "error"} 
+        onClose={() => setToast('')} 
+      />
     </div>
   );
 };
@@ -407,7 +491,10 @@ const CourseManagementTab: React.FC = () => {
 const CourseForm: React.FC<{
   form: CourseFormState;
   setForm: React.Dispatch<React.SetStateAction<CourseFormState>>;
-}> = ({ form, setForm }) => {
+  categories: any[];
+  teachers: any[];
+  teacherMode: boolean;
+}> = ({ form, setForm, categories, teachers, teacherMode }) => {
   const update = (field: keyof CourseFormState, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
@@ -415,7 +502,36 @@ const CourseForm: React.FC<{
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <Field label="Course title" value={form.title} onChange={(value) => update('title', value)} placeholder="Enter course title" />
-      <Field label="Category" value={form.category} onChange={(value) => update('category', value)} placeholder="Design, Development..." />
+      <label className="block space-y-2">
+        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Category</span>
+        <select
+          value={form.categoryId}
+          onChange={(event) => update('categoryId', event.target.value)}
+          className="h-[46px] w-full rounded-2xl border border-slate-200 bg-white dark:bg-slate-900/50 px-4 text-sm font-medium text-slate-900 dark:text-white outline-none transition duration-sm ease-standard focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
+        >
+          <option value="">Select a category</option>
+          {categories.map((cat) => (
+            <option key={cat._id} value={cat._id}>{cat.name}</option>
+          ))}
+        </select>
+      </label>
+      
+      {!teacherMode && (
+        <label className="block space-y-2">
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Instructor</span>
+          <select
+            value={form.instructorId}
+            onChange={(event) => update('instructorId', event.target.value)}
+            className="h-[46px] w-full rounded-2xl border border-slate-200 bg-white dark:bg-slate-900/50 px-4 text-sm font-medium text-slate-900 dark:text-white outline-none transition duration-sm ease-standard focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
+          >
+            <option value="">Select an instructor</option>
+            {teachers.map((t) => (
+              <option key={t._id} value={t._id}>{t.name} ({t.email})</option>
+            ))}
+          </select>
+        </label>
+      )}
+
       <Field label="Lessons" value={form.lessons} onChange={(value) => update('lessons', value)} type="number" />
       <Field label="Price" value={form.price} onChange={(value) => update('price', value)} type="number" />
       <Field label="Students" value={form.students} onChange={(value) => update('students', value)} type="number" />

@@ -112,8 +112,8 @@ const TeacherDashboard: React.FC = () => {
         glow="cool"
         actions={
           <>
-            <Link to="/courses">
-              <Button variant="pill">View courses</Button>
+            <Link to="/teacher-courses">
+              <Button variant="pill">Manage courses</Button>
             </Link>
             <Link to="/quiz">
               <Button variant="outline">Review quizzes</Button>

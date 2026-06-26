@@ -1,7 +1,15 @@
 const express = require('express');
 const authController = require('../controllers/auth.controller');
+const authMiddleware = require('../middlewares/auth.middleware');
 
 const router = express.Router();
+
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: API xác thực người dùng (Đăng ký, Đăng nhập, Quên mật khẩu)
+ */
 
 /**
  * @swagger
@@ -47,7 +55,7 @@ router.post('/register', authController.register);
  *             $ref: '#/components/schemas/LoginRequest'
  *     responses:
  *       200:
- *         description: Đăng nhập thành công
+ *         description: Đăng nhập thành công, trả về JWT token
  *         content:
  *           application/json:
  *             schema:
@@ -56,6 +64,20 @@ router.post('/register', authController.register);
  *         description: Email hoặc mật khẩu không chính xác
  */
 router.post('/login', authController.login);
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Đăng xuất
+ *     tags: [Auth]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Đăng xuất thành công (client xóa token)
+ */
+router.post('/logout', authMiddleware.protect, authController.logout);
 
 /**
  * @swagger

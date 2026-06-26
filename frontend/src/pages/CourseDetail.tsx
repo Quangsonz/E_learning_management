@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { Link, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { courseApi } from '../services/course.api';
 import {
   Button,
   EmptyState,
@@ -126,8 +128,15 @@ const CourseDetail: React.FC = () => {
   const { courseId } = useParams();
   const [openCurriculum, setOpenCurriculum] = useState<number>(0);
   const [openFaq, setOpenFaq] = useState<number>(0);
-  const isLoading = useSimulatedLoading(800);
-  const hasError = !courseId;
+
+  const { data: courseData, isLoading, isError } = useQuery({
+    queryKey: ['course', courseId],
+    queryFn: () => courseApi.getCourseById(courseId!),
+    enabled: !!courseId
+  });
+
+  const hasError = !courseId || isError;
+  const course = courseData?.data?.course;
 
   if (isLoading) {
     return (
@@ -180,15 +189,15 @@ const CourseDetail: React.FC = () => {
             <div className="inline-flex items-center gap-2 mb-6 text-sm font-semibold text-slate-400 dark:text-slate-500">
               <Link to="/courses" className="hover:text-primary-500 transition-colors">Design Hub</Link>
               <span>/</span>
-              <span className="text-slate-800 dark:text-slate-300">UI Foundations</span>
+              <span className="text-slate-800 dark:text-slate-300">{course?.category?.name || 'General'}</span>
             </div>
             
             <h1 className="text-4xl sm:text-5xl lg:text-[4rem] font-bold tracking-tight text-slate-900 dark:text-white leading-[1.1]">
-              Product Design Masterclass
+              {course?.title}
             </h1>
             
             <p className="mt-5 text-lg sm:text-xl text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl">
-              A premium learning experience inspired by the world's best platforms. Master visual hierarchy, fluid typography, and borderless layouts.
+              {course?.description || 'A premium learning experience inspired by the best platforms. Master the required skills here.'}
             </p>
             
             {/* Metadata Row */}
@@ -197,8 +206,8 @@ const CourseDetail: React.FC = () => {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                 </svg>
-                <span className="font-bold">4.9</span>
-                <span className="text-slate-500 dark:text-slate-500 ml-1">(12k ratings)</span>
+                <span className="font-bold">{course?.averageRating?.toFixed(1) || '0.0'}</span>
+                <span className="text-slate-500 dark:text-slate-500 ml-1">(0 ratings)</span>
               </div>
               <span className="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
               <div className="flex items-center gap-1.5">
@@ -379,8 +388,8 @@ const CourseDetail: React.FC = () => {
                       className="w-24 h-24 rounded-full object-cover shadow-lg"
                     />
                     <div className="flex-1">
-                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{instructor.name}</h3>
-                      <p className="text-primary-600 dark:text-primary-400 font-medium mt-1">{instructor.title}</p>
+                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{course?.instructor?.name || instructor.name}</h3>
+                      <p className="text-primary-600 dark:text-primary-400 font-medium mt-1">{course?.instructor?.role || instructor.title}</p>
                       
                       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-4 text-sm text-slate-600 dark:text-slate-300">
                         <div className="flex items-center gap-1.5">
@@ -531,8 +540,8 @@ const CourseDetail: React.FC = () => {
                   </div>
 
                   <div className="flex items-end gap-3 mb-1">
-                    <div className="text-4xl font-bold text-slate-900 dark:text-white">$49</div>
-                    <div className="text-xl font-medium text-slate-400 line-through mb-1">$99</div>
+                    <div className="text-4xl font-bold text-slate-900 dark:text-white">${course?.price}</div>
+                    <div className="text-xl font-medium text-slate-400 line-through mb-1">${course?.price ? Math.floor(course.price * 1.5) : 0}</div>
                     <div className="px-2.5 py-1 text-xs font-bold text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-500/20 rounded-full mb-1.5 ml-auto">
                       Save 50%
                     </div>
@@ -586,8 +595,8 @@ const CourseDetail: React.FC = () => {
         <div className="flex items-center justify-between gap-4 max-w-lg mx-auto">
           <div className="flex flex-col">
             <div className="flex items-end gap-2">
-              <div className="text-xl font-bold text-slate-900 dark:text-white">$49</div>
-              <div className="text-sm font-medium text-slate-400 line-through mb-0.5">$99</div>
+              <div className="text-xl font-bold text-slate-900 dark:text-white">${course?.price}</div>
+              <div className="text-sm font-medium text-slate-400 line-through mb-0.5">${course?.price ? Math.floor(course.price * 1.5) : 0}</div>
             </div>
             <div className="text-[10px] font-bold text-red-500 uppercase tracking-wider">Ends in 2 days</div>
           </div>

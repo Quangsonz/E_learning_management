@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 /* ── Navigation items ───────────────────────────────────── */
 const sidebarItems = [
@@ -68,9 +69,11 @@ const MobileNavItem: React.FC<{ item: typeof sidebarItems[0]; onClick: () => voi
 /* ── Main Layout ─────────────────────────────────────────── */
 const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
 
   const activeLabel = useMemo(() => {
     const match = sidebarItems.find(
@@ -136,9 +139,9 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <div className="relative">
             <button
               onClick={() => setProfileOpen(!profileOpen)}
-              className="w-10 h-10 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center text-sm font-bold transition-transform hover:scale-105"
+              className="w-10 h-10 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center text-sm font-bold transition-transform hover:scale-105 uppercase"
             >
-              AD
+              {user?.name ? user.name.substring(0, 2) : 'US'}
             </button>
             <AnimatePresence>
               {profileOpen && (
@@ -150,23 +153,33 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                 >
                   <div className="p-2 border-b border-slate-100 dark:border-white/5">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white px-2 pt-1">Admin User</p>
-                    <p className="text-xs text-slate-500 px-2 pb-1">admin@elearning.app</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white px-2 pt-1">{user?.name || 'User'}</p>
+                    <p className="text-xs text-slate-500 px-2 pb-1 truncate">{user?.email || 'No email'}</p>
                   </div>
                   <div className="p-1">
-                    <Link to="/admin-dashboard" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
-                      Admin Dashboard
-                    </Link>
-                    <Link to="/teacher-dashboard" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
-                      Teacher Dashboard
-                    </Link>
+                    {user?.role === 'admin' && (
+                      <Link to="/admin-dashboard" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
+                        Admin Dashboard
+                      </Link>
+                    )}
+                    {(user?.role === 'teacher' || user?.role === 'admin') && (
+                      <Link to="/teacher-dashboard" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
+                        Teacher Dashboard
+                      </Link>
+                    )}
                     <Link to="/profile" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
                       Profile
                     </Link>
                     <Link to="/settings" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
                       Settings
                     </Link>
-                    <button className="w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10">
+                    <button 
+                      onClick={() => {
+                        logout();
+                        setProfileOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+                    >
                       Sign out
                     </button>
                   </div>
@@ -213,18 +226,30 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               ))}
             </nav>
             <motion.div 
-              className="pt-8 border-t border-slate-200 dark:border-slate-800 flex items-center gap-4"
+              className="pt-8 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
             >
-              <div className="w-12 h-12 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center font-bold">
-                AD
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center font-bold uppercase">
+                  {user?.name ? user.name.substring(0, 2) : 'US'}
+                </div>
+                <div>
+                  <p className="font-bold text-slate-900 dark:text-white truncate max-w-[150px]">{user?.name || 'User'}</p>
+                  <p className="text-sm text-slate-500 truncate max-w-[150px]">{user?.email || 'No email'}</p>
+                </div>
               </div>
-              <div>
-                <p className="font-bold text-slate-900 dark:text-white">Admin User</p>
-                <p className="text-sm text-slate-500">admin@elearning.app</p>
-              </div>
+              <button 
+                onClick={() => {
+                  logout();
+                  setMobileOpen(false);
+                }}
+                className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-full transition-colors"
+                aria-label="Sign out"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              </button>
             </motion.div>
           </motion.div>
         )}

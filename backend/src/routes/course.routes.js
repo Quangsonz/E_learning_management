@@ -62,10 +62,7 @@ router.use('/:courseId/lessons', lessonRoutes);
  *       400:
  *         description: Tiêu đề đã tồn tại
  */
-router.get('/', courseController.getAllCourses);
-router.get('/:id', courseController.getCourse);
-
-router.use(authMiddleware.protect);
+router.get('/', authMiddleware.optionalProtect, courseController.getAllCourses);
 
 /**
  * @swagger
@@ -77,7 +74,13 @@ router.use(authMiddleware.protect);
  *       200:
  *         description: Thành công
  */
-router.get('/my-courses', requireRole('teacher', 'admin'), courseController.getAllCourses);
+router.get('/my-courses', authMiddleware.protect, requireRole('teacher', 'admin'), courseController.getAllCourses);
+
+router.get('/:id', authMiddleware.optionalProtect, courseController.getCourse);
+
+router.use(authMiddleware.protect);
+
+
 
 router.use(requireRole('admin', 'teacher'));
 

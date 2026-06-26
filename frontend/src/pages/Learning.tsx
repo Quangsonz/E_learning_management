@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { LoadingScreen, Toast } from '../components/ui';
-import useSimulatedLoading from '../hooks/useSimulatedLoading';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { LoadingScreen, Toast, Button, EmptyState } from '../components/ui';
+import { lessonApi, Lesson } from '../services/lesson.api';
 
 type Lesson = {
   id: number;
@@ -11,45 +12,7 @@ type Lesson = {
   completed?: boolean;
 };
 
-type Module = {
-  id: number;
-  title: string;
-  lessons: Lesson[];
-};
-
-type Resource = {
-  title: string;
-  type: string;
-};
-
-const modules: Module[] = [
-  {
-    id: 1,
-    title: 'Getting Started',
-    lessons: [
-      { id: 101, title: 'Welcome and learning goals', duration: '08:00', completed: true },
-      { id: 102, title: 'How the platform is structured', duration: '12:30', completed: true },
-      { id: 103, title: 'Setup your workflow', duration: '15:20' }
-    ]
-  },
-  {
-    id: 2,
-    title: 'Core Practice',
-    lessons: [
-      { id: 201, title: 'Watch and take notes', duration: '18:10' },
-      { id: 202, title: 'Practice with guided tasks', duration: '22:15' },
-      { id: 203, title: 'Knowledge check', duration: '10:05' }
-    ]
-  },
-  {
-    id: 3,
-    title: 'Advanced Strategy',
-    lessons: [
-      { id: 301, title: 'Optimize your learning system', duration: '19:40' },
-      { id: 302, title: 'Build a personal study plan', duration: '16:25' }
-    ]
-  }
-];
+// Removed dummy modules
 
 const resources: Resource[] = [
   { title: 'Lesson slides PDF', type: 'PDF' },
@@ -65,30 +28,66 @@ const notesSeed = [
 ];
 
 const Learning: React.FC = () => {
-  const [selectedLessonId, setSelectedLessonId] = useState(103);
-  const [progress, setProgress] = useState(58);
+  const { courseId } = useParams();
+  const navigate = useNavigate();
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
   const [showAchievement, setShowAchievement] = useState(false);
   const [notes, setNotes] = useState(notesSeed.join('\n'));
-  const isLoading = useSimulatedLoading(750);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['lessons', courseId],
+    queryFn: () => lessonApi.getLessons(courseId!),
+    enabled: !!courseId,
+    retry: false
+  });
+
+  const lessons = data?.data?.lessons || [];
+
+  useEffect(() => {
+    if (lessons.length > 0 && !selectedLessonId) {
+      setSelectedLessonId(lessons[0]._id);
+    }
+  }, [lessons, selectedLessonId]);
 
   const selectedLesson = useMemo(() => {
-    for (const module of modules) {
-      const lesson = module.lessons.find((item) => item.id === selectedLessonId);
-      if (lesson) return lesson;
-    }
-    return modules[0].lessons[0];
-  }, [selectedLessonId]);
+    return lessons.find((item: Lesson) => item._id === selectedLessonId) || lessons[0];
+  }, [selectedLessonId, lessons]);
 
   const completeLesson = () => {
-    setProgress((current) => Math.min(100, current + 8));
+    setProgress((current) => Math.min(100, current + (100 / (lessons.length || 1))));
     setShowAchievement(true);
     window.setTimeout(() => setShowAchievement(false), 2600);
   };
 
-    if (isLoading) {
+  const getYoutubeVideoId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return match && match[2].length === 11 ? match[2] : null;
+  };
+
+  if (isLoading) {
     return (
-      <div className="bg-[#FBFBFA] dark:bg-[#111111] flex items-center justify-center py-32">
+      <div className="bg-[#FBFBFA] dark:bg-[#111111] flex items-center justify-center py-32 min-h-screen">
         <LoadingScreen title="Loading workspace" message="Preparing video stream and curriculum..." />
+      </div>
+    );
+  }
+
+  const err: any = error;
+  if (err?.response?.status === 403) {
+    return (
+      <div className="bg-[#FBFBFA] dark:bg-[#111111] flex items-center justify-center min-h-screen p-4">
+        <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-xl text-center space-y-6">
+          <div className="w-16 h-16 bg-rose-100 dark:bg-rose-900/30 text-rose-500 rounded-full flex items-center justify-center mx-auto">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M8 11h8"/></svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Access Denied</h2>
+            <p className="mt-2 text-slate-500 dark:text-slate-400">Bạn phải mua khóa học này để có thể xem bài giảng. Hãy quay lại trang giới thiệu khóa học để đăng ký nhé.</p>
+          </div>
+          <Button className="w-full" onClick={() => navigate(`/courses/${courseId}`)}>Back to Course</Button>
+        </div>
       </div>
     );
   }
@@ -104,7 +103,7 @@ const Learning: React.FC = () => {
             Back to Course
           </Link>
           <div className="w-[1px] h-4 bg-slate-200 dark:bg-white/10"></div>
-          <span className="text-sm font-semibold tracking-tight">Product Design Masterclass</span>
+          <span className="text-sm font-semibold tracking-tight">Course Viewer</span>
         </div>
       </nav>
 
@@ -119,13 +118,29 @@ const Learning: React.FC = () => {
             {/* Cinematic Video Player */}
             <div className="flex flex-col gap-5">
               <div className="relative aspect-video w-full bg-black rounded-xl overflow-hidden group shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                <img src="https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&w=1600&q=80" alt="Video cover" className="w-full h-full object-cover opacity-60 transition-opacity duration-500 group-hover:opacity-40" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <button className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transition-transform duration-300 hover:scale-105 hover:bg-white/20 active:scale-95">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-                  </button>
-                </div>
-                {/* Minimal Control Bar */}
+                {selectedLesson ? (
+                  getYoutubeVideoId(selectedLesson.videoUrl) ? (
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      src={`https://www.youtube.com/embed/${getYoutubeVideoId(selectedLesson.videoUrl)}`}
+                      title="YouTube video player"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      className="w-full h-full"
+                    ></iframe>
+                  ) : (
+                    <video controls className="w-full h-full object-contain" src={selectedLesson.videoUrl}>
+                      Your browser does not support the video tag.
+                    </video>
+                  )
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center opacity-60">
+                     <p className="text-white">No video selected</p>
+                  </div>
+                )}
+                {/* Minimal Control Bar Overlay */}
                 <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-between text-white text-xs font-medium">
                   <div className="flex items-center gap-3">
                     <button className="hover:opacity-80 transition-opacity"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>
@@ -142,8 +157,8 @@ const Learning: React.FC = () => {
               {/* Lesson Metadata */}
               <div className="flex items-start justify-between gap-6 pb-8 border-b border-[#EAEAEA] dark:border-white/10">
                 <div>
-                  <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{selectedLesson.title}</h1>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Lesson • {selectedLesson.duration}</p>
+                  <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{selectedLesson?.title || 'No lesson selected'}</h1>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Lesson</p>
                 </div>
                 <button 
                   onClick={completeLesson}
@@ -188,38 +203,38 @@ const Learning: React.FC = () => {
 
             {/* Typography-driven Curriculum */}
             <div className="flex flex-col">
-              {modules.map((module, mIdx) => (
-                <div key={module.id} className="pt-6 first:pt-0 pb-6 border-b border-[#EAEAEA] dark:border-white/10 last:border-0">
-                  <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
-                    {mIdx + 1}. {module.title}
-                  </h3>
+              <div className="pt-6 pb-6 border-b border-[#EAEAEA] dark:border-white/10">
+                <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
+                  Curriculum
+                </h3>
+                {lessons.length === 0 ? (
+                  <p className="text-sm text-slate-500">No lessons available.</p>
+                ) : (
                   <div className="flex flex-col gap-1">
-                    {module.lessons.map((lesson) => {
-                      const isActive = lesson.id === selectedLessonId;
+                    {lessons.map((lesson: Lesson, index: number) => {
+                      const isActive = lesson._id === selectedLessonId;
                       return (
                         <button
-                          key={lesson.id}
-                          onClick={() => setSelectedLessonId(lesson.id)}
+                          key={lesson._id}
+                          onClick={() => setSelectedLessonId(lesson._id)}
                           className={`group flex items-center justify-between py-2 text-left w-full transition-colors ${isActive ? 'text-[#111111] dark:text-white font-medium' : 'text-slate-600 dark:text-slate-400 hover:text-[#111111] dark:hover:text-white'}`}
                         >
                           <div className="flex items-center gap-3">
-                            {/* Checkmark indicator */}
                             <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                              {lesson.completed ? (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-400"><path d="M20 6L9 17l-5-5"/></svg>
-                              ) : isActive ? (
+                              {isActive ? (
                                 <div className="w-1.5 h-1.5 rounded-full bg-[#111111] dark:bg-white" />
-                              ) : null}
+                              ) : (
+                                <span className="text-[10px] text-slate-400">{index + 1}</span>
+                              )}
                             </div>
-                            <span className="text-sm">{lesson.title}</span>
+                            <span className="text-sm line-clamp-1">{lesson.title}</span>
                           </div>
-                          <span className={`text-xs ${isActive ? 'text-slate-500' : 'text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity'}`}>{lesson.duration}</span>
                         </button>
                       )
                     })}
                   </div>
-                </div>
-              ))}
+                )}
+              </div>
             </div>
 
             {/* Resources minimal list */}

@@ -1,6 +1,7 @@
 const lessonRepository = require('../repositories/lesson.repository');
 const courseRepository = require('../repositories/course.repository');
 const AppError = require('../utils/appError');
+const enrollmentRepository = require('../repositories/enrollment.repository');
 
 class LessonService {
   // Lấy toàn bộ bài giảng của một khóa học
@@ -10,17 +11,31 @@ class LessonService {
       throw new AppError('Không tìm thấy khóa học này', 404);
     }
 
-    // Tương lai: Kiểm tra user đã mua khóa học chưa (nếu student)
-    // Hiện tại: Cứ cho phép lấy list (nhưng font-end khóa click nếu chưa mua)
+    // Kiểm tra quyền truy cập (Admin và Giảng viên sở hữu khóa học luôn được phép)
+    if (user.role === 'student') {
+      const enrollment = await enrollmentRepository.findByStudentAndCourse(user.id, courseId);
+      if (!enrollment || enrollment.paymentStatus !== 'completed') {
+        throw new AppError('Bạn phải mua khóa học này để xem bài giảng', 403);
+      }
+    }
 
-    return await lessonRepository.find({ course: courseId }).sort('order');
+    const lessons = await lessonRepository.find({ course: courseId });
+    return lessons.sort((a, b) => (a.order || 0) - (b.order || 0));
   }
 
-  async getLessonById(id, courseId) {
+  async getLessonById(id, courseId, user) {
     const lesson = await lessonRepository.findOne({ _id: id, course: courseId });
     if (!lesson) {
       throw new AppError('Không tìm thấy bài giảng trong khóa học này', 404);
     }
+
+    if (user.role === 'student') {
+      const enrollment = await enrollmentRepository.findByStudentAndCourse(user.id, courseId);
+      if (!enrollment || enrollment.paymentStatus !== 'completed') {
+        throw new AppError('Bạn phải mua khóa học này để xem bài giảng', 403);
+      }
+    }
+    
     return lesson;
   }
 

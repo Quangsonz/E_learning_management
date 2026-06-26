@@ -77,12 +77,47 @@ describe('AuthService', () => {
 
       await authService.register(mockUserData, reqUrl, mockRes);
 
-      expect(userRepository.create).toHaveBeenCalledWith(mockUserData);
+      // create được gọi với role đã được validate (student là valid)
+      expect(userRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Test', email: 'test@test.com', role: 'student' })
+      );
       expect(mockNewUser.createEmailVerificationToken).toHaveBeenCalled();
       expect(sendEmail).toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
         token: 'mocked-token'
+      }));
+    });
+
+    it('should default role to student if invalid role is provided', async () => {
+      userRepository.findByEmail.mockResolvedValue(null);
+      
+      const mockNewUser = {
+        _id: '456',
+        email: 'hacker@test.com',
+        createEmailVerificationToken: jest.fn().mockReturnValue('verify-token'),
+        save: jest.fn().mockResolvedValue(true)
+      };
+      
+      userRepository.create.mockResolvedValue(mockNewUser);
+      sendEmail.mockResolvedValue(true);
+
+      const hackerData = { name: 'Hacker', email: 'hacker@test.com', password: 'pass', role: 'admin' };
+      await authService.register(hackerData, reqUrl, mockRes);
+
+      // Role 'admin' bị reject, thay bằng 'student'
+      expect(userRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'student' })
+      );
+    });
+  });
+
+  describe('logout', () => {
+    it('should return success message', async () => {
+      await authService.logout(mockRes);
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'success'
       }));
     });
   });

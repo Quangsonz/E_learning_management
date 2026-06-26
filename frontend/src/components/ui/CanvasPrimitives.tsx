@@ -160,9 +160,10 @@ export const MetricsSurface: React.FC<MetricsSurfaceProps> = ({ metrics, classNa
 
 type SectionLeadProps = {
   label: string;
-  title: React.ReactNode;
+  title: string;
   meta?: React.ReactNode;
   className?: string;
+  size?: 'sm' | 'md' | 'lg' | string;
 };
 
 export const SectionLead: React.FC<SectionLeadProps> = ({ label, title, meta, className = '' }) => (

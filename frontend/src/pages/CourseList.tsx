@@ -14,6 +14,7 @@ import {
 } from '../components/ui';
 import { Input } from '../components/ui/Input';
 import { courseApi } from '../services/course.api';
+import { categoryApi } from '../services/category.api';
 import { floatY } from '../animations/motionVariants';
 
 type Course = {
@@ -31,7 +32,7 @@ type Course = {
   image: string;
 };
 
-const categories = ['All', 'Design', 'Development', 'Data', 'Business', 'Marketing'];
+
 
 const catalogMetrics = [
   { label: 'Active Learners', value: '24.8k' },
@@ -168,12 +169,35 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
 
 const CourseList: React.FC = () => {
   const [query, setQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeCategoryId, setActiveCategoryId] = useState('');
+  const [popPage, setPopPage] = useState(1);
+  const [trendPage, setTrendPage] = useState(1);
+  const [page, setPage] = useState(1);
+
+  const { data: categoryData } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => categoryApi.getAllCategories()
+  });
+  const categories = [{ _id: '', name: 'All' }, ...(categoryData?.data?.categories || [])];
+
+  const { data: popData, isLoading: popLoading } = useQuery({
+    queryKey: ['courses-popular', query, activeCategoryId, popPage],
+    queryFn: () => courseApi.getAllCourses({ search: query || undefined, category: activeCategoryId || undefined, page: popPage, limit: 3, sort: '-averageRating', status: 'published' })
+  });
+
+  const { data: trendData, isLoading: trendLoading } = useQuery({
+    queryKey: ['courses-trending', query, activeCategoryId, trendPage],
+    queryFn: () => courseApi.getAllCourses({ search: query || undefined, category: activeCategoryId || undefined, page: trendPage, limit: 3, sort: '-createdAt', status: 'published' })
+  });
 
   const { data: responseData, isLoading } = useQuery({
-    queryKey: ['courses'],
-    queryFn: () => courseApi.getAllCourses()
+    queryKey: ['courses-all', query, activeCategoryId, page],
+    queryFn: () => courseApi.getAllCourses({ search: query || undefined, category: activeCategoryId || undefined, page, limit: 6, status: 'published' })
   });
+  
+  const totalPages = responseData?.data?.totalPages || 1;
+  const popTotalPages = popData?.data?.totalPages || 1;
+  const trendTotalPages = trendData?.data?.totalPages || 1;
 
   const categoryAccent: Record<string, string> = {
     Design:      'from-violet-500 to-fuchsia-500',
@@ -185,37 +209,44 @@ const CourseList: React.FC = () => {
   };
   const DEFAULT_ACCENT = 'from-indigo-500 to-violet-400';
 
+  const transformCourse = (course: any): Course => ({
+    id: course._id,
+    title: course.title,
+    teacher: course.instructor?.name || 'Unknown Instructor',
+    role: course.instructor?.role || 'Instructor',
+    category: course.category?.name || 'General',
+    rating: course.averageRating || 5.0,
+    ratingCount: '0',
+    duration: '5h 30m',
+    progress: Math.floor(Math.random() * 100),
+    lessons: '10 lessons',
+    accent: categoryAccent[course.category?.name || 'General'] || DEFAULT_ACCENT,
+    image: course.thumbnailUrl || makeThumbnail(course.category?.name || 'Course')
+  });
+
   const allCourses: Course[] = useMemo(() => {
     if (!responseData?.data?.courses) return [];
-    return responseData.data.courses.map((course: any) => ({
-      id: course._id,
-      title: course.title,
-      teacher: course.instructor?.name || 'Unknown Instructor',
-      role: course.instructor?.role || 'Instructor',
-      category: course.category?.name || 'General',
-      rating: course.averageRating || 5.0,
-      ratingCount: '0',
-      duration: '5h 30m',
-      progress: Math.floor(Math.random() * 100), // Randomize for demo visually
-      lessons: '10 lessons',
-      accent: categoryAccent[course.category?.name || 'General'] || DEFAULT_ACCENT,
-      image: course.thumbnailUrl || makeThumbnail(course.category?.name || 'Course')
-    }));
+    return responseData.data.courses.map(transformCourse);
   }, [responseData]);
 
-  const filteredCourses = useMemo(() => {
-    return allCourses.filter((course) => {
-      const matchesQuery =
-        course.title.toLowerCase().includes(query.toLowerCase()) ||
-        course.teacher.toLowerCase().includes(query.toLowerCase());
-      const matchesCategory = activeCategory === 'All' || course.category === activeCategory;
-      return matchesQuery && matchesCategory;
-    });
-  }, [allCourses, activeCategory, query]);
+  const popularCourses: Course[] = useMemo(() => {
+    if (!popData?.data?.courses) return [];
+    return popData.data.courses.map(transformCourse);
+  }, [popData]);
 
-  // Split into popular and trending for UI layout preservation
-  const popularCourses = filteredCourses.slice(0, Math.ceil(filteredCourses.length / 2));
-  const trendingCourses = filteredCourses.slice(Math.ceil(filteredCourses.length / 2));
+  const trendingCourses: Course[] = useMemo(() => {
+    if (!trendData?.data?.courses) return [];
+    return trendData.data.courses.map(transformCourse);
+  }, [trendData]);
+  
+  const handleNextPage = () => setPage(p => Math.min(p + 1, totalPages));
+  const handlePrevPage = () => setPage(p => Math.max(p - 1, 1));
+
+  const handleNextPop = () => setPopPage(p => Math.min(p + 1, popTotalPages));
+  const handlePrevPop = () => setPopPage(p => Math.max(p - 1, 1));
+
+  const handleNextTrend = () => setTrendPage(p => Math.min(p + 1, trendTotalPages));
+  const handlePrevTrend = () => setTrendPage(p => Math.max(p - 1, 1));
 
   return (
     <PageShell wide>
@@ -266,23 +297,23 @@ const CourseList: React.FC = () => {
                 />
               </svg>
             }
-            onClear={() => setQuery('')}
+            onClear={() => { setQuery(''); setPage(1); setPopPage(1); setTrendPage(1); }}
             className="flex-1"
           />
 
           <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:justify-end hide-scrollbar">
             {categories.map((category) => {
-              const isActive = activeCategory === category;
+              const isActive = activeCategoryId === category._id;
               return (
                 <Button
-                  key={category}
+                  key={category._id || 'all'}
                   type="button"
                   variant={isActive ? 'pill' : 'outline'}
                   size="sm"
-                  onClick={() => setActiveCategory(category)}
+                  onClick={() => { setActiveCategoryId(category._id); setPage(1); setPopPage(1); setTrendPage(1); }}
                   className="whitespace-nowrap"
                 >
-                  {category}
+                  {category.name}
                 </Button>
               );
             })}
@@ -295,10 +326,18 @@ const CourseList: React.FC = () => {
           label="Popular Courses"
           title="Most loved by learners"
           size="md"
-          meta={<p className="text-sm tabular-nums text-slate-400">{popularCourses.length} results</p>}
+          meta={
+            <div className="flex items-center gap-2">
+              <span className="text-sm tabular-nums text-slate-400">Page {popPage} of {popTotalPages}</span>
+              <div className="flex gap-1 ml-3">
+                <Button variant="outline" size="sm" className="!px-3 !py-1 !h-8" onClick={handlePrevPop} disabled={popPage === 1}>Prev</Button>
+                <Button variant="outline" size="sm" className="!px-3 !py-1 !h-8" onClick={handleNextPop} disabled={popPage === popTotalPages}>Next</Button>
+              </div>
+            </div>
+          }
         />
 
-        {isLoading ? (
+        {popLoading ? (
           <SkeletonGrid count={3} />
         ) : popularCourses.length > 0 ? (
           <div className="grid gap-12 md:gap-x-10 md:gap-y-16 md:grid-cols-2 xl:grid-cols-3">
@@ -315,9 +354,22 @@ const CourseList: React.FC = () => {
       </section>
 
       <section className="mt-12 space-y-6">
-        <SectionLead label="Trending Courses" title="What is hot right now" size="md" meta={<p className="text-sm text-slate-400">Updated today</p>} />
+        <SectionLead 
+          label="Trending Courses" 
+          title="What is hot right now" 
+          size="md" 
+          meta={
+            <div className="flex items-center gap-2">
+              <span className="text-sm tabular-nums text-slate-400">Page {trendPage} of {trendTotalPages}</span>
+              <div className="flex gap-1 ml-3">
+                <Button variant="outline" size="sm" className="!px-3 !py-1 !h-8" onClick={handlePrevTrend} disabled={trendPage === 1}>Prev</Button>
+                <Button variant="outline" size="sm" className="!px-3 !py-1 !h-8" onClick={handleNextTrend} disabled={trendPage === trendTotalPages}>Next</Button>
+              </div>
+            </div>
+          } 
+        />
 
-        {isLoading ? (
+        {trendLoading ? (
           <SkeletonGrid count={3} />
         ) : trendingCourses.length > 0 ? (
           <div className="grid gap-12 md:gap-x-10 md:gap-y-16 md:grid-cols-2 xl:grid-cols-3">
@@ -329,6 +381,42 @@ const CourseList: React.FC = () => {
           <EmptyState
             title="No trending courses found"
             message="Trending content is hidden by the current filters. Adjust the search or category to reveal matching courses."
+          />
+        )}
+      </section>
+
+      <section className="mt-16 space-y-6">
+        <SectionLead label="Complete Catalog" title="All Courses" size="md" meta={<p className="text-sm text-slate-400">Page {page} of {totalPages}</p>} />
+        
+        {isLoading ? (
+          <SkeletonGrid count={6} />
+        ) : allCourses.length > 0 ? (
+          <>
+            <div className="grid gap-12 md:gap-x-10 md:gap-y-16 md:grid-cols-2 xl:grid-cols-3">
+              {allCourses.map((course) => (
+                <CourseCard key={course.id} course={course} />
+              ))}
+            </div>
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 mt-12">
+                <Button variant="outline" onClick={handlePrevPage} disabled={page === 1}>
+                  Previous
+                </Button>
+                <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                  Page {page} of {totalPages}
+                </span>
+                <Button variant="outline" onClick={handleNextPage} disabled={page === totalPages}>
+                  Next
+                </Button>
+              </div>
+            )}
+          </>
+        ) : (
+          <EmptyState
+            title="No courses found"
+            message="We couldn't find any courses matching your criteria."
           />
         )}
       </section>

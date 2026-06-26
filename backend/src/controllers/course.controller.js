@@ -12,13 +12,16 @@ class CourseController {
       query.instructor = user.id;
     }
 
-    const courses = await courseService.getAllCourses(query, user);
+    const result = await courseService.getAllCourses(query, user);
 
     res.status(200).json({
       status: 'success',
-      results: courses.length,
+      results: result.courses.length,
       data: {
-        courses,
+        courses: result.courses,
+        total: result.total,
+        page: result.page,
+        totalPages: result.totalPages
       },
     });
   });

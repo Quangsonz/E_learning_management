@@ -10,6 +10,7 @@ import App from './App';
 import { store } from './store/store';
 import { queryClient } from './queries/queryClient';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AuthProvider } from './contexts/AuthContext';
 
 const container = document.getElementById('root')!;
 const root = createRoot(container);
@@ -19,8 +20,11 @@ root.render(
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
+          {/* BrowserRouter phải bọc AuthProvider vì AuthContext dùng useNavigate */}
           <BrowserRouter>
-            <App />
+            <AuthProvider>
+              <App />
+            </AuthProvider>
           </BrowserRouter>
         </ThemeProvider>
       </QueryClientProvider>

@@ -12,23 +12,29 @@ const filterObj = (obj, ...allowedFields) => {
 };
 
 class UserController {
-  // Gắn param ID bằng ID của user đang login
+  /**
+   * GET /api/users/me
+   * Gắn param ID bằng ID của user đang login, sau đó gọi getUser
+   */
   getMe = (req, res, next) => {
     req.params.id = req.user.id;
     next();
   };
 
-  // Cập nhật Profile của chính mình (Student, Teacher, Admin)
+  /**
+   * PATCH /api/users/updateMe
+   * Cập nhật Profile của chính mình (Student, Teacher, Admin)
+   * Chỉ cho phép cập nhật: name, avatar
+   */
   updateMe = catchAsync(async (req, res, next) => {
-    // 1) Không cho phép update password ở route này
+    // Không cho phép update password ở route này
     if (req.body.password) {
-      return next(new AppError('Không thể cập nhật mật khẩu ở đường dẫn này.', 400));
+      return next(new AppError('Không thể cập nhật mật khẩu ở đường dẫn này. Sử dụng /users/changePassword.', 400));
     }
 
-    // 2) Chỉ cho phép update các trường cơ bản (ngăn chặn hack đổi role)
+    // Chỉ cho phép update các trường cơ bản (ngăn chặn hack đổi role)
     const filteredBody = filterObj(req.body, 'name', 'avatar');
 
-    // 3) Thực hiện cập nhật
     const updatedUser = await userService.updateUser(req.user.id, filteredBody);
 
     res.status(200).json({
@@ -39,11 +45,37 @@ class UserController {
     });
   });
 
-  // Lấy danh sách user (Cho Admin & Teacher)
+  /**
+   * PATCH /api/users/changePassword
+   * Thay đổi mật khẩu (yêu cầu cung cấp mật khẩu cũ)
+   */
+  changePassword = catchAsync(async (req, res, next) => {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return next(new AppError('Vui lòng cung cấp mật khẩu hiện tại và mật khẩu mới!', 400));
+    }
+
+    if (newPassword.length < 6) {
+      return next(new AppError('Mật khẩu mới phải có ít nhất 6 ký tự!', 400));
+    }
+
+    await userService.changePassword(req.user.id, currentPassword, newPassword);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Mật khẩu đã được thay đổi thành công! Vui lòng đăng nhập lại.',
+    });
+  });
+
+  /**
+   * GET /api/users
+   * Lấy danh sách user (Admin & Teacher)
+   */
   getAllUsers = catchAsync(async (req, res, next) => {
     let query = { ...req.query };
 
-    // Nếu là teacher đang xem, chỉ trả về những user có role = 'student'
+    // Nếu là teacher, chỉ được xem student
     if (req.user.role === 'teacher') {
       query.role = 'student';
     }
@@ -59,7 +91,10 @@ class UserController {
     });
   });
 
-  // Lấy thông tin 1 user bất kỳ (dùng chung cho getMe và Admin get)
+  /**
+   * GET /api/users/:id
+   * Lấy thông tin 1 user (dùng chung cho getMe và Admin get)
+   */
   getUser = catchAsync(async (req, res, next) => {
     const user = await userService.getUserById(req.params.id);
 
@@ -71,7 +106,10 @@ class UserController {
     });
   });
 
-  // Tạo User (Admin)
+  /**
+   * POST /api/users
+   * Tạo User mới (Admin only)
+   */
   createUser = catchAsync(async (req, res, next) => {
     const newUser = await userService.createUser(req.body);
 
@@ -83,8 +121,16 @@ class UserController {
     });
   });
 
-  // Update toàn diện User (Admin) - Được phép thay đổi cả role
+  /**
+   * PATCH /api/users/:id
+   * Update toàn diện User (Admin) - có thể thay đổi role
+   */
   updateUser = catchAsync(async (req, res, next) => {
+    // Admin không được update password qua route này
+    if (req.body.password) {
+      delete req.body.password;
+    }
+
     const updatedUser = await userService.updateUser(req.params.id, req.body);
 
     res.status(200).json({
@@ -95,7 +141,10 @@ class UserController {
     });
   });
 
-  // Xóa User (Admin)
+  /**
+   * DELETE /api/users/:id
+   * Xóa User (Admin only)
+   */
   deleteUser = catchAsync(async (req, res, next) => {
     await userService.deleteUser(req.params.id);
 

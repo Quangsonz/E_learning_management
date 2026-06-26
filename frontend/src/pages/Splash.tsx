@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import StarBackground from '../components/ui/StarBackground';
 
 /* ── 1. AMBIENT ECOSYSTEM BACKGROUND ── */
 const EcosystemBackground = () => {
@@ -77,6 +78,9 @@ const EcosystemBackground = () => {
           }}
         />
       ))}
+      
+      {/* Interactive Star Particles */}
+      <StarBackground />
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '../services/analytics.api';
 import { userApi } from '../services/user.api';
 import CourseManagementTab from './CourseManagementTab';
+import CategoryManagementTab from './CategoryManagementTab';
 
 /* ── Icons ────────────────────────────────────────────────────────── */
 const Icons = {
@@ -22,6 +23,7 @@ const navigation = [
   { id: 'pulse', label: 'Platform Pulse', icon: Icons.Pulse },
   { id: 'users', label: 'User Management', icon: Icons.Users },
   { id: 'content', label: 'Learning Content', icon: Icons.Content },
+  { id: 'categories', label: 'Category Taxonomy', icon: Icons.Content },
   { id: 'analytics', label: 'Analytics & Reports', icon: Icons.Analytics },
   { id: 'finance', label: 'Financial Center', icon: Icons.Finance },
   { id: 'engagement', label: 'Engagement Center', icon: Icons.Engagement },
@@ -264,7 +266,7 @@ const UserIntelligence = () => {
     queryFn: () => userApi.getAllUsers(),
   });
 
-  const realUsers = usersData?.data?.data || [];
+  const realUsers: any[] = (usersData as any)?.data?.users || [];
 
   const mappedUsers = realUsers.map((u: any) => ({
     id: u._id,
@@ -559,6 +561,7 @@ const AdminDashboard: React.FC = () => {
             {activeSection === 'pulse' && <PlatformPulse />}
             {activeSection === 'users' && <UserIntelligence />}
             {activeSection === 'content' && <CourseManagementTab />}
+            {activeSection === 'categories' && <CategoryManagementTab />}
             {activeSection === 'monitoring' && <SystemMonitoring />}
             
             {activeSection === 'analytics' && <EmptySection title="Business Intelligence" description="Deep dive into conversion rates, cohort analysis, and revenue streams." />}

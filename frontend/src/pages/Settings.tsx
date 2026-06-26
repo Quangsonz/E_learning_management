@@ -71,18 +71,18 @@ const LearningPreferences: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <label className="block text-sm font-bold text-slate-900 dark:text-white mb-2">Daily Learning Goal</label>
-            <select className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500/50">
-              <option>Casual (15 mins/day)</option>
-              <option selected>Regular (30 mins/day)</option>
-              <option>Intense (1 hour/day)</option>
+            <select defaultValue="Regular (30 mins/day)" className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500/50">
+              <option value="Casual (15 mins/day)">Casual (15 mins/day)</option>
+              <option value="Regular (30 mins/day)">Regular (30 mins/day)</option>
+              <option value="Intense (1 hour/day)">Intense (1 hour/day)</option>
             </select>
           </div>
           <div>
             <label className="block text-sm font-bold text-slate-900 dark:text-white mb-2">Preferred Language</label>
-            <select className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500/50">
-              <option selected>English</option>
-              <option>Vietnamese</option>
-              <option>Spanish</option>
+            <select defaultValue="English" className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500/50">
+              <option value="English">English</option>
+              <option value="Vietnamese">Vietnamese</option>
+              <option value="Spanish">Spanish</option>
             </select>
           </div>
         </div>

@@ -4,17 +4,49 @@ const slugify = require('slugify');
 
 class CourseService {
   async getAllCourses(query, user) {
-    let filter = { ...query };
+    let filter = {};
+
+    // Search theo từ khóa
+    if (query.search) {
+      filter.$text = { $search: query.search };
+    }
+
+    // Lọc theo danh mục
+    if (query.category && query.category !== 'All') {
+      // Có thể là ID hoặc slug, nhưng trên frontend ta truyền ID sẽ tốt hơn. Nếu truyền string thì filter.
+      filter.category = query.category;
+    }
+
+    // Lọc theo người tạo (giáo viên xem khóa học của mình)
+    if (query.instructor) {
+      filter.instructor = query.instructor;
+    }
+
+    if (query.status) {
+      filter.status = query.status;
+    }
 
     // Nếu không đăng nhập hoặc là học viên, chỉ xem được các khóa học đã published
     if (!user || user.role === 'student') {
       filter.status = 'published';
-    } else if (user.role === 'teacher') {
-      // Nếu là giáo viên, cho phép xem thêm các khóa nháp (draft) do chính họ tạo ra
-      // Nhưng tạm thời cứ lấy danh sách tổng, việc lọc khóa học cá nhân sẽ do controller xử lý (thêm filter.instructor = user.id)
     }
 
-    return await courseRepository.find(filter);
+    // Pagination
+    const page = parseInt(query.page, 10) || 1;
+    const limit = parseInt(query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
+    
+    // Sort
+    const sort = query.sort || '-createdAt';
+
+    const { total, data } = await courseRepository.findPaginated(filter, skip, limit, sort);
+
+    return {
+      courses: data,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit)
+    };
   }
 
   async getCourseById(id) {
@@ -35,8 +67,12 @@ class CourseService {
       throw new AppError('Tiêu đề khóa học này đã tồn tại, vui lòng chọn tiêu đề khác', 400);
     }
 
-    // Gắn ID của người tạo vào làm Instructor
-    courseData.instructor = user.id;
+    // Gắn ID của người tạo vào làm Instructor nếu không phải là admin truyền ID khác
+    if (user.role === 'admin' && courseData.instructor) {
+      // Do nothing, keep courseData.instructor as provided
+    } else {
+      courseData.instructor = user.id;
+    }
 
     return await courseRepository.create(courseData);
   }
@@ -50,6 +86,10 @@ class CourseService {
     // Kiểm tra quyền: Chỉ Admin (manage_all) hoặc chính Teacher tạo ra khóa học mới được sửa
     if (user.role !== 'admin' && course.instructor._id.toString() !== user.id) {
       throw new AppError('Bạn không có quyền chỉnh sửa khóa học của người khác', 403);
+    }
+
+    if (user.role !== 'admin') {
+      delete updateData.instructor; // Non-admins cannot change the instructor
     }
 
     if (updateData.title && !updateData.slug) {
