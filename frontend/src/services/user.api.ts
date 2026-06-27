@@ -30,6 +30,37 @@ export interface UserResponse {
   };
 }
 
+export interface LeaderboardUser {
+  _id: string;
+  name: string;
+  avatar: string;
+  xp: number;
+  studyStreakDays: number;
+}
+
+export interface LeaderboardResponse {
+  status: string;
+  data: {
+    leaderboard: LeaderboardUser[];
+  };
+}
+
+export interface WishlistResponse {
+  status: string;
+  data: {
+    wishlist: any[]; // Course objects
+  };
+}
+
+export interface ToggleWishlistResponse {
+  status: string;
+  message: string;
+  data: {
+    wishlist: string[];
+    isAdded: boolean;
+  };
+}
+
 // ==========================================
 // USER API
 // ==========================================
@@ -40,6 +71,30 @@ export const userApi = {
    */
   getAllUsers: async (params?: Record<string, any>): Promise<UsersListResponse> => {
     const response = await axiosInstance.get('/users', { params });
+    return response.data;
+  },
+
+  /**
+   * Lấy wishlist của người dùng - GET /api/users/wishlist
+   */
+  getWishlist: async (): Promise<WishlistResponse> => {
+    const response = await axiosInstance.get('/users/wishlist');
+    return response.data;
+  },
+
+  /**
+   * Toggle khóa học vào wishlist - POST /api/users/wishlist
+   */
+  toggleWishlist: async (courseId: string): Promise<ToggleWishlistResponse> => {
+    const response = await axiosInstance.post('/users/wishlist', { courseId });
+    return response.data;
+  },
+
+  /**
+   * Lấy danh sách Leaderboard - GET /api/users/leaderboard
+   */
+  getLeaderboard: async (limit: number = 20): Promise<LeaderboardResponse> => {
+    const response = await axiosInstance.get('/users/leaderboard', { params: { limit } });
     return response.data;
   },
 

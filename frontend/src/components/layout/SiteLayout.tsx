@@ -3,13 +3,15 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { userApi } from '../../services/user.api';
 
 /* ── Navigation items ───────────────────────────────────── */
 const sidebarItems = [
   { label: 'Home', to: '/home' },
   { label: 'Courses', to: '/courses' },
   { label: 'Learning', to: '/learning' },
-  { label: 'Quiz', to: '/quiz' }
+  { label: 'Leaderboard', to: '/leaderboard' }
 ];
 
 /* ── Desktop Nav Item ────────────────────────────────────── */
@@ -75,6 +77,13 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
 
+  const { data: wishlistData } = useQuery({
+    queryKey: ['wishlist'],
+    queryFn: () => userApi.getWishlist(),
+    enabled: !!user,
+  });
+  const wishlistCount = wishlistData?.data?.wishlist?.length || 0;
+
   const activeLabel = useMemo(() => {
     const match = sidebarItems.find(
       (item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
@@ -124,6 +133,23 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </nav>
 
         <div className="pl-3 pr-2 border-l border-slate-200 dark:border-white/10 flex items-center gap-2">
+          <Link
+            to="/wishlist"
+            className="relative w-10 h-10 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+            aria-label="Wishlist"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="21" r="1"></circle>
+              <circle cx="20" cy="21" r="1"></circle>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
+            {wishlistCount > 0 && (
+              <span className="absolute top-1 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-slate-900">
+                {wishlistCount}
+              </span>
+            )}
+          </Link>
+
           <button
             onClick={toggleTheme}
             className="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
@@ -196,6 +222,18 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           E
         </Link>
         <div className="flex items-center gap-3">
+          <Link to="/wishlist" className="relative w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="21" r="1"></circle>
+              <circle cx="20" cy="21" r="1"></circle>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
+            {wishlistCount > 0 && (
+              <span className="absolute top-1 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-[#080808]">
+                {wishlistCount}
+              </span>
+            )}
+          </Link>
           <button onClick={toggleTheme} className="w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300">
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>
@@ -299,8 +337,6 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-6">Platform</h4>
                 <ul className="space-y-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
                   <li><Link to="/courses" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Courses</Link></li>
-                  <li><Link to="/learning" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Learning Path</Link></li>
-                  <li><Link to="/quiz" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Assessments</Link></li>
                   <li><a href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Certifications</a></li>
                 </ul>
               </div>

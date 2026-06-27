@@ -24,11 +24,15 @@ const userSchema = new mongoose.Schema({
   // Dashboard / Learning Profile fields
   studyStreakDays: { type: Number, default: 0 }, // Số ngày học liên tiếp
   preferences: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }], // Sở thích danh mục để gợi ý
-  totalFocusMinutes: { type: Number, default: 0 } // Tổng thời gian học (phút)
+  totalFocusMinutes: { type: Number, default: 0 }, // Tổng thời gian học (phút)
+  xp: { type: Number, default: 0 }, // Điểm kinh nghiệm
+  wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }] // Khóa học yêu thích
 }, { timestamps: true });
 
 // Tối ưu hóa truy vấn đăng nhập và lấy người dùng theo vai trò
 userSchema.index({ role: 1 });
+userSchema.index({ xp: -1 }); // Tối ưu hoá truy vấn Leaderboard
+
 
 // Middleware: Mã hóa password trước khi save
 userSchema.pre('save', async function() {

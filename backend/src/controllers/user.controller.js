@@ -13,6 +13,85 @@ const filterObj = (obj, ...allowedFields) => {
 
 class UserController {
   /**
+   * GET /api/users/leaderboard
+   * Lấy danh sách Leaderboard
+   */
+  getLeaderboard = catchAsync(async (req, res, next) => {
+    const userRepository = require('../repositories/user.repository');
+    const limit = parseInt(req.query.limit) || 20;
+    const topUsers = await userRepository.getTopUsersByXP(limit);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        leaderboard: topUsers
+      }
+    });
+  });
+
+  /**
+   * GET /api/users/wishlist
+   * Lấy danh sách khóa học trong wishlist của user
+   */
+  getWishlist = catchAsync(async (req, res, next) => {
+    const userRepository = require('../repositories/user.repository');
+    // fetch user and populate wishlist
+    const user = await userRepository.findById(req.user.id);
+    if (user) {
+      await user.populate({
+        path: 'wishlist',
+        select: '-__v'
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        wishlist: user.wishlist || []
+      }
+    });
+  });
+
+  /**
+   * POST /api/users/wishlist
+   * Toggle khóa học vào/ra khỏi wishlist
+   */
+  toggleWishlist = catchAsync(async (req, res, next) => {
+    const userRepository = require('../repositories/user.repository');
+    const { courseId } = req.body;
+    
+    if (!courseId) {
+      return next(new AppError('Vui lòng cung cấp ID khóa học', 400));
+    }
+
+    const user = await userRepository.findById(req.user.id);
+    let wishlist = user.wishlist || [];
+    
+    const index = wishlist.indexOf(courseId);
+    let isAdded = false;
+
+    if (index > -1) {
+      // Đã có thì xóa đi
+      wishlist.splice(index, 1);
+    } else {
+      // Chưa có thì thêm vào
+      wishlist.push(courseId);
+      isAdded = true;
+    }
+
+    user.wishlist = wishlist;
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json({
+      status: 'success',
+      message: isAdded ? 'Đã thêm khóa học vào wishlist' : 'Đã gỡ khóa học khỏi wishlist',
+      data: {
+        wishlist: user.wishlist,
+        isAdded
+      }
+    });
+  });
+  /**
    * GET /api/users/me
    * Gắn param ID bằng ID của user đang login, sau đó gọi getUser
    */

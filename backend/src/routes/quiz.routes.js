@@ -93,10 +93,19 @@ router.use(authMiddleware.protect);
  *         description: Thêm câu hỏi thành công
  */
 router.get('/:quizId/take', quizController.getQuizForTake);
-router.post('/:quizId/submit', permissionMiddleware.requirePermission('submit_quiz'), quizController.submitQuiz);
+router.post('/:quizId/submit', quizController.submitQuiz);
+
+// Smart Quiz Routes
+router.get('/courses/:courseId/smart-quiz/generate', quizController.generateSmartQuiz);
+router.post('/courses/:courseId/smart-quiz/submit', quizController.submitSmartQuiz);
 
 router.use(requireRole('admin', 'teacher'));
 router.post('/', permissionMiddleware.requirePermission('create_quiz'), quizController.createQuiz);
 router.post('/:quizId/questions', permissionMiddleware.requirePermission('create_quiz'), quizController.addQuestion);
+router.get('/:quizId/questions', quizController.getQuestionsForTeacher);
+
+// Lesson Question routes
+router.get('/lessons/:lessonId/questions', quizController.getLessonQuestionsForTeacher);
+router.post('/lessons/:lessonId/questions', permissionMiddleware.requirePermission('create_quiz'), quizController.addLessonQuestion);
 
 module.exports = router;

@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AnimatePresence, motion, MotionProps } from 'framer-motion';
-import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { courseApi } from '../services/course.api';
+import { enrollmentApi } from '../services/enrollment.api';
+import { progressApi } from '../services/progress.api';
+import { lessonApi } from '../services/lesson.api';
+import { reviewApi, Review } from '../services/review.api';
+import { userApi } from '../services/user.api';
 import {
   Button,
   EmptyState,
@@ -107,13 +112,6 @@ const faqs: FAQItem[] = [
   }
 ];
 
-const reviews = [
-  { name: 'Anika Singh', role: 'Product Designer', rating: 5, date: '2 weeks ago', text: 'Feels like a premium Coursera/Udemy hybrid. The pacing and visuals are absolutely excellent. I applied these principles to my startup the next day.' },
-  { name: 'Minh Tran', role: 'Frontend Developer', rating: 5, date: '1 month ago', text: 'The curriculum is clear, the interface is calm, and the progress tracking is motivating. Highly recommend for developers wanting to improve UI.' },
-  { name: 'Sarah Jenkins', role: 'Learning Manager', rating: 4, date: '2 months ago', text: 'Our team adopted the course quickly because the structure is so easy to scan. Would love a few more exercises, but overall fantastic.' },
-  { name: 'David Chen', role: 'UX Researcher', rating: 5, date: '3 months ago', text: 'The section on borderless design completely changed how I think about layout. Outstanding production value.' }
-];
-
 const instructor = {
   name: 'Dr. Evelyn Hart',
   title: 'Lead Learning Experience Designer',
@@ -126,9 +124,13 @@ const instructor = {
 
 const CourseDetail: React.FC = () => {
   const { courseId } = useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [openCurriculum, setOpenCurriculum] = useState<number>(0);
   const [openFaq, setOpenFaq] = useState<number>(0);
+  const [isEnrolling, setIsEnrolling] = useState(false);
 
+  // Lấy dữ liệu khóa học
   const { data: courseData, isLoading, isError } = useQuery({
     queryKey: ['course', courseId],
     queryFn: () => courseApi.getCourseById(courseId!),
@@ -137,6 +139,104 @@ const CourseDetail: React.FC = () => {
 
   const hasError = !courseId || isError;
   const course = courseData?.data?.course;
+
+  // Lấy danh sách đăng ký để kiểm tra
+  const { data: enrollmentsData } = useQuery({
+    queryKey: ['my-enrollments'],
+    queryFn: () => enrollmentApi.getMyEnrollments()
+  });
+
+  const isEnrolled = useMemo(() => {
+    if (!enrollmentsData?.data?.enrollments || !courseId) return false;
+    return enrollmentsData.data.enrollments.some(e => 
+      (typeof e.course === 'object' ? e.course._id : e.course) === courseId
+    );
+  }, [enrollmentsData, courseId]);
+
+  const enrollMutation = useMutation({
+    mutationFn: (id: string) => enrollmentApi.enrollCourse(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-enrollments'] });
+      navigate(`/courses/${courseId}/learn`);
+    },
+    onSettled: () => setIsEnrolling(false)
+  });
+
+  const { data: wishlistData } = useQuery({
+    queryKey: ['wishlist'],
+    queryFn: () => userApi.getWishlist()
+  });
+
+  const isInWishlist = useMemo(() => {
+    if (!wishlistData?.data?.wishlist || !courseId) return false;
+    return wishlistData.data.wishlist.some((c: any) => c._id === courseId);
+  }, [wishlistData, courseId]);
+
+  const toggleWishlistMutation = useMutation({
+    mutationFn: () => userApi.toggleWishlist(courseId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
+    }
+  });
+
+  const { data: progressData } = useQuery({
+    queryKey: ['course-progress', courseId],
+    queryFn: () => progressApi.getCourseProgress(courseId!),
+    enabled: isEnrolled
+  });
+
+  const { data: lessonsData } = useQuery({
+    queryKey: ['lessons', courseId],
+    queryFn: () => lessonApi.getLessons(courseId!),
+    enabled: isEnrolled
+  });
+
+  const { data: reviewsData } = useQuery({
+    queryKey: ['reviews', courseId],
+    queryFn: () => reviewApi.getCourseReviews(courseId!),
+    enabled: !!courseId
+  });
+
+  const [reviewFormOpen, setReviewFormOpen] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+
+  const submitReviewMutation = useMutation({
+    mutationFn: (data: any) => reviewApi.createReview(courseId!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reviews', courseId] });
+      queryClient.invalidateQueries({ queryKey: ['course', courseId] });
+      setReviewFormOpen(false);
+      setComment('');
+      setRating(5);
+    }
+  });
+
+  const progressPercent = progressData?.data?.progress?.progressPercentage || 0;
+  const completedLessons = progressData?.data?.progress?.completedLessons || [];
+  const lessons = lessonsData?.data?.lessons || [];
+
+  const upNextLesson = useMemo(() => {
+    if (!lessons.length) return null;
+    const lastAccessed = progressData?.data?.progress?.lastAccessedLesson;
+    if (lastAccessed) {
+      const idx = lessons.findIndex((l: any) => l._id === lastAccessed);
+      if (idx !== -1 && idx < lessons.length - 1 && completedLessons.includes(lastAccessed)) {
+        return lessons[idx + 1];
+      }
+      if (idx !== -1) return lessons[idx];
+    }
+    return lessons.find((l: any) => !completedLessons.includes(l._id)) || lessons[0];
+  }, [lessons, completedLessons, progressData]);
+
+  const handleEnrollClick = () => {
+    if (isEnrolled) {
+      navigate(`/courses/${courseId}/learn`);
+    } else {
+      setIsEnrolling(true);
+      enrollMutation.mutate(courseId!);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -206,8 +306,8 @@ const CourseDetail: React.FC = () => {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                 </svg>
-                <span className="font-bold">{course?.averageRating?.toFixed(1) || '0.0'}</span>
-                <span className="text-slate-500 dark:text-slate-500 ml-1">(0 ratings)</span>
+                <span className="font-bold">{reviewsData?.data?.averageRating?.toFixed(1) || course?.averageRating?.toFixed(1) || '0.0'}</span>
+                <span className="text-slate-500 dark:text-slate-500 ml-1">({reviewsData?.data?.numReviews || 0} ratings)</span>
               </div>
               <span className="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
               <div className="flex items-center gap-1.5">
@@ -298,7 +398,7 @@ const CourseDetail: React.FC = () => {
                     <div className="mt-1 text-xs uppercase tracking-[0.1em] text-slate-500">Completion</div>
                   </div>
                   <div>
-                    <div className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">4.9</div>
+                    <div className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">{reviewsData?.data?.averageRating?.toFixed(1) || course?.averageRating?.toFixed(1) || '0.0'}</div>
                     <div className="mt-1 text-xs uppercase tracking-[0.1em] text-slate-500">Avg Rating</div>
                   </div>
                   <div>
@@ -423,40 +523,87 @@ const CourseDetail: React.FC = () => {
                 <div className="flex items-end justify-between mb-6">
                   <SectionLead label="Testimonials" title="Student Reviews" className="mb-0" />
                   <div className="text-right">
-                    <div className="text-3xl font-bold text-slate-900 dark:text-white">4.9</div>
+                    <div className="text-3xl font-bold text-slate-900 dark:text-white">{reviewsData?.data?.averageRating?.toFixed(1) || '0.0'}</div>
                     <div className="flex items-center text-amber-500 mt-1">
-                      <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                      <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                      <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                      <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                      <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                      {[...Array(5)].map((_, i) => (
+                        <svg key={i} width="16" height="16" fill={i < Math.round(reviewsData?.data?.averageRating || 0) ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                      ))}
                     </div>
                   </div>
                 </div>
 
+                {isEnrolled && (
+                  <div className="mb-8">
+                    {!reviewFormOpen ? (
+                      <Button variant="outline" onClick={() => setReviewFormOpen(true)}>
+                        Write a Review
+                      </Button>
+                    ) : (
+                      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 space-y-4">
+                        <h4 className="font-semibold text-slate-900 dark:text-white">Your Rating</h4>
+                        <div className="flex gap-2 text-amber-400">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button key={star} type="button" onClick={() => setRating(star)} className="focus:outline-none transition-transform hover:scale-110">
+                              <svg width="24" height="24" fill={star <= rating ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                              </svg>
+                            </button>
+                          ))}
+                        </div>
+                        <textarea
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          placeholder="Tell us about your experience with this course..."
+                          className="w-full min-h-[100px] resize-none rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-4 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        />
+                        <div className="flex justify-end gap-3">
+                          <Button variant="ghost" onClick={() => setReviewFormOpen(false)}>Cancel</Button>
+                          <Button 
+                            onClick={() => submitReviewMutation.mutate({ rating, comment })}
+                            disabled={!comment.trim() || submitReviewMutation.isPending}
+                          >
+                            {submitReviewMutation.isPending ? 'Submitting...' : 'Submit Review'}
+                          </Button>
+                        </div>
+                        {submitReviewMutation.isError && (
+                          <p className="text-red-500 text-sm mt-2">{(submitReviewMutation.error as any)?.response?.data?.message || 'Error submitting review'}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {reviews.map((review, i) => (
+                  {reviewsData?.data?.data?.reviews?.map((review: Review, i: number) => (
                     <div key={i} className="rounded-3xl border border-slate-200/60 dark:border-white/5 bg-white dark:bg-slate-900/30 p-6 flex flex-col h-full">
                       <div className="flex items-center gap-1 text-amber-500 mb-3">
                         {[...Array(review.rating)].map((_, idx) => (
                           <svg key={idx} className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                         ))}
                       </div>
-                      <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 flex-1">"{review.text}"</p>
+                      <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 flex-1">"{review.comment}"</p>
                       <div className="mt-5 pt-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300">
-                            {review.name.charAt(0)}
+                          <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300">
+                            {review.student.avatar ? (
+                              <img src={review.student.avatar} alt={review.student.name} className="w-full h-full object-cover" />
+                            ) : review.student.name.charAt(0)}
                           </div>
                           <div>
-                            <div className="text-sm font-semibold text-slate-900 dark:text-white">{review.name}</div>
-                            <div className="text-[11px] text-slate-500">{review.role}</div>
+                            <div className="text-sm font-semibold text-slate-900 dark:text-white">{review.student.name}</div>
                           </div>
                         </div>
-                        <div className="text-[11px] text-slate-400">{review.date}</div>
+                        <div className="text-[11px] text-slate-400">{new Date(review.createdAt).toLocaleDateString()}</div>
                       </div>
                     </div>
                   ))}
+                  {(!reviewsData?.data?.data?.reviews || reviewsData.data.data.reviews.length === 0) && (
+                    <div className="col-span-1 sm:col-span-2 py-8 text-center text-slate-500 text-sm">
+                      No reviews yet. Be the first to share your thoughts!
+                    </div>
+                  )}
                 </div>
               </section>
 
@@ -519,25 +666,33 @@ const CourseDetail: React.FC = () => {
                 </div>
 
                 <div className="p-6">
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between text-sm mb-2">
-                      <span className="font-medium text-slate-700 dark:text-slate-300">Course Progress</span>
-                      <span className="font-bold text-primary-600 dark:text-primary-400">25%</span>
-                    </div>
-                    <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-primary-500 to-primary-400 w-1/4 rounded-full" />
-                    </div>
-                  </div>
+                  {isEnrolled && (
+                    <>
+                      <div className="mb-6">
+                        <div className="flex items-center justify-between text-sm mb-2">
+                          <span className="font-medium text-slate-700 dark:text-slate-300">Course Progress</span>
+                          <span className="font-bold text-primary-600 dark:text-primary-400">{progressPercent}%</span>
+                        </div>
+                        <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-primary-500 to-primary-400 rounded-full transition-all duration-500" 
+                            style={{ width: `${progressPercent}%` }}
+                          />
+                        </div>
+                      </div>
 
-                  {/* Next Up to fill space */}
-                  <div className="mb-6 p-4 rounded-xl border border-slate-200/60 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02]">
-                    <div className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500 mb-2">Up Next</div>
-                    <div className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2">How to get feedback and support</div>
-                    <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
-                      <svg className="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      5 min video
-                    </div>
-                  </div>
+                      {upNextLesson && (
+                        <div className="mb-6 p-4 rounded-xl border border-slate-200/60 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02]">
+                          <div className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500 mb-2">Up Next</div>
+                          <div className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2">{upNextLesson.title}</div>
+                          <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+                            <svg className="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            {upNextLesson.duration || 'Video lesson'}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
 
                   <div className="flex items-end gap-3 mb-1">
                     <div className="text-4xl font-bold text-slate-900 dark:text-white">${course?.price}</div>
@@ -551,17 +706,28 @@ const CourseDetail: React.FC = () => {
                     Offer ends in 2 days
                   </div>
                   
-                  <Link to="/learning" className="block w-full">
-                    <button className="group w-full relative overflow-hidden bg-gradient-to-r from-primary-600 via-indigo-500 to-primary-600 bg-[length:200%_auto] animate-gradient text-white font-bold text-lg py-4 px-6 rounded-2xl shadow-[0_8px_24px_rgba(99,102,241,0.4),inset_0_1px_2px_rgba(255,255,255,0.4)] hover:-translate-y-1 transition-all duration-300 active:translate-y-0">
-                      <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      Enroll Now
-                    </button>
-                  </Link>
+                  <button 
+                    onClick={handleEnrollClick}
+                    disabled={isEnrolling}
+                    className="group w-full relative overflow-hidden bg-gradient-to-r from-primary-600 via-indigo-500 to-primary-600 bg-[length:200%_auto] animate-gradient text-white font-bold text-lg py-4 px-6 rounded-2xl shadow-[0_8px_24px_rgba(99,102,241,0.4),inset_0_1px_2px_rgba(255,255,255,0.4)] hover:-translate-y-1 transition-all duration-300 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {isEnrolling ? 'Processing...' : isEnrolled ? 'Go to Course' : 'Enroll Now'}
+                  </button>
                   <p className="text-center text-xs text-slate-500 mt-3 font-medium">30-Day Money-Back Guarantee</p>
 
                   <div className="flex gap-3 mt-3">
-                    <Button variant="outline" className="flex-1 py-3 border-slate-200 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10">
-                      Wishlist
+                    <Button 
+                      variant="outline" 
+                      onClick={() => toggleWishlistMutation.mutate()}
+                      disabled={toggleWishlistMutation.isPending}
+                      className={`flex-1 py-3 border-slate-200 dark:border-white/10 dark:bg-white/5 transition-colors ${
+                        isInWishlist 
+                          ? 'text-rose-500 border-rose-500/50 bg-rose-50 dark:bg-rose-500/10 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/20' 
+                          : 'dark:text-white dark:hover:bg-white/10'
+                      }`}
+                    >
+                      {toggleWishlistMutation.isPending ? 'Updating...' : isInWishlist ? '♥ Wishlisted' : '♡ Wishlist'}
                     </Button>
                     <Button variant="outline" className="flex-1 py-3 border-slate-200 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10">
                       Share
@@ -600,11 +766,13 @@ const CourseDetail: React.FC = () => {
             </div>
             <div className="text-[10px] font-bold text-red-500 uppercase tracking-wider">Ends in 2 days</div>
           </div>
-          <Link to="/learning" className="flex-1">
-            <button className="w-full bg-gradient-to-r from-primary-600 via-indigo-500 to-primary-600 bg-[length:200%_auto] animate-gradient text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-primary-500/25 active:scale-95 transition-transform">
-              Enroll Now
-            </button>
-          </Link>
+          <button 
+            onClick={handleEnrollClick}
+            disabled={isEnrolling}
+            className="flex-1 bg-gradient-to-r from-primary-600 via-indigo-500 to-primary-600 bg-[length:200%_auto] animate-gradient text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-primary-500/25 active:scale-95 transition-transform disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {isEnrolling ? 'Processing...' : isEnrolled ? 'Go to Course' : 'Enroll Now'}
+          </button>
         </div>
       </div>
     </div>

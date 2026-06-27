@@ -1,9 +1,11 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LoadingScreen, Toast, Button, EmptyState } from '../components/ui';
-import { lessonApi, Lesson } from '../services/lesson.api';
+import { lessonApi, Lesson as ApiLesson } from '../services/lesson.api';
+import { progressApi } from '../services/progress.api';
+import { quizApi } from '../services/quiz.api';
 
 type Lesson = {
   id: number;
@@ -30,34 +32,69 @@ const notesSeed = [
 const Learning: React.FC = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
+  const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
   const [showAchievement, setShowAchievement] = useState(false);
   const [notes, setNotes] = useState(notesSeed.join('\n'));
 
-  const { data, isLoading, error } = useQuery({
+  const { data: lessonsData, isLoading: isLoadingLessons, error } = useQuery({
     queryKey: ['lessons', courseId],
     queryFn: () => lessonApi.getLessons(courseId!),
     enabled: !!courseId,
     retry: false
   });
 
-  const lessons = data?.data?.lessons || [];
+  const { data: progressData, isLoading: isLoadingProgress } = useQuery({
+    queryKey: ['course-progress', courseId],
+    queryFn: () => progressApi.getCourseProgress(courseId!),
+    enabled: !!courseId
+  });
+
+  const { data: quizzesData, isLoading: isLoadingQuizzes } = useQuery({
+    queryKey: ['quizzes', courseId],
+    queryFn: () => quizApi.getQuizzesByCourse(courseId!),
+    enabled: !!courseId
+  });
+
+  const lessons = lessonsData?.data?.lessons || [];
+  const quizzes = quizzesData?.data?.data?.quizzes || [];
+  const progressInfo = progressData?.data?.progress;
+  const progressPercent = progressInfo?.progressPercentage || 0;
+  const completedLessons = progressInfo?.completedLessons || [];
 
   useEffect(() => {
     if (lessons.length > 0 && !selectedLessonId) {
-      setSelectedLessonId(lessons[0]._id);
+      setSelectedLessonId(progressInfo?.lastAccessedLesson || lessons[0]._id);
     }
-  }, [lessons, selectedLessonId]);
+  }, [lessons, selectedLessonId, progressInfo]);
 
   const selectedLesson = useMemo(() => {
-    return lessons.find((item: Lesson) => item._id === selectedLessonId) || lessons[0];
-  }, [selectedLessonId, lessons]);
+    return lessons.find((item: ApiLesson) => item._id === selectedLessonId) || (!selectedQuizId ? lessons[0] : null);
+  }, [selectedLessonId, selectedQuizId, lessons]);
+
+  const selectedQuiz = useMemo(() => {
+    return quizzes.find((item: any) => item._id === selectedQuizId);
+  }, [selectedQuizId, quizzes]);
+
+  const markCompleteMutation = useMutation({
+    mutationFn: ({ cId, lId }: { cId: string, lId: string }) => progressApi.markComplete(cId, lId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course-progress', courseId] });
+      setShowAchievement(true);
+      window.setTimeout(() => setShowAchievement(false), 2600);
+      
+      // Auto-advance to next lesson if available
+      const currentIndex = lessons.findIndex((l: ApiLesson) => l._id === selectedLessonId);
+      if (currentIndex !== -1 && currentIndex < lessons.length - 1) {
+        setSelectedLessonId(lessons[currentIndex + 1]._id);
+      }
+    }
+  });
 
   const completeLesson = () => {
-    setProgress((current) => Math.min(100, current + (100 / (lessons.length || 1))));
-    setShowAchievement(true);
-    window.setTimeout(() => setShowAchievement(false), 2600);
+    if (!courseId || !selectedLessonId) return;
+    markCompleteMutation.mutate({ cId: courseId, lId: selectedLessonId });
   };
 
   const getYoutubeVideoId = (url: string) => {
@@ -66,7 +103,7 @@ const Learning: React.FC = () => {
     return match && match[2].length === 11 ? match[2] : null;
   };
 
-  if (isLoading) {
+  if (isLoadingLessons || isLoadingProgress) {
     return (
       <div className="bg-[#FBFBFA] dark:bg-[#111111] flex items-center justify-center py-32 min-h-screen">
         <LoadingScreen title="Loading workspace" message="Preparing video stream and curriculum..." />
@@ -118,7 +155,15 @@ const Learning: React.FC = () => {
             {/* Cinematic Video Player */}
             <div className="flex flex-col gap-5">
               <div className="relative aspect-video w-full bg-black rounded-xl overflow-hidden group shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                {selectedLesson ? (
+                {selectedQuiz ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 border border-slate-800 text-center p-8">
+                     <h3 className="text-2xl font-bold text-white mb-2">{selectedQuiz.title}</h3>
+                     <p className="text-slate-400 mb-6">Test your knowledge to ensure you're ready to proceed. Time limit: {selectedQuiz.timeLimit || 'No limit'} minutes. Passing score: {selectedQuiz.passingScore}%.</p>
+                     <Button variant="pill" onClick={() => navigate(`/courses/${courseId}/quizzes/${selectedQuiz._id}/take`)}>
+                        Take Quiz Now
+                     </Button>
+                  </div>
+                ) : selectedLesson ? (
                   getYoutubeVideoId(selectedLesson.videoUrl) ? (
                     <iframe
                       width="100%"
@@ -137,35 +182,39 @@ const Learning: React.FC = () => {
                   )
                 ) : (
                   <div className="w-full h-full flex items-center justify-center opacity-60">
-                     <p className="text-white">No video selected</p>
+                     <p className="text-white">No content selected</p>
                   </div>
                 )}
-                {/* Minimal Control Bar Overlay */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-between text-white text-xs font-medium">
-                  <div className="flex items-center gap-3">
-                    <button className="hover:opacity-80 transition-opacity"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>
-                    <span>02:14 / {selectedLesson.duration}</span>
+                {selectedLesson && !selectedQuiz && (
+                  <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-between text-white text-xs font-medium">
+                    <div className="flex items-center gap-3">
+                      <button className="hover:opacity-80 transition-opacity"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>
+                      <span>02:14 / {selectedLesson.duration || '00:00'}</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <button className="hover:opacity-80 transition-opacity">1x</button>
+                      <button className="hover:opacity-80 transition-opacity">CC</button>
+                      <button className="hover:opacity-80 transition-opacity"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <button className="hover:opacity-80 transition-opacity">1x</button>
-                    <button className="hover:opacity-80 transition-opacity">CC</button>
-                    <button className="hover:opacity-80 transition-opacity"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Lesson Metadata */}
               <div className="flex items-start justify-between gap-6 pb-8 border-b border-[#EAEAEA] dark:border-white/10">
                 <div>
-                  <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{selectedLesson?.title || 'No lesson selected'}</h1>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Lesson</p>
+                  <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{selectedQuiz ? selectedQuiz.title : (selectedLesson?.title || 'No content selected')}</h1>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{selectedQuiz ? 'Quiz' : 'Lesson'}</p>
                 </div>
-                <button 
-                  onClick={completeLesson}
-                  className="shrink-0 rounded-md bg-[#111111] dark:bg-white px-5 py-2.5 text-sm font-medium text-white dark:text-[#111111] transition-transform active:scale-95 hover:bg-slate-800 dark:hover:bg-slate-200"
-                >
-                  Mark Complete
-                </button>
+                {!selectedQuiz && (
+                  <button 
+                    onClick={completeLesson}
+                    disabled={markCompleteMutation.isPending || completedLessons.includes(selectedLessonId)}
+                    className="shrink-0 rounded-md bg-[#111111] dark:bg-white px-5 py-2.5 text-sm font-medium text-white dark:text-[#111111] transition-transform active:scale-95 hover:bg-slate-800 dark:hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {completedLessons.includes(selectedLessonId) ? 'Completed' : 'Mark Complete'}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -189,13 +238,13 @@ const Learning: React.FC = () => {
             <div>
               <div className="flex items-center justify-between text-xs font-semibold tracking-widest uppercase mb-3 text-slate-500">
                 <span>Progress</span>
-                <span>{progress}%</span>
+                <span>{progressPercent}%</span>
               </div>
               <div className="h-[2px] w-full bg-[#EAEAEA] dark:bg-white/10 rounded-full overflow-hidden">
                 <motion.div 
                   className="h-full bg-[#111111] dark:bg-white"
                   initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
+                  animate={{ width: `${progressPercent}%` }}
                   transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                 />
               </div>
@@ -211,17 +260,20 @@ const Learning: React.FC = () => {
                   <p className="text-sm text-slate-500">No lessons available.</p>
                 ) : (
                   <div className="flex flex-col gap-1">
-                    {lessons.map((lesson: Lesson, index: number) => {
-                      const isActive = lesson._id === selectedLessonId;
+                    {lessons.map((lesson: ApiLesson, index: number) => {
+                      const isActive = lesson._id === selectedLessonId && !selectedQuizId;
+                      const isCompleted = completedLessons.includes(lesson._id);
                       return (
                         <button
                           key={lesson._id}
-                          onClick={() => setSelectedLessonId(lesson._id)}
+                          onClick={() => { setSelectedLessonId(lesson._id); setSelectedQuizId(null); }}
                           className={`group flex items-center justify-between py-2 text-left w-full transition-colors ${isActive ? 'text-[#111111] dark:text-white font-medium' : 'text-slate-600 dark:text-slate-400 hover:text-[#111111] dark:hover:text-white'}`}
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                              {isActive ? (
+                              {isCompleted ? (
+                                <svg className="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
+                              ) : isActive ? (
                                 <div className="w-1.5 h-1.5 rounded-full bg-[#111111] dark:bg-white" />
                               ) : (
                                 <span className="text-[10px] text-slate-400">{index + 1}</span>
@@ -234,6 +286,46 @@ const Learning: React.FC = () => {
                     })}
                   </div>
                 )}
+              </div>
+
+              {quizzes.length > 0 && (
+                <div className="pt-6 pb-6 border-b border-[#EAEAEA] dark:border-white/10">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
+                    Assessments
+                  </h3>
+                  <div className="flex flex-col gap-1">
+                    {quizzes.map((quiz: any) => {
+                      const isActive = quiz._id === selectedQuizId;
+                      return (
+                        <button
+                          key={quiz._id}
+                          onClick={() => { setSelectedQuizId(quiz._id); setSelectedLessonId(null); }}
+                          className={`group flex items-center justify-between py-2 text-left w-full transition-colors ${isActive ? 'text-[#111111] dark:text-white font-medium' : 'text-slate-600 dark:text-slate-400 hover:text-[#111111] dark:hover:text-white'}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-4 h-4 shrink-0 flex items-center justify-center text-slate-400">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            </div>
+                            <span className="text-sm line-clamp-1">{quiz.title}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-6 pb-6 border-b border-[#EAEAEA] dark:border-white/10">
+                <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
+                  Smart Practice
+                </h3>
+                <button
+                  onClick={() => navigate(`/courses/${courseId}/quizzes/smart/take`)}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl font-semibold text-sm hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                  Generate Smart Review
+                </button>
               </div>
             </div>
 

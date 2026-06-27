@@ -24,6 +24,14 @@ class ProgressService {
     // 3. Đánh dấu bài giảng hoàn thành (nếu chưa có trong mảng)
     if (!progress.completedLessons.includes(lessonId)) {
       progress.completedLessons.push(lessonId);
+      
+      // Cộng 10 XP cho học viên
+      const userRepository = require('../repositories/user.repository');
+      const student = await userRepository.findById(user.id);
+      if (student) {
+        student.xp = (student.xp || 0) + 10;
+        await student.save({ validateBeforeSave: false });
+      }
     }
 
     // 4. Tính toán phần trăm hoàn thành

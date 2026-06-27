@@ -10,6 +10,15 @@ const router = express.Router();
 // Tích hợp Nested Route cho bài giảng: GET /api/courses/:courseId/lessons
 router.use('/:courseId/lessons', lessonRoutes);
 
+// Tích hợp Nested Route cho bài quiz
+const quizController = require('../controllers/quiz.controller');
+router.get('/:courseId/quizzes', authMiddleware.optionalProtect, quizController.getQuizzesByCourse);
+
+// Tích hợp Review routes
+const reviewController = require('../controllers/review.controller');
+router.get('/:courseId/reviews', reviewController.getCourseReviews);
+router.post('/:courseId/reviews', authMiddleware.protect, reviewController.createReview);
+
 /**
  * @swagger
  * /courses:

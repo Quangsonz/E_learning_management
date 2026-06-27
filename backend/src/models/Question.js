@@ -6,8 +6,10 @@ const optionSchema = new mongoose.Schema({
 });
 
 const questionSchema = new mongoose.Schema({
-  quiz: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz', required: true },
+  quiz: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz' },
+  lesson: { type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' },
   text: { type: String, required: true },
+  points: { type: Number, required: true, default: 1 },
   options: { 
     type: [optionSchema], 
     validate: [v => v.length >= 2, 'Cần ít nhất 2 đáp án'] 

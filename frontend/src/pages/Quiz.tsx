@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { quizApi } from '../services/quiz.api';
 import {
   Button,
   CanvasHero,
@@ -12,55 +15,47 @@ import {
 import useSimulatedLoading from '../hooks/useSimulatedLoading';
 
 type Question = {
-  id: number;
-  prompt: string;
-  options: string[];
-  correctIndex: number;
+  _id: string;
+  text: string;
+  options: { _id: string; text: string }[];
 };
-
-const questions: Question[] = [
-  {
-    id: 1,
-    prompt: 'Which principle helps users stay engaged during online learning?',
-    options: ['Random content jumps', 'Clear progress feedback', 'Hidden navigation', 'No reminders'],
-    correctIndex: 1
-  },
-  {
-    id: 2,
-    prompt: 'What is the best use of a progress bar in a quiz?',
-    options: ['To distract the user', 'To show completion status', 'To hide remaining time', 'To replace questions'],
-    correctIndex: 1
-  },
-  {
-    id: 3,
-    prompt: 'A timer warning should primarily do what?',
-    options: ['Increase confusion', 'Create panic only', 'Focus attention gently', 'Remove all feedback'],
-    correctIndex: 2
-  },
-  {
-    id: 4,
-    prompt: 'Which motion is most appropriate for a result modal?',
-    options: ['Abrupt jump', 'Smooth reveal', 'No animation', 'Full screen shake'],
-    correctIndex: 1
-  }
-];
 
 const MotionDiv = motion.div as unknown as React.FC<React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>>;
 
-const totalSeconds = 120;
-
 const Quiz: React.FC = () => {
+  const { courseId, quizId } = useParams();
+  const navigate = useNavigate();
+  
+  const { data, isLoading } = useQuery({
+    queryKey: ['quiz', courseId, quizId],
+    queryFn: () => quizId === 'smart' ? quizApi.generateSmartQuiz(courseId!) : quizApi.getQuizForTake(quizId!),
+    refetchOnWindowFocus: false
+  });
+  
+  const submitMutation = useMutation({
+    mutationFn: (answers: any) => quizId === 'smart' ? quizApi.submitSmartQuiz(courseId!, answers) : quizApi.submitQuiz(quizId!, answers)
+  });
+
+  const quiz = quizId === 'smart' ? data?.data?.quiz : data?.data?.data?.quiz;
+  const questions: Question[] = quizId === 'smart' ? data?.data?.questions || [] : data?.data?.data?.questions || [];
+
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
-  const [timeLeft, setTimeLeft] = useState(totalSeconds);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
-  const [score, setScore] = useState(0);
+  const [resultData, setResultData] = useState<any>(null);
   const [celebrate, setCelebrate] = useState(false);
   const [pulse, setPulse] = useState(false);
-  const isLoading = useSimulatedLoading(700);
+
+  // Initialize timer once quiz data loads
+  useEffect(() => {
+    if (quiz?.timeLimit && timeLeft === null) {
+      setTimeLeft(quiz.timeLimit * 60);
+    }
+  }, [quiz, timeLeft]);
 
   useEffect(() => {
-    if (showResult || celebrate) return;
+    if (showResult || celebrate || timeLeft === null) return;
 
     const timer = window.setInterval(() => {
       setTimeLeft((current) => {
@@ -87,45 +82,51 @@ const Quiz: React.FC = () => {
     return ((currentIndex + 1) / questions.length) * 100;
   }, [currentIndex]);
 
-  const formatTime = (seconds: number) => {
+  const formatTime = (seconds: number | null) => {
+    if (seconds === null) return '--:--';
     const minutes = Math.floor(seconds / 60);
     const remaining = seconds % 60;
     return `${minutes}:${remaining.toString().padStart(2, '0')}`;
   };
 
   const finishQuiz = () => {
-    const finalScore = questions.reduce((accumulator, question) => {
-      return answers[question.id] === question.correctIndex ? accumulator + 1 : accumulator;
-    }, 0);
-
-    setScore(finalScore);
-    setCelebrate(true);
-    window.setTimeout(() => {
-      setCelebrate(false);
-      setShowResult(true);
-    }, 1800);
+    const answersPayload = Object.entries(answers).map(([questionId, selectedOptionId]) => ({
+      questionId,
+      selectedOptionId
+    }));
+    
+    submitMutation.mutate(answersPayload, {
+      onSuccess: (response) => {
+        setResultData(response.data.data.result);
+        setCelebrate(true);
+        window.setTimeout(() => {
+          setCelebrate(false);
+          setShowResult(true);
+        }, 1800);
+      }
+    });
   };
 
-  const selectAnswer = (optionIndex: number) => {
-    setAnswers((current) => ({ ...current, [currentQuestion.id]: optionIndex }));
+  const selectAnswer = (optionId: string) => {
+    setAnswers((current) => ({ ...current, [currentQuestion._id]: optionId }));
   };
 
   const restartQuiz = () => {
     setCurrentIndex(0);
     setAnswers({});
-    setTimeLeft(totalSeconds);
+    if (quiz?.timeLimit) setTimeLeft(quiz.timeLimit * 60);
     setShowResult(false);
     setCelebrate(false);
     setPulse(false);
   };
 
   const completedQuestions = Object.keys(answers).length;
-  const timerWarning = timeLeft <= 15;
+  const timerWarning = timeLeft !== null && timeLeft <= 15;
 
   const resultMetrics = [
-    { label: 'Accuracy', value: `${Math.round((score / questions.length) * 100)}%` },
-    { label: 'Time left', value: formatTime(timeLeft) },
-    { label: 'Status', value: score >= 3 ? 'Pass' : 'Review' }
+    { label: 'Score', value: resultData ? `${resultData.scorePercentage}%` : '-' },
+    { label: 'Points', value: resultData ? resultData.score : '-' },
+    { label: 'Status', value: resultData?.isPassed ? 'Pass' : 'Review' }
   ];
 
   if (isLoading) {
@@ -141,7 +142,7 @@ const Quiz: React.FC = () => {
       <CanvasHero
         badge={<div className="badge">Quiz Page</div>}
         eyebrow="Real exam experience"
-        title="Focus, timing, and feedback in one calm workspace."
+        title={quiz?.title || "Focus, timing, and feedback in one calm workspace."}
         description="Countdown timer, question navigator, progress tracking, and result modal designed to feel like a real online assessment."
         glow="warm"
         actions={
@@ -199,28 +200,28 @@ const Quiz: React.FC = () => {
                   <div>
                     <p className="section-label">Question {currentIndex + 1}</p>
                     <h3 className="mt-1.5 text-xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-2xl">
-                      {currentQuestion.prompt}
+                      {currentQuestion?.text}
                     </h3>
                   </div>
                   <span className="text-xs font-medium text-slate-400">Select one answer</span>
                 </div>
 
                 <div className="mt-6 grid gap-2.5">
-                  {currentQuestion.options.map((option, optionIndex) => {
-                    const isSelected = answers[currentQuestion.id] === optionIndex;
+                  {currentQuestion?.options?.map((option, optionIndex) => {
+                    const isSelected = answers[currentQuestion._id] === option._id;
 
                     return (
                       <button
-                        key={option}
+                        key={option._id}
                         type="button"
-                        onClick={() => selectAnswer(optionIndex)}
+                        onClick={() => selectAnswer(option._id!)}
                         className={`flex items-center justify-between gap-4 rounded-2xl border px-5 py-4 text-left transition focus:outline-none focus:ring-4 focus:ring-primary-500/10 ${
                           isSelected
                             ? 'border-primary-300/70 bg-primary-50/70 dark:bg-primary-900/50 dark:border-primary-700/50'
                             : 'border-slate-200/50 bg-transparent hover:bg-slate-50/80 dark:hover:bg-slate-800/50 hover:border-slate-200/80 dark:hover:border-slate-700/50'
                         }`}
                       >
-                        <span className={`text-sm font-medium ${isSelected ? 'font-semibold text-indigo-900 dark:text-indigo-200' : 'text-slate-800 dark:text-slate-200'}`}>{option}</span>
+                        <span className={`text-sm font-medium ${isSelected ? 'font-semibold text-indigo-900 dark:text-indigo-200' : 'text-slate-800 dark:text-slate-200'}`}>{option.text}</span>
                         <span
                           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition ${
                             isSelected
@@ -278,11 +279,11 @@ const Quiz: React.FC = () => {
           <div className="mt-4 grid grid-cols-4 gap-2.5 sm:grid-cols-5 xl:grid-cols-3">
             {questions.map((question, index) => {
               const isActive = index === currentIndex;
-              const isAnswered = Boolean(answers[question.id] !== undefined);
+              const isAnswered = Boolean(answers[question._id] !== undefined);
 
               return (
                 <button
-                  key={question.id}
+                  key={question._id}
                   type="button"
                   onClick={() => setCurrentIndex(index)}
                   className={`flex h-11 items-center justify-center rounded-xl border text-sm font-semibold transition focus:outline-none focus:ring-4 focus:ring-primary-500/10 ${
@@ -338,18 +339,18 @@ const Quiz: React.FC = () => {
             initial={{ scale: 0.7, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="mt-1 text-6xl font-semibold tracking-tight text-primary-600"
+            className={`mt-1 text-6xl font-semibold tracking-tight ${resultData?.isPassed ? 'text-emerald-600' : 'text-rose-600'}`}
           >
-            {score}
+            {resultData?.scorePercentage}%
           </motion.div>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">out of {questions.length} correct answers</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{resultData?.isPassed ? 'You passed the exam!' : 'You did not pass.'}</p>
         </div>
 
         <MetricsSurface metrics={resultMetrics} className="!mt-5 sm:!px-5" delay={0.25} />
 
         <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-          <Button variant="outline" onClick={() => setShowResult(false)}>
-            Close
+          <Button variant="outline" onClick={() => navigate(`/courses/${courseId}/learn`)}>
+            Back to Course
           </Button>
           <Button variant="pill" onClick={restartQuiz}>
             Restart quiz

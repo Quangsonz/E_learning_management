@@ -5,9 +5,12 @@ import AppErrorBoundary from './components/layout/AppErrorBoundary';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { LoadingScreen } from './components/ui/StateViews';
 import Home from './pages/Home';
+import Profile from './pages/Profile';
+import Wishlist from './pages/Wishlist';
 import CourseList from './pages/CourseList';
 import CourseDetail from './pages/CourseDetail';
 import Learning from './pages/Learning';
+import MyLearning from './pages/MyLearning';
 import Quiz from './pages/Quiz';
 import TeacherDashboard from './pages/TeacherDashboard';
 import TeacherCourses from './pages/TeacherCourses';
@@ -17,8 +20,8 @@ import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
 import Splash from './pages/Splash';
-import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import Leaderboard from './pages/Leaderboard';
 
 // Các routes không cần SiteLayout (không có header/sidebar)
 const noLayoutPaths = [
@@ -91,12 +94,17 @@ const AppRoutes: React.FC = () => (
         <CourseDetail />
       </ProtectedRoute>
     } />
+    <Route path="/learning" element={
+      <ProtectedRoute>
+        <MyLearning />
+      </ProtectedRoute>
+    } />
     <Route path="/courses/:courseId/learn" element={
       <ProtectedRoute>
         <Learning />
       </ProtectedRoute>
     } />
-    <Route path="/quiz" element={
+    <Route path="/courses/:courseId/quizzes/:quizId/take" element={
       <ProtectedRoute>
         <Quiz />
       </ProtectedRoute>
@@ -104,6 +112,16 @@ const AppRoutes: React.FC = () => (
     <Route path="/profile" element={
       <ProtectedRoute>
         <Profile />
+      </ProtectedRoute>
+    } />
+    <Route path="/wishlist" element={
+      <ProtectedRoute>
+        <Wishlist />
+      </ProtectedRoute>
+    } />
+    <Route path="/leaderboard" element={
+      <ProtectedRoute>
+        <Leaderboard />
       </ProtectedRoute>
     } />
     <Route path="/settings" element={

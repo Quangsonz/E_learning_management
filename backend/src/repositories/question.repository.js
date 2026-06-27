@@ -9,6 +9,14 @@ class QuestionRepository extends BaseRepository {
   async findByQuiz(quizId) {
     return await this.model.find({ quiz: quizId });
   }
+
+  async findByLesson(lessonId) {
+    return await this.model.find({ lesson: lessonId });
+  }
+
+  async findInLessons(lessonIds) {
+    return await this.model.find({ lesson: { $in: lessonIds } });
+  }
 }
 
 module.exports = new QuestionRepository();

@@ -21,6 +21,18 @@ class UserRepository extends BaseRepository {
   async findByIdWithPassword(id) {
     return await this.model.findById(id).select('+password');
   }
+
+  /**
+   * Lấy danh sách leaderboard dựa trên xp
+   * @param {number} limit 
+   */
+  async getTopUsersByXP(limit = 20) {
+    return await this.model
+      .find({ role: 'student', xp: { $gt: 0 } })
+      .sort({ xp: -1 })
+      .limit(limit)
+      .select('name avatar xp studyStreakDays');
+  }
 }
 
 module.exports = new UserRepository();

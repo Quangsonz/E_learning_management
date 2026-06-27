@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { lessonApi } from '../../services/lesson.api';
 import { Button, Modal, EmptyState } from '../ui';
 import { Input } from '../ui/Input';
+import { LessonQuestionManager } from './LessonQuestionManager';
 
 type LessonManagerProps = {
   courseId: string;
@@ -15,6 +16,7 @@ export const LessonManager: React.FC<LessonManagerProps> = ({ courseId, courseTi
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [activeQuestionLesson, setActiveQuestionLesson] = useState<{ id: string, title: string } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['lessons', courseId],
@@ -91,17 +93,26 @@ export const LessonManager: React.FC<LessonManagerProps> = ({ courseId, courseTi
                     <p className="text-xs text-slate-500 truncate max-w-[200px] sm:max-w-[300px]">{lesson.videoUrl}</p>
                   </div>
                 </div>
-                <button 
-                  className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-md transition-colors"
-                  onClick={() => {
-                    if (confirm('Are you sure you want to delete this lesson?')) {
-                      deleteMutation.mutate(lesson._id);
-                    }
-                  }}
-                  title="Delete lesson"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-md transition-colors text-xs font-semibold"
+                    onClick={() => setActiveQuestionLesson({ id: lesson._id, title: lesson.title })}
+                    title="Manage questions for this lesson"
+                  >
+                    Questions
+                  </button>
+                  <button 
+                    className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-md transition-colors"
+                    onClick={() => {
+                      if (confirm('Are you sure you want to delete this lesson?')) {
+                        deleteMutation.mutate(lesson._id);
+                      }
+                    }}
+                    title="Delete lesson"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2 2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </div>
               </div>
             ))
           ) : !formOpen ? (
@@ -113,6 +124,14 @@ export const LessonManager: React.FC<LessonManagerProps> = ({ courseId, courseTi
           <Button variant="outline" onClick={onClose}>Close</Button>
         </div>
       </div>
+      
+      {activeQuestionLesson && (
+        <LessonQuestionManager
+          lessonId={activeQuestionLesson.id}
+          lessonTitle={activeQuestionLesson.title}
+          onClose={() => setActiveQuestionLesson(null)}
+        />
+      )}
     </Modal>
   );
 };

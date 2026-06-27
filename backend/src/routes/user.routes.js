@@ -22,6 +22,10 @@ router.use(authMiddleware.protect);
 // API CHUNG CHO MỌI ROLE (PROFILE CÁ NHÂN)
 // ==========================================
 
+router.get('/leaderboard', userController.getLeaderboard);
+router.get('/wishlist', userController.getWishlist);
+router.post('/wishlist', userController.toggleWishlist);
+
 /**
  * @swagger
  * /users/me:

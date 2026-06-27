@@ -16,8 +16,8 @@ class EnrollmentService {
     }
 
     // Xác định trạng thái thanh toán
-    // Tạm thời nếu giá = 0 thì completed, còn lại thì pending
-    const paymentStatus = course.price === 0 ? 'completed' : 'pending';
+    // Tạm thời bỏ qua cổng thanh toán, mặc định cho phép học viên truy cập ngay (completed)
+    const paymentStatus = 'completed';
 
     const enrollmentData = {
       student: user.id,
