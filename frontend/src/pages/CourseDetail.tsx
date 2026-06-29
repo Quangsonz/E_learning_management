@@ -18,26 +18,12 @@ import {
 } from '../components/ui';
 import { floatY } from '../animations/motionVariants';
 import useSimulatedLoading from '../hooks/useSimulatedLoading';
+import { CourseCurriculum } from '../components/course/CourseCurriculum';
+import { CourseReviews } from '../components/course/CourseReviews';
+import { useAuth } from '../contexts/AuthContext';
 
-type CurriculumLesson = {
-  title: string;
-  duration: string;
-  status: 'completed' | 'current' | 'locked';
-};
-
-type CurriculumItem = {
-  title: string;
-  duration: string;
-  lectures: number;
-  lessons: CurriculumLesson[];
-};
-
-type FAQItem = {
-  question: string;
-  answer: string;
-};
-
-const MotionDiv = motion.div as unknown as React.FC<React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>>;
+type MotionDivProps = React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>;
+const MotionDiv = motion.div as unknown as React.FC<MotionDivProps>;
 
 const highlights = [
   'Build complete UI systems from scratch',
@@ -126,7 +112,7 @@ const CourseDetail: React.FC = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [openCurriculum, setOpenCurriculum] = useState<number>(0);
+  const { user } = useAuth();
   const [openFaq, setOpenFaq] = useState<number>(0);
   const [isEnrolling, setIsEnrolling] = useState(false);
 
@@ -147,8 +133,8 @@ const CourseDetail: React.FC = () => {
   });
 
   const isEnrolled = useMemo(() => {
-    if (!enrollmentsData?.data?.enrollments || !courseId) return false;
-    return enrollmentsData.data.enrollments.some(e => 
+    if (!enrollmentsData?.enrollments || !courseId) return false;
+    return enrollmentsData.enrollments.some(e => 
       (typeof e.course === 'object' ? e.course._id : e.course) === courseId
     );
   }, [enrollmentsData, courseId]);
@@ -197,20 +183,7 @@ const CourseDetail: React.FC = () => {
     enabled: !!courseId
   });
 
-  const [reviewFormOpen, setReviewFormOpen] = useState(false);
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState('');
-
-  const submitReviewMutation = useMutation({
-    mutationFn: (data: any) => reviewApi.createReview(courseId!, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reviews', courseId] });
-      queryClient.invalidateQueries({ queryKey: ['course', courseId] });
-      setReviewFormOpen(false);
-      setComment('');
-      setRating(5);
-    }
-  });
+  const isInstructor = user?.role === 'admin' || (user && course?.instructor && (course.instructor._id === user.id || course.instructor === user.id));
 
   const progressPercent = progressData?.data?.progress?.progressPercentage || 0;
   const completedLessons = progressData?.data?.progress?.completedLessons || [];
@@ -233,8 +206,13 @@ const CourseDetail: React.FC = () => {
     if (isEnrolled) {
       navigate(`/courses/${courseId}/learn`);
     } else {
-      setIsEnrolling(true);
-      enrollMutation.mutate(courseId!);
+      // For MVP, assume all courses need checkout unless explicitly price === 0
+      if (course?.price !== 0) {
+        navigate(`/checkout/${courseId}`);
+      } else {
+        setIsEnrolling(true);
+        enrollMutation.mutate(courseId!);
+      }
     }
   };
 
@@ -409,73 +387,7 @@ const CourseDetail: React.FC = () => {
               </section>
 
               {/* Interactive Curriculum */}
-              <section>
-                <SectionLead label="Curriculum Roadmap" title="Structured path to mastery" />
-                <div className="mt-6 space-y-3">
-                  {curriculum.map((item, index) => {
-                    const isOpen = openCurriculum === index;
-                    return (
-                      <div key={index} className="group relative rounded-2xl border border-slate-200/60 dark:border-white/5 bg-white dark:bg-slate-900/50 transition-shadow hover:shadow-md dark:hover:shadow-none overflow-hidden">
-                        <button
-                          type="button"
-                          onClick={() => setOpenCurriculum(isOpen ? -1 : index)}
-                          className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left focus:outline-none"
-                        >
-                          <div className="flex-1 pr-4">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-primary-600 dark:text-primary-400">Module {index + 1}</p>
-                            <h4 className="mt-1 text-base font-semibold text-slate-900 dark:text-white">{item.title}</h4>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className="text-sm font-medium text-slate-900 dark:text-white">{item.duration}</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{item.lectures} lectures</div>
-                          </div>
-                          <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className="shrink-0 text-slate-400 ml-2">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </motion.div>
-                        </button>
-
-                        <AnimatePresence>
-                          {isOpen && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                            >
-                              <div className="px-6 pb-5 pt-1 border-t border-slate-100 dark:border-white/5">
-                                <ul className="space-y-1">
-                                  {item.lessons.map((lesson, lIdx) => (
-                                    <li key={lIdx} className="flex items-center justify-between py-2.5 group/lesson">
-                                      <div className="flex items-center gap-3">
-                                        {/* Status Icon */}
-                                        <div className="shrink-0 flex items-center justify-center w-6 h-6">
-                                          {lesson.status === 'completed' ? (
-                                            <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
-                                          ) : lesson.status === 'current' ? (
-                                            <span className="flex h-4 w-4 relative"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span><span className="relative inline-flex rounded-full h-4 w-4 bg-primary-500 border-2 border-white dark:border-slate-900"></span></span>
-                                          ) : (
-                                            <svg className="w-4 h-4 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
-                                          )}
-                                        </div>
-                                        <span className={`text-sm ${lesson.status === 'locked' ? 'text-slate-500 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200 font-medium group-hover/lesson:text-primary-600 dark:group-hover/lesson:text-primary-400 transition-colors'}`}>
-                                          {lesson.title}
-                                        </span>
-                                      </div>
-                                      <div className="text-xs text-slate-400 dark:text-slate-500">{lesson.duration}</div>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
+              <CourseCurriculum />
 
               {/* Instructor Profile */}
               <section>
@@ -519,93 +431,7 @@ const CourseDetail: React.FC = () => {
               </section>
 
               {/* Reviews - Testimonial Stream */}
-              <section>
-                <div className="flex items-end justify-between mb-6">
-                  <SectionLead label="Testimonials" title="Student Reviews" className="mb-0" />
-                  <div className="text-right">
-                    <div className="text-3xl font-bold text-slate-900 dark:text-white">{reviewsData?.data?.averageRating?.toFixed(1) || '0.0'}</div>
-                    <div className="flex items-center text-amber-500 mt-1">
-                      {[...Array(5)].map((_, i) => (
-                        <svg key={i} width="16" height="16" fill={i < Math.round(reviewsData?.data?.averageRating || 0) ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                        </svg>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {isEnrolled && (
-                  <div className="mb-8">
-                    {!reviewFormOpen ? (
-                      <Button variant="outline" onClick={() => setReviewFormOpen(true)}>
-                        Write a Review
-                      </Button>
-                    ) : (
-                      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 space-y-4">
-                        <h4 className="font-semibold text-slate-900 dark:text-white">Your Rating</h4>
-                        <div className="flex gap-2 text-amber-400">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <button key={star} type="button" onClick={() => setRating(star)} className="focus:outline-none transition-transform hover:scale-110">
-                              <svg width="24" height="24" fill={star <= rating ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                              </svg>
-                            </button>
-                          ))}
-                        </div>
-                        <textarea
-                          value={comment}
-                          onChange={(e) => setComment(e.target.value)}
-                          placeholder="Tell us about your experience with this course..."
-                          className="w-full min-h-[100px] resize-none rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-4 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                        />
-                        <div className="flex justify-end gap-3">
-                          <Button variant="ghost" onClick={() => setReviewFormOpen(false)}>Cancel</Button>
-                          <Button 
-                            onClick={() => submitReviewMutation.mutate({ rating, comment })}
-                            disabled={!comment.trim() || submitReviewMutation.isPending}
-                          >
-                            {submitReviewMutation.isPending ? 'Submitting...' : 'Submit Review'}
-                          </Button>
-                        </div>
-                        {submitReviewMutation.isError && (
-                          <p className="text-red-500 text-sm mt-2">{(submitReviewMutation.error as any)?.response?.data?.message || 'Error submitting review'}</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {reviewsData?.data?.data?.reviews?.map((review: Review, i: number) => (
-                    <div key={i} className="rounded-3xl border border-slate-200/60 dark:border-white/5 bg-white dark:bg-slate-900/30 p-6 flex flex-col h-full">
-                      <div className="flex items-center gap-1 text-amber-500 mb-3">
-                        {[...Array(review.rating)].map((_, idx) => (
-                          <svg key={idx} className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        ))}
-                      </div>
-                      <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 flex-1">"{review.comment}"</p>
-                      <div className="mt-5 pt-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300">
-                            {review.student.avatar ? (
-                              <img src={review.student.avatar} alt={review.student.name} className="w-full h-full object-cover" />
-                            ) : review.student.name.charAt(0)}
-                          </div>
-                          <div>
-                            <div className="text-sm font-semibold text-slate-900 dark:text-white">{review.student.name}</div>
-                          </div>
-                        </div>
-                        <div className="text-[11px] text-slate-400">{new Date(review.createdAt).toLocaleDateString()}</div>
-                      </div>
-                    </div>
-                  ))}
-                  {(!reviewsData?.data?.data?.reviews || reviewsData.data.data.reviews.length === 0) && (
-                    <div className="col-span-1 sm:col-span-2 py-8 text-center text-slate-500 text-sm">
-                      No reviews yet. Be the first to share your thoughts!
-                    </div>
-                  )}
-                </div>
-              </section>
+              <CourseReviews courseId={courseId!} isEnrolled={isEnrolled} isInstructor={Boolean(isInstructor)} reviewsData={reviewsData} />
 
               {/* FAQ Accordion */}
               <section>

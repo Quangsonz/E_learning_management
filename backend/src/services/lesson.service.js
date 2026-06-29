@@ -88,6 +88,30 @@ class LessonService {
     
     return lesson;
   }
+
+  async reorderLessons(courseId, orderedLessons, user) {
+    const course = await courseRepository.findById(courseId);
+    if (!course) throw new AppError('Không tìm thấy khóa học', 404);
+
+    if (user.role !== 'admin' && course.instructor._id.toString() !== user.id) {
+      throw new AppError('Bạn không có quyền sửa khóa học này', 403);
+    }
+
+    // Bulk update orders
+    // We expect orderedLessons to be an array of { id, order }
+    const bulkOps = orderedLessons.map((item) => ({
+      updateOne: {
+        filter: { _id: item.id, course: courseId },
+        update: { order: item.order }
+      }
+    }));
+
+    if (bulkOps.length > 0) {
+      await lessonRepository.bulkWrite(bulkOps);
+    }
+
+    return { message: 'Cập nhật thứ tự bài giảng thành công' };
+  }
 }
 
 module.exports = new LessonService();

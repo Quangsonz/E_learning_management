@@ -90,6 +90,11 @@ class CourseService {
 
     if (user.role !== 'admin') {
       delete updateData.instructor; // Non-admins cannot change the instructor
+      
+      // Prevent teachers from directly publishing courses (Admin moderation required)
+      if (updateData.status === 'published' && course.status !== 'published') {
+        throw new AppError('Chỉ Admin mới có quyền duyệt và xuất bản khóa học.', 403);
+      }
     }
 
     if (updateData.title && !updateData.slug) {

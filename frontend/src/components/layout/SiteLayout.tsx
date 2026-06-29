@@ -5,6 +5,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { userApi } from '../../services/user.api';
+import { CommandPalette } from '../ui/CommandPalette';
 
 /* ── Navigation items ───────────────────────────────────── */
 const sidebarItems = [
@@ -295,6 +296,7 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
       {/* ── Main Content ──────────────────────────────────── */}
       <main className="flex-1 w-full min-w-0 md:pt-24 relative z-0">
+        <CommandPalette />
         {children}
       </main>
 

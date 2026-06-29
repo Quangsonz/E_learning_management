@@ -30,6 +30,10 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+// 1.5. STRIPE WEBHOOK (Must be before express.json)
+const paymentController = require('./controllers/payment.controller');
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), paymentController.webhook);
+
 // Body parser, reading data from body into req.body
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));

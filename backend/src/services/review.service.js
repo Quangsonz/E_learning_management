@@ -57,6 +57,22 @@ class ReviewService {
       averageRating: stats.averageRating 
     });
   }
+
+  async replyToReview(reviewId, user, replyText) {
+    const review = await reviewRepository.findById(reviewId);
+    if (!review) throw new AppError('Review not found', 404);
+
+    const course = await courseRepository.findById(review.course);
+    if (!course) throw new AppError('Course not found', 404);
+
+    if (user.role !== 'admin' && course.instructor.toString() !== user.id) {
+      throw new AppError('Only the course instructor can reply to reviews', 403);
+    }
+
+    review.instructorReply = replyText;
+    await review.save();
+    return review;
+  }
 }
 
 module.exports = new ReviewService();

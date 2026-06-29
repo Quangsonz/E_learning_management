@@ -9,11 +9,14 @@ import Profile from './pages/Profile';
 import Wishlist from './pages/Wishlist';
 import CourseList from './pages/CourseList';
 import CourseDetail from './pages/CourseDetail';
+import Checkout from './pages/Checkout';
 import Learning from './pages/Learning';
 import MyLearning from './pages/MyLearning';
 import Quiz from './pages/Quiz';
 import TeacherDashboard from './pages/TeacherDashboard';
 import TeacherCourses from './pages/TeacherCourses';
+import CourseBuilder from './pages/teacher/CourseBuilder';
+import CurriculumEditor from './pages/teacher/CurriculumEditor';
 import AdminDashboard from './pages/AdminDashboard';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
@@ -94,6 +97,11 @@ const AppRoutes: React.FC = () => (
         <CourseDetail />
       </ProtectedRoute>
     } />
+    <Route path="/checkout/:courseId" element={
+      <ProtectedRoute>
+        <Checkout />
+      </ProtectedRoute>
+    } />
     <Route path="/learning" element={
       <ProtectedRoute>
         <MyLearning />
@@ -141,6 +149,16 @@ const AppRoutes: React.FC = () => (
     <Route path="/teacher-courses" element={
       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
         <TeacherCourses />
+      </ProtectedRoute>
+    } />
+    <Route path="/teacher/courses/new" element={
+      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+        <CourseBuilder />
+      </ProtectedRoute>
+    } />
+    <Route path="/teacher/courses/:courseId/curriculum" element={
+      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+        <CurriculumEditor />
       </ProtectedRoute>
     } />
     <Route path="/admin-dashboard" element={

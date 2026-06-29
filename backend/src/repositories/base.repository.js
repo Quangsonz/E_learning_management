@@ -19,6 +19,18 @@ class BaseRepository {
     return await this.model.find(query);
   }
 
+  async findOneAndUpdate(query, data, options = { new: true, runValidators: true }) {
+    return await this.model.findOneAndUpdate(query, data, options);
+  }
+
+  async findOneAndDelete(query) {
+    return await this.model.findOneAndDelete(query);
+  }
+
+  async bulkWrite(ops) {
+    return await this.model.bulkWrite(ops);
+  }
+
   async updateById(id, data) {
     return await this.model.findByIdAndUpdate(id, data, {
       new: true,

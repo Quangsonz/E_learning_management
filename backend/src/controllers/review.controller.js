@@ -17,6 +17,15 @@ class ReviewController {
       data
     });
   });
+
+  replyToReview = catchAsync(async (req, res, next) => {
+    const { replyText } = req.body;
+    const review = await reviewService.replyToReview(req.params.id, req.user, replyText);
+    res.status(200).json({
+      status: 'success',
+      data: { review }
+    });
+  });
 }
 
 module.exports = new ReviewController();

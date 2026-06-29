@@ -46,28 +46,27 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const user = useSelector(selectCurrentUser);
 
-  // CHẾ ĐỘ DEV: Tắt bắt buộc đăng nhập
-  // // Chưa đăng nhập → redirect về login
-  // if (!isAuthenticated) {
-  //   return (
-  //     <Navigate
-  //       to={redirectTo}
-  //       state={{ from: location }} // Lưu lại route để redirect sau khi login
-  //       replace
-  //     />
-  //   );
-  // }
-  //
-  // // Kiểm tra role nếu được chỉ định
-  // if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-  //   return (
-  //     <Navigate
-  //       to="/unauthorized"
-  //       state={{ from: location, requiredRoles: allowedRoles }}
-  //       replace
-  //     />
-  //   );
-  // }
+  // Chưa đăng nhập → redirect về login
+  if (!isAuthenticated) {
+    return (
+      <Navigate
+        to={redirectTo}
+        state={{ from: location }} // Lưu lại route để redirect sau khi login
+        replace
+      />
+    );
+  }
+
+  // Kiểm tra role nếu được chỉ định
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+    return (
+      <Navigate
+        to="/unauthorized"
+        state={{ from: location, requiredRoles: allowedRoles }}
+        replace
+      />
+    );
+  }
 
   return <>{children}</>;
 };

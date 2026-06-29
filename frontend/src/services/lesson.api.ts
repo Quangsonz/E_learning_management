@@ -49,5 +49,10 @@ export const lessonApi = {
 
   deleteLesson: async (courseId: string, lessonId: string): Promise<void> => {
     await axiosInstance.delete(`/courses/${courseId}/lessons/${lessonId}`);
+  },
+
+  reorderLessons: async (courseId: string, lessons: { id: string; order: number }[]): Promise<{ status: string; message: string }> => {
+    const response = await axiosInstance.patch(`/courses/${courseId}/lessons/reorder`, { lessons });
+    return response.data;
   }
 };

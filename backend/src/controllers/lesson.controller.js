@@ -56,6 +56,21 @@ class LessonController {
       data: null,
     });
   });
+
+  reorderLessons = catchAsync(async (req, res, next) => {
+    // req.body should be { lessons: [{ id, order }, ...] }
+    const { lessons } = req.body;
+    if (!lessons || !Array.isArray(lessons)) {
+      return next(new AppError('Invalid lessons data', 400));
+    }
+
+    const result = await lessonService.reorderLessons(req.params.courseId, lessons, req.user);
+
+    res.status(200).json({
+      status: 'success',
+      message: result.message,
+    });
+  });
 }
 
 module.exports = new LessonController();

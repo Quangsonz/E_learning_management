@@ -24,13 +24,6 @@ const EcosystemBackground = () => {
             <stop offset="50%" stopColor="rgba(6, 182, 212, 0.4)" />
             <stop offset="100%" stopColor="rgba(6, 182, 212, 0)" />
           </linearGradient>
-          <filter id="blurGlow">
-            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
         </defs>
         
         {/* Network Paths */}
@@ -39,7 +32,6 @@ const EcosystemBackground = () => {
           fill="none" 
           stroke="url(#glowLine1)" 
           strokeWidth="1.5" 
-          filter="url(#blurGlow)"
           initial={{ pathLength: 0, opacity: 0 }}
           animate={{ pathLength: 1, opacity: 1 }}
           transition={{ duration: 4, ease: "easeInOut" }}
@@ -49,7 +41,6 @@ const EcosystemBackground = () => {
           fill="none" 
           stroke="url(#glowLine2)" 
           strokeWidth="1.5"
-          filter="url(#blurGlow)"
           initial={{ pathLength: 0, opacity: 0 }}
           animate={{ pathLength: 1, opacity: 1 }}
           transition={{ duration: 5, ease: "easeInOut", delay: 0.5 }}
@@ -85,99 +76,8 @@ const EcosystemBackground = () => {
   );
 };
 
-/* ── 2. DASHBOARD PREVIEW ── */
-const DashboardPreview = () => {
-  return (
-    <div className="absolute top-[35%] left-1/2 -translate-x-1/2 w-[1400px] h-[900px] pointer-events-none z-0" style={{ perspective: '2000px' }}>
-      <motion.div 
-        initial={{ opacity: 0, y: 150, rotateX: 30, scale: 0.85 }}
-        animate={{ opacity: 0.35, y: 0, rotateX: 12, scale: 1 }}
-        transition={{ duration: 2, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full h-full rounded-[2rem] border border-white/10 bg-[#050505]/90 backdrop-blur-3xl overflow-hidden shadow-[0_0_100px_rgba(99,102,241,0.15)] flex"
-      >
-        {/* Fake Sidebar */}
-        <div className="w-[280px] h-full border-r border-white/5 bg-black/40 flex flex-col p-6 gap-6">
-          <div className="w-8 h-8 rounded-full bg-white/10" />
-          <div className="flex flex-col gap-3 mt-8">
-            <div className="w-3/4 h-3 rounded bg-white/10" />
-            <div className="w-1/2 h-3 rounded bg-white/5" />
-            <div className="w-2/3 h-3 rounded bg-white/5" />
-          </div>
-        </div>
-        {/* Fake Content Area */}
-        <div className="flex-1 p-12 flex flex-col gap-12">
-          <div className="w-1/3 h-12 rounded-lg bg-white/10" />
-          <div className="grid grid-cols-3 gap-6">
-            <div className="h-32 rounded-xl bg-white/5 border border-white/5" />
-            <div className="h-32 rounded-xl bg-white/5 border border-white/5" />
-            <div className="h-32 rounded-xl bg-white/5 border border-white/5" />
-          </div>
-          <div className="h-[400px] w-full rounded-xl bg-gradient-to-t from-white/5 to-transparent border border-white/5 relative overflow-hidden">
-            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-indigo-500/30" />
-            <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-              <path d="M0,400 C200,300 400,350 600,200 C800,50 1000,150 1200,100" fill="none" stroke="rgba(99,102,241,0.5)" strokeWidth="3" />
-            </svg>
-          </div>
-        </div>
-      </motion.div>
-      {/* Soft gradient fade at the bottom to merge it into the background */}
-      <div className="absolute bottom-0 left-0 right-0 h-[400px] bg-gradient-to-t from-[#030303] to-transparent" />
-    </div>
-  );
-};
 
-/* ── 3. FLOATING SIGNALS ── */
-const FloatingSignals = () => {
-  return (
-    <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
-      {/* Top Left Achievement */}
-      <motion.div 
-        initial={{ opacity: 0, y: 50, x: -50 }}
-        animate={{ opacity: 1, y: [0, -15, 0], x: 0 }}
-        transition={{ y: { duration: 6, repeat: Infinity, ease: "easeInOut" }, opacity: { duration: 1, delay: 0.5 }, x: { duration: 1, delay: 0.5, ease: [0.16,1,0.3,1] } }}
-        className="absolute top-[20%] left-[15%] hidden lg:flex items-center gap-3 px-4 py-2 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-[0_0_30px_rgba(255,255,255,0.03)]"
-      >
-        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-        <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Top 5% Learner</span>
-      </motion.div>
 
-      {/* Bottom Left Activity */}
-      <motion.div 
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: [0, 20, 0] }}
-        transition={{ y: { duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }, opacity: { duration: 1, delay: 1 } }}
-        className="absolute bottom-[35%] left-[10%] hidden lg:flex items-center gap-3 px-4 py-2 rounded-full border border-white/5 bg-white/[0.01] backdrop-blur-lg"
-      >
-        <span className="text-xs font-medium text-white/50">Sarah completed <span className="text-white/80">React Foundations</span></span>
-      </motion.div>
-
-      {/* Top Right Activity */}
-      <motion.div 
-        initial={{ opacity: 0, y: -50 }}
-        animate={{ opacity: 1, y: [0, 15, 0] }}
-        transition={{ y: { duration: 8, repeat: Infinity, ease: "easeInOut", delay: 0.2 }, opacity: { duration: 1, delay: 0.8 } }}
-        className="absolute top-[25%] right-[15%] hidden lg:flex flex-col gap-1 p-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.02] backdrop-blur-xl"
-      >
-        <div className="flex items-center gap-2">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-indigo-400"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400/80">New Revenue</span>
-        </div>
-        <span className="text-sm font-light text-white/90">Course published</span>
-      </motion.div>
-
-      {/* Bottom Right Streak */}
-      <motion.div 
-        initial={{ opacity: 0, x: 50 }}
-        animate={{ opacity: 1, x: 0, y: [0, -10, 0] }}
-        transition={{ y: { duration: 5, repeat: Infinity, ease: "easeInOut" }, opacity: { duration: 1, delay: 1.2 }, x: { duration: 1, delay: 1.2, ease: [0.16,1,0.3,1] } }}
-        className="absolute bottom-[30%] right-[12%] hidden lg:flex items-center gap-3 px-4 py-2.5 rounded-full border border-amber-500/20 bg-amber-500/[0.05] backdrop-blur-xl"
-      >
-        <span className="text-lg">🔥</span>
-        <span className="text-xs font-semibold uppercase tracking-widest text-amber-500/90">14 Day Streak</span>
-      </motion.div>
-    </div>
-  );
-};
 
 /* ── 4. DYNAMIC HEADLINE ── */
 const disciplines = [
@@ -308,8 +208,6 @@ const Splash: React.FC = () => {
     <div className="relative min-h-screen w-full bg-[#030303] text-white selection:bg-indigo-500/30 overflow-x-hidden font-sans">
       
       <EcosystemBackground />
-      <DashboardPreview />
-      <FloatingSignals />
 
       {/* Main Hero Container */}
       <div className="relative z-20 flex flex-col items-center justify-center min-h-[90vh] px-6 text-center pt-24">

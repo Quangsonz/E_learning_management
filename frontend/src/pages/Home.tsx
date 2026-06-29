@@ -1,427 +1,708 @@
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { PageShell } from '../components/ui';
+import React, { useEffect, useState, useRef } from 'react';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { useSelector } from 'react-redux';
+import { enrollmentApi } from '../services/enrollment.api';
+import { courseApi, CourseData } from '../services/course.api';
+import { selectIsAuthenticated, selectCurrentUser } from '../store/slices/authSlice';
 
-// --- Types & Mock Data ---
+// =====================================================================
+// CONSTANTS
+// =====================================================================
 
-type JourneyNode = {
-  id: string;
-  title: string;
-  module: string;
-  status: 'completed' | 'active' | 'locked';
-};
-
-const journeyPath: JourneyNode[] = [
-  { id: '1', title: 'Typography & Grids', module: 'UI Foundations', status: 'completed' },
-  { id: '2', title: 'Color Systems', module: 'UI Foundations', status: 'completed' },
-  { id: '3', title: 'Component Composition', module: 'React Deep Dive', status: 'active' },
-  { id: '4', title: 'Advanced Hooks', module: 'React Deep Dive', status: 'locked' },
-  { id: '5', title: 'Performance Optimization', module: 'React Deep Dive', status: 'locked' },
+const CATEGORIES = [
+  { emoji: '💻', label: 'Programming', color: 'from-blue-600/20 to-blue-500/10 border-blue-500/30 text-blue-400' },
+  { emoji: '🎨', label: 'Design', color: 'from-pink-600/20 to-pink-500/10 border-pink-500/30 text-pink-400' },
+  { emoji: '📊', label: 'Data Science', color: 'from-violet-600/20 to-violet-500/10 border-violet-500/30 text-violet-400' },
+  { emoji: '🚀', label: 'Business', color: 'from-amber-600/20 to-amber-500/10 border-amber-500/30 text-amber-400' },
+  { emoji: '🌐', label: 'Marketing', color: 'from-emerald-600/20 to-emerald-500/10 border-emerald-500/30 text-emerald-400' },
+  { emoji: '🤖', label: 'AI & ML', color: 'from-cyan-600/20 to-cyan-500/10 border-cyan-500/30 text-cyan-400' },
+  { emoji: '📷', label: 'Photography', color: 'from-rose-600/20 to-rose-500/10 border-rose-500/30 text-rose-400' },
+  { emoji: '🎵', label: 'Music', color: 'from-orange-600/20 to-orange-500/10 border-orange-500/30 text-orange-400' },
 ];
 
-const focusBlocks = [
-  { id: 'f1', title: 'Review Component Composition', type: 'Lesson', time: '45 mins' },
-  { id: 'f2', title: 'React Hooks Quiz', type: 'Assessment', time: '15 mins' },
-  { id: 'f3', title: 'Read: Advanced Patterns', type: 'Reading', time: '20 mins' },
+const TESTIMONIALS = [
+  {
+    quote: 'Nền tảng này đã hoàn toàn thay đổi sự nghiệp của tôi. Từ chỗ không biết gì về lập trình, chỉ sau 3 tháng tôi đã có việc làm đầu tiên.',
+    name: 'Nguyễn Minh Tú',
+    role: 'Junior Developer @ TechStart',
+    avatar: 'NMT',
+    rating: 5,
+    color: 'from-indigo-500 to-blue-500',
+  },
+  {
+    quote: 'Giảng viên rất tận tâm, nội dung được cập nhật liên tục. Tôi đã hoàn thành khóa UI/UX và nhận được offer lương tốt hơn 40%.',
+    name: 'Lê Thị Phương',
+    role: 'UX Designer @ Creative Hub',
+    avatar: 'LTP',
+    color: 'from-pink-500 to-rose-500',
+    rating: 5,
+  },
+  {
+    quote: 'Đầu tư tốt nhất tôi từng làm. Khóa Data Science ở đây thực tiễn hơn bất kỳ nơi nào khác tôi từng thử.',
+    name: 'Trần Văn Đức',
+    role: 'Data Analyst @ FinTech Corp',
+    avatar: 'TVD',
+    color: 'from-violet-500 to-purple-500',
+    rating: 5,
+  },
 ];
 
-const knowledgeStream = [
-  { id: 'k1', title: 'Completed Color Systems', time: 'Yesterday, 4:30 PM' },
-  { id: 'k2', title: 'Earned 7-Day Streak Badge', time: 'Yesterday, 4:25 PM' },
-  { id: 'k3', title: 'Scored 92% on UI Quiz', time: 'Tuesday, 2:00 PM' },
-];
+// =====================================================================
+// COUNTDOWN HOOK
+// =====================================================================
 
-const liveActivity = [
-  "🔥 Sarah just completed 'Advanced Hooks'",
-  "⭐ Mark earned a 14-day streak",
-  "📚 120 students are studying 'React Deep Dive' right now",
-  "🏆 Elena scored 98% on UI Foundations",
-  "🚀 New course 'Framer Motion' just dropped!"
-];
+function useCountdown(targetDate: Date) {
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  useEffect(() => {
+    const calc = () => {
+      const diff = Math.max(0, targetDate.getTime() - Date.now());
+      setTimeLeft({
+        hours: Math.floor(diff / 3600000),
+        minutes: Math.floor((diff % 3600000) / 60000),
+        seconds: Math.floor((diff % 60000) / 1000),
+      });
+    };
+    calc();
+    const id = setInterval(calc, 1000);
+    return () => clearInterval(id);
+  }, [targetDate]);
+  return timeLeft;
+}
 
-const adBackgrounds = [
-  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=2560&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2560&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1501504905252-473c47e087f8?q=80&w=2560&auto=format&fit=crop'
-];
+// =====================================================================
+// SUBCOMPONENTS
+// =====================================================================
 
-// --- Subcomponents ---
+const StarRating = ({ rating = 5 }: { rating?: number }) => (
+  <div className="flex gap-0.5">
+    {Array.from({ length: 5 }).map((_, i) => (
+      <svg key={i} className={`w-4 h-4 ${i < rating ? 'text-amber-400' : 'text-slate-600'}`} viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+      </svg>
+    ))}
+  </div>
+);
 
-const ConcentricRings = () => {
-  const size = 320;
-  const stroke = 20;
-  const center = size / 2;
-  
-  const rings = [
-    { radius: 120, value: 70, color: 'url(#emeraldGrad)' },
-    { radius: 90, value: 85, color: 'url(#amberGrad)' },
-    { radius: 60, value: 92, color: 'url(#indigoGrad)' }
-  ];
+const CountdownBlock = ({ value, label }: { value: number; label: string }) => (
+  <div className="flex flex-col items-center">
+    <div className="bg-black/30 backdrop-blur-sm rounded-xl px-4 py-2 min-w-[56px] text-center">
+      <span className="text-3xl font-black text-white tabular-nums">
+        {String(value).padStart(2, '0')}
+      </span>
+    </div>
+    <span className="text-xs text-white/70 font-bold uppercase tracking-widest mt-1">{label}</span>
+  </div>
+);
+
+const AnimatedStat = ({ value, suffix, label }: { value: number; suffix: string; label: string }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true });
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    if (!inView) return;
+    let start = 0;
+    const step = value / 60;
+    const id = setInterval(() => {
+      start += step;
+      if (start >= value) { setDisplay(value); clearInterval(id); }
+      else setDisplay(Math.floor(start));
+    }, 16);
+    return () => clearInterval(id);
+  }, [inView, value]);
 
   return (
-    <div className="relative flex items-center justify-center h-[360px] w-[360px]">
-      <motion.div 
-        className="absolute inset-0 bg-emerald-400/20 blur-[80px] rounded-full"
-        animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.8, 0.5] }}
-        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      
-      <svg width={size} height={size} className="-rotate-90 filter drop-shadow-2xl relative z-10" aria-label="Activity Rings">
-        <defs>
-          <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#10b981" />
-            <stop offset="100%" stopColor="#34d399" />
-          </linearGradient>
-          <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#f59e0b" />
-            <stop offset="100%" stopColor="#fbbf24" />
-          </linearGradient>
-          <linearGradient id="indigoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#6366f1" />
-            <stop offset="100%" stopColor="#818cf8" />
-          </linearGradient>
-        </defs>
-
-        {rings.map((ring, i) => {
-          const circumference = 2 * Math.PI * ring.radius;
-          const dashOffset = circumference - (ring.value / 100) * circumference;
-          
-          return (
-            <React.Fragment key={i}>
-              <circle
-                cx={center}
-                cy={center}
-                r={ring.radius}
-                fill="none"
-                stroke="currentColor"
-                className="text-white/20 dark:text-slate-800/40"
-                strokeWidth={stroke}
-              />
-              <motion.circle
-                cx={center}
-                cy={center}
-                r={ring.radius}
-                fill="none"
-                stroke={ring.color}
-                strokeWidth={stroke}
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                initial={{ strokeDashoffset: circumference }}
-                animate={{ strokeDashoffset: dashOffset }}
-                transition={{ duration: 1.5, delay: i * 0.2, ease: [0.32, 0.72, 0, 1] }}
-              />
-            </React.Fragment>
-          );
-        })}
-      </svg>
-      
-      {/* Floating Labels */}
-      <motion.div 
-        className="absolute top-2 left-8 z-20 px-4 py-2 rounded-full bg-white/40 dark:bg-slate-900/60 backdrop-blur-xl shadow-xl border border-white/40 dark:border-white/10 text-sm font-bold text-emerald-700 dark:text-emerald-400"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
-      >
-        7d Streak
-      </motion.div>
-      <motion.div 
-        className="absolute bottom-6 -right-4 z-20 px-4 py-2 rounded-full bg-white/40 dark:bg-slate-900/60 backdrop-blur-xl shadow-xl border border-white/40 dark:border-white/10 text-sm font-bold text-amber-700 dark:text-amber-400"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.0 }}
-      >
-        14h Focus
-      </motion.div>
-      <motion.div 
-        className="absolute -bottom-4 left-12 z-20 px-4 py-2 rounded-full bg-white/40 dark:bg-slate-900/60 backdrop-blur-xl shadow-xl border border-white/40 dark:border-white/10 text-sm font-bold text-indigo-700 dark:text-indigo-400"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.2 }}
-      >
-        92% Avg
-      </motion.div>
+    <div ref={ref} className="flex flex-col items-center text-center px-8">
+      <span className="text-5xl lg:text-6xl font-black text-white tabular-nums">
+        {display.toLocaleString()}{suffix}
+      </span>
+      <span className="mt-2 text-base text-slate-400 font-medium">{label}</span>
     </div>
   );
 };
 
-const FlameIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="text-orange-500 relative z-10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z" />
-  </svg>
-);
+const CourseCard = ({ course }: { course: CourseData }) => {
+  const navigate = useNavigate();
+  const originalPrice = course.price ? (course.price * 2).toFixed(0) : null;
+  return (
+    <motion.div
+      className="group relative bg-[#161b22] border border-white/[0.06] rounded-2xl overflow-hidden flex flex-col cursor-pointer hover:border-indigo-500/40 transition-all duration-300"
+      whileHover={{ y: -4, boxShadow: '0 20px 60px rgba(99,102,241,0.15)' }}
+      onClick={() => navigate(`/courses/${course._id}`)}
+    >
+      {/* Thumbnail */}
+      <div className="relative aspect-video overflow-hidden bg-slate-800">
+        {course.thumbnailUrl ? (
+          <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-900/50 to-slate-900">
+            <svg className="w-12 h-12 text-indigo-400/40" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
+            </svg>
+          </div>
+        )}
+        {course.price === 0 && (
+          <div className="absolute top-3 left-3 bg-emerald-500 text-white text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wide">Free</div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex flex-col flex-1 p-5 gap-3">
+        {course.category && (
+          <span className="text-xs font-bold uppercase tracking-widest text-orange-400 bg-orange-400/10 px-2.5 py-1 rounded-full w-fit">
+            {course.category.name}
+          </span>
+        )}
+        <h3 className="font-bold text-white leading-snug line-clamp-2 text-[15px] group-hover:text-indigo-300 transition-colors">
+          {course.title}
+        </h3>
+        <div className="flex items-center gap-2 mt-auto">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] font-black text-white">
+            {course.instructor?.name?.[0] || 'T'}
+          </div>
+          <span className="text-xs text-slate-400 truncate">{course.instructor?.name || 'Instructor'}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <StarRating rating={Math.round(course.averageRating || 4)} />
+          <span className="text-sm font-bold text-amber-400">{(course.averageRating || 4.8).toFixed(1)}</span>
+        </div>
+        <div className="flex items-center justify-between mt-1">
+          <div className="flex items-center gap-2">
+            {course.price === 0 ? (
+              <span className="text-xl font-black text-emerald-400">Free</span>
+            ) : (
+              <>
+                {originalPrice && <span className="text-sm text-slate-500 line-through">${originalPrice}</span>}
+                <span className="text-xl font-black text-white">${course.price}</span>
+              </>
+            )}
+          </div>
+          <button
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-colors"
+            onClick={(e) => { e.stopPropagation(); navigate(`/courses/${course._id}`); }}
+          >
+            Enroll
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// =====================================================================
+// MAIN HOME COMPONENT
+// =====================================================================
 
 const Home: React.FC = () => {
-  const [currentBgIndex, setCurrentBgIndex] = useState(0);
+  const navigate = useNavigate();
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const user = useSelector(selectCurrentUser);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentBgIndex((prev) => (prev + 1) % adBackgrounds.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+  // Sale countdown — 23:59:59 from page load
+  const [saleEnd] = useState(() => new Date(Date.now() + 23 * 3600000 + 59 * 60000 + 59000));
+  const countdown = useCountdown(saleEnd);
+
+  // Active category filter
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  // Fetch public courses
+  const { data: coursesData, isLoading: coursesLoading } = useQuery({
+    queryKey: ['home-courses', activeCategory],
+    queryFn: () => courseApi.getAllCourses({ status: 'published', limit: 8, ...(activeCategory ? { category: activeCategory } : {}) }),
+    staleTime: 60000,
+  });
+
+  // Fetch enrolled courses if logged in
+  const { data: enrollmentsData } = useQuery({
+    queryKey: ['my-enrollments'],
+    queryFn: () => enrollmentApi.getMyEnrollments(),
+    enabled: isAuthenticated,
+  });
+
+  const courses: CourseData[] = coursesData?.data?.courses || [];
+  const enrollments = (enrollmentsData as any)?.enrollments || (enrollmentsData as any)?.data?.enrollments || [];
 
   return (
-    <PageShell wide className="bg-[#FBFBFA] dark:bg-[#080808] selection:bg-indigo-500/30 overflow-hidden">
-      
-      {/* CLEARER Ad Background Carousel */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <AnimatePresence>
-          <motion.img
-            key={currentBgIndex}
-            src={adBackgrounds[currentBgIndex]}
-            alt="Ad Background"
-            className="absolute inset-0 w-full h-full object-cover opacity-50 dark:opacity-40"
-            initial={{ opacity: 0, scale: 1.05 }}
-            animate={{ opacity: 0.5, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.5, ease: 'easeInOut' }}
-          />
-        </AnimatePresence>
-        
-        {/* Soft Gradient Overlay for text readability (instead of heavy mesh) */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#FBFBFA]/70 via-[#FBFBFA]/60 to-[#FBFBFA] dark:from-[#080808]/80 dark:via-[#080808]/70 dark:to-[#080808] backdrop-blur-[4px]" />
-      </div>
+    <div className="min-h-screen bg-[#080d18] text-white overflow-x-hidden">
 
-      <div className="max-w-[1400px] mx-auto pt-12 pb-8 px-4 sm:px-6 lg:px-12 space-y-20 relative z-10">
-        
-        {/* ================= HEADER ================= */}
-        <section className="flex flex-col lg:flex-row items-center justify-between gap-16 min-h-[55vh]">
-          <motion.div 
-            className="flex-1 max-w-3xl space-y-8"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/40 dark:bg-white/10 backdrop-blur-md border border-white/50 dark:border-white/20 shadow-lg">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-sm font-bold uppercase tracking-widest text-slate-800 dark:text-slate-200">Daily Objective</span>
-            </div>
-            <h1 className="text-6xl md:text-[5.5rem] font-black tracking-tighter text-slate-950 dark:text-white leading-[1.05]">
-              Master component <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-500">composition.</span>
-            </h1>
-            <p className="text-xl lg:text-2xl text-slate-700 dark:text-slate-300 max-w-[40ch] leading-relaxed font-medium">
-              Your focus rings are almost closed. Complete today's React Deep Dive module to hit your weekly targets.
-            </p>
-            <div className="pt-4">
-              <button className="group relative px-8 py-4 bg-slate-950 dark:bg-white text-white dark:text-slate-950 rounded-[2rem] font-bold text-lg overflow-hidden transition-transform active:scale-95 flex items-center gap-3 shadow-2xl shadow-slate-900/20">
-                <span className="relative z-10">Resume Journey</span>
-                <span className="relative z-10 w-8 h-8 rounded-full bg-white/20 dark:bg-black/10 flex items-center justify-center transition-transform group-hover:translate-x-1">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      {/* ================================================================
+          HERO SECTION
+      ================================================================ */}
+      <section className="relative min-h-[92vh] flex items-center overflow-hidden">
+        {/* Background gradient blobs */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-indigo-900/30 blur-[120px]" />
+          <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-violet-900/25 blur-[100px]" />
+          <div className="absolute top-[30%] right-[20%] w-[300px] h-[300px] rounded-full bg-cyan-900/20 blur-[80px]" />
+          {/* Subtle grid pattern */}
+          <div className="absolute inset-0 opacity-[0.03]"
+            style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)', backgroundSize: '60px 60px' }}
+          />
+        </div>
+
+        <div className="relative z-10 max-w-[1400px] mx-auto px-6 lg:px-12 w-full pt-24 pb-16">
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+            {/* Left — Text Content */}
+            <div className="flex-1 max-w-2xl">
+              {/* Flash Sale Badge */}
+              <motion.div
+                initial={{ opacity: 0, y: -12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 mb-8"
+              >
+                <span className="text-lg">🔥</span>
+                <span className="text-sm font-bold text-orange-300">Flash Sale</span>
+                <span className="text-sm text-orange-400/80">—</span>
+                <span className="text-sm font-black text-orange-300">Giảm đến 60% hôm nay!</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+              </motion.div>
+
+              {/* Headline */}
+              <motion.h1
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] mb-6"
+              >
+                Nắm vững kỹ năng mới,{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400">
+                  thay đổi sự nghiệp.
                 </span>
+              </motion.h1>
+
+              {/* Subtitle */}
+              <motion.p
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="text-xl text-slate-300 leading-relaxed mb-10 max-w-[42ch]"
+              >
+                Hơn 50.000 học viên đã tin tưởng. Khóa học được thiết kế bởi chuyên gia — thực tiễn, cập nhật, và hiệu quả ngay từ bài đầu tiên.
+              </motion.p>
+
+              {/* CTA Buttons */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="flex flex-wrap gap-4 items-center"
+              >
+                <button
+                  onClick={() => navigate('/courses')}
+                  className="group flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-2xl font-bold text-lg text-white shadow-[0_0_30px_rgba(99,102,241,0.3)] hover:shadow-[0_0_50px_rgba(99,102,241,0.5)] transition-all duration-300 active:scale-95"
+                >
+                  <span>Khám phá khóa học</span>
+                  <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
+
+                {isAuthenticated && enrollments.length > 0 ? (
+                  <button
+                    onClick={() => navigate(`/courses/${enrollments[0]?.course?._id || enrollments[0]?.course}/learn`)}
+                    className="flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg text-white border border-white/20 hover:bg-white/10 transition-all duration-200 backdrop-blur-sm"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    <span>Tiếp tục học</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigate('/register')}
+                    className="flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg text-white border border-white/20 hover:bg-white/10 transition-all duration-200 backdrop-blur-sm"
+                  >
+                    <span>Đăng ký miễn phí</span>
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+                  </button>
+                )}
+              </motion.div>
+
+              {/* Trust Pills */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="flex flex-wrap gap-3 mt-8"
+              >
+                {['✓ Truy cập trọn đời', '✓ Chứng chỉ hoàn thành', '✓ Hỗ trợ 24/7'].map(text => (
+                  <span key={text} className="text-sm text-slate-400 font-medium">{text}</span>
+                ))}
+              </motion.div>
+            </div>
+
+            {/* Right — Floating Course Cards */}
+            <motion.div
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="flex-shrink-0 relative w-full max-w-[420px] hidden lg:block"
+            >
+              {/* Card Stack */}
+              <div className="relative h-[520px]">
+                {/* Card 1 — top right */}
+                <div className="absolute top-0 right-0 w-[280px] bg-[#161b2e] border border-indigo-500/30 rounded-2xl p-5 shadow-[0_20px_60px_rgba(99,102,241,0.2)]">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-xl">💻</div>
+                    <div>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Programming</p>
+                      <p className="text-sm font-bold text-white">Python Mastery</p>
+                    </div>
+                  </div>
+                  <div className="w-full bg-slate-700 rounded-full h-1.5 mb-2">
+                    <div className="bg-gradient-to-r from-blue-500 to-cyan-500 h-1.5 rounded-full" style={{width:'72%'}} />
+                  </div>
+                  <p className="text-xs text-slate-400">72% hoàn thành</p>
+                </div>
+
+                {/* Card 2 — middle left */}
+                <div className="absolute top-[160px] left-0 w-[260px] bg-[#1a1625] border border-pink-500/30 rounded-2xl p-5 shadow-[0_20px_60px_rgba(236,72,153,0.15)]">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-xl">🎨</div>
+                    <div>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Design</p>
+                      <p className="text-sm font-bold text-white">UI/UX Masterclass</p>
+                    </div>
+                  </div>
+                  <StarRating rating={5} />
+                  <p className="text-xs text-slate-400 mt-1">4.9 · 2.4k đánh giá</p>
+                </div>
+
+                {/* Card 3 — bottom right */}
+                <div className="absolute bottom-0 right-0 w-[270px] bg-[#131a2e] border border-violet-500/30 rounded-2xl p-5 shadow-[0_20px_60px_rgba(139,92,246,0.15)]">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-xl">📊</div>
+                    <div>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Data Science</p>
+                      <p className="text-sm font-bold text-white">ML & Deep Learning</p>
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-slate-400 text-sm line-through">$99</span>
+                    <span className="text-xl font-black text-white">$39</span>
+                    <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">-61%</span>
+                  </div>
+                </div>
+
+                {/* Glow orbs behind cards */}
+                <div className="absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-60 h-60 rounded-full bg-indigo-600/10 blur-3xl pointer-events-none" />
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================================
+          PROMO BANNER
+      ================================================================ */}
+      <section className="relative py-8 overflow-hidden">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-orange-600 via-red-600 to-pink-600 p-8 md:p-10"
+          >
+            {/* Background pattern */}
+            <div className="absolute inset-0 opacity-10"
+              style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}
+            />
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">⚡</span>
+                  <span className="text-sm font-black text-white/80 uppercase tracking-widest">Ưu đãi giới hạn</span>
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black text-white leading-tight">
+                  Mua 1 tặng 1 — Học cùng bạn bè!
+                </h2>
+                <p className="text-white/80 mt-1 font-medium">Mua bất kỳ khóa học nào, nhận thêm 1 code tặng bạn. Hết hạn sau:</p>
+              </div>
+
+              {/* Countdown */}
+              <div className="flex items-center gap-3">
+                <CountdownBlock value={countdown.hours} label="Giờ" />
+                <span className="text-2xl font-black text-white/60 mb-4">:</span>
+                <CountdownBlock value={countdown.minutes} label="Phút" />
+                <span className="text-2xl font-black text-white/60 mb-4">:</span>
+                <CountdownBlock value={countdown.seconds} label="Giây" />
+              </div>
+
+              <button
+                onClick={() => navigate('/courses')}
+                className="flex-shrink-0 px-8 py-4 bg-white rounded-2xl font-black text-red-600 hover:bg-orange-50 transition-colors shadow-lg text-lg active:scale-95"
+              >
+                Nhận ưu đãi ngay →
               </button>
             </div>
           </motion.div>
+        </div>
+      </section>
 
-          <motion.div 
-            className="flex-shrink-0"
-            initial={{ opacity: 0, scale: 0.9, filter: 'blur(10px)' }}
-            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-            transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-          >
-            <ConcentricRings />
-          </motion.div>
-        </section>
-
-        {/* ================= LIVE ACTIVITY MARQUEE (Fills empty space) ================= */}
-        <motion.div 
-          className="relative w-full overflow-hidden rounded-[2rem] bg-white/30 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 shadow-lg py-4 flex items-center"
+      {/* ================================================================
+          CATEGORIES
+      ================================================================ */}
+      <section className="py-16 max-w-[1400px] mx-auto px-6 lg:px-12">
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="flex items-end justify-between mb-8"
         >
-          <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#FBFBFA] dark:from-[#080808] to-transparent z-10 pointer-events-none mix-blend-overlay" />
-          <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#FBFBFA] dark:from-[#080808] to-transparent z-10 pointer-events-none mix-blend-overlay" />
-          
-          <div className="flex animate-marquee whitespace-nowrap gap-12 px-8">
-            {liveActivity.map((act, i) => (
-              <span key={i} className="text-sm font-bold text-slate-800 dark:text-slate-300 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 opacity-50" />
-                {act}
-              </span>
-            ))}
-            {/* Duplicate for infinite seamless scrolling */}
-            {liveActivity.map((act, i) => (
-              <span key={'dup'+i} className="text-sm font-bold text-slate-800 dark:text-slate-300 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 opacity-50" />
-                {act}
-              </span>
-            ))}
+          <div>
+            <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-2">Danh mục</p>
+            <h2 className="text-3xl md:text-4xl font-black text-white">Khám phá theo chủ đề</h2>
           </div>
         </motion.div>
-
-        {/* ================= EDITORIAL SPLIT (Glass Pills instead of Boxes) ================= */}
-        <section className="flex flex-col md:flex-row gap-12 md:gap-24 items-start relative pt-12">
-          <motion.div 
-            className="w-full md:w-1/3 md:sticky md:top-32"
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6 }}
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => setActiveCategory(null)}
+            className={`px-5 py-2.5 rounded-full font-bold text-sm border transition-all ${!activeCategory ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]' : 'border-white/10 text-slate-400 hover:border-white/30 hover:text-white'}`}
           >
-            <h2 className="text-5xl lg:text-6xl font-black tracking-tighter text-slate-950 dark:text-white leading-[1.1]">
-              The Path to <br/>Mastery.
-            </h2>
-            <p className="mt-6 text-xl text-slate-600 dark:text-slate-400 max-w-[24ch] font-medium leading-relaxed">
-              Slide through your recent and upcoming modules.
+            Tất cả
+          </button>
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat.label}
+              onClick={() => setActiveCategory(activeCategory === cat.label ? null : cat.label)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm border transition-all bg-gradient-to-r ${cat.color} ${activeCategory === cat.label ? 'ring-2 ring-white/30 scale-105' : 'hover:scale-105'}`}
+            >
+              <span>{cat.emoji}</span>
+              <span>{cat.label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* ================================================================
+          FEATURED COURSES
+      ================================================================ */}
+      <section className="pb-16 max-w-[1400px] mx-auto px-6 lg:px-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="flex items-end justify-between mb-8"
+        >
+          <div>
+            <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-2">
+              {activeCategory ? activeCategory : 'Nổi bật'}
             </p>
+            <h2 className="text-3xl md:text-4xl font-black text-white">
+              {activeCategory ? `Khóa học ${activeCategory}` : 'Khóa học phổ biến nhất'}
+            </h2>
+          </div>
+          <button
+            onClick={() => navigate('/courses')}
+            className="text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-2 text-sm group"
+          >
+            Xem tất cả
+            <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </motion.div>
+
+        {coursesLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-[#161b22] rounded-2xl overflow-hidden animate-pulse">
+                <div className="aspect-video bg-slate-700/50" />
+                <div className="p-5 space-y-3">
+                  <div className="h-3 bg-slate-700/50 rounded-full w-1/3" />
+                  <div className="h-4 bg-slate-700/50 rounded-full" />
+                  <div className="h-4 bg-slate-700/50 rounded-full w-3/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : courses.length === 0 ? (
+          <div className="text-center py-24 text-slate-500">
+            <p className="text-5xl mb-4">📚</p>
+            <p className="text-xl font-bold">Chưa có khóa học nào được xuất bản.</p>
+            <p className="text-sm mt-2">Giảng viên đang chuẩn bị nội dung — quay lại sớm nhé!</p>
+          </div>
+        ) : (
+          <motion.div
+            layout
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+          >
+            {courses.map((course, i) => (
+              <motion.div
+                key={course._id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ duration: 0.4, delay: i * 0.05 }}
+              >
+                <CourseCard course={course} />
+              </motion.div>
+            ))}
           </motion.div>
+        )}
+      </section>
 
-          <div className="w-full md:w-2/3 overflow-hidden">
-            <div className="flex gap-6 overflow-x-auto pb-12 pt-4 px-4 -mx-4 snap-x snap-mandatory hide-scrollbar">
-              {journeyPath.map((node, i) => (
-                <motion.div 
-                  key={node.id} 
-                  className={`snap-center shrink-0 w-[300px] h-[360px] rounded-[3rem] backdrop-blur-2xl shadow-xl flex flex-col justify-between p-8 border transition-transform hover:-translate-y-2
-                    ${node.status === 'completed' ? 'bg-white/40 dark:bg-white/5 border-white/50 dark:border-white/10' : 
-                      node.status === 'active' ? 'bg-indigo-50/70 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 shadow-indigo-500/10' : 
-                      'bg-slate-100/30 dark:bg-slate-900/30 border-white/20 dark:border-white/5 opacity-80'}`}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true, margin: "-50px" }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-8">
-                      <div className={`w-14 h-14 rounded-[1.5rem] flex items-center justify-center border-2 shadow-sm
-                        ${node.status === 'completed' ? 'bg-emerald-500 border-emerald-400 text-white' : 
-                          node.status === 'active' ? 'bg-white dark:bg-slate-800 border-indigo-500 text-indigo-500' : 
-                          'bg-slate-200/50 dark:bg-slate-800/50 border-slate-300 dark:border-slate-700 text-slate-500'}`}
-                      >
-                        {node.status === 'completed' && <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
-                        {node.status === 'active' && <FlameIcon />}
-                        {node.status === 'locked' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>}
+      {/* ================================================================
+          RESUME LEARNING (nếu đã đăng nhập)
+      ================================================================ */}
+      {isAuthenticated && enrollments.length > 0 && (
+        <section className="py-16 bg-gradient-to-b from-transparent via-indigo-950/10 to-transparent">
+          <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="mb-8"
+            >
+              <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-2">Của bạn</p>
+              <h2 className="text-3xl md:text-4xl font-black text-white">
+                Chào lại, {user?.name?.split(' ').slice(-1)[0] || 'bạn'}! 👋
+              </h2>
+              <p className="text-slate-400 mt-2">Tiếp tục hành trình học tập của bạn.</p>
+            </motion.div>
+
+            <div className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar">
+              {enrollments.slice(0, 4).map((enr: any, i: number) => {
+                const courseId = enr.course?._id || enr.course;
+                const title = enr.course?.title || 'Khóa học';
+                return (
+                  <motion.div
+                    key={enr._id || i}
+                    initial={{ opacity: 0, x: 20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.1 }}
+                    className="flex-shrink-0 w-[320px] bg-[#161b22] border border-white/[0.06] rounded-2xl p-6 hover:border-indigo-500/30 transition-all group"
+                  >
+                    <div className="flex items-center justify-between mb-5">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-2xl">
+                        📚
                       </div>
-                      <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-white/30 dark:bg-black/20 px-3 py-1.5 rounded-full">Step 0{i + 1}</span>
+                      <span className="text-xs font-bold text-indigo-400 bg-indigo-400/10 px-3 py-1 rounded-full">Đang học</span>
                     </div>
-                    
-                    <p className="text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-3">{node.module}</p>
-                    <h3 className={`text-3xl font-bold leading-tight ${node.status === 'locked' ? 'text-slate-500 dark:text-slate-500' : 'text-slate-900 dark:text-white'}`}>
-                      {node.title}
-                    </h3>
-                  </div>
-
-                  {node.status === 'active' && (
-                    <button className="mt-8 flex items-center justify-between w-full px-5 py-4 bg-white/50 dark:bg-white/10 rounded-[1.5rem] text-sm font-bold text-indigo-700 dark:text-indigo-300 hover:bg-white dark:hover:bg-white/20 transition-colors group">
-                      Enter Module 
-                      <span className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-500/30 flex items-center justify-center group-hover:scale-110 transition-transform">→</span>
+                    <h3 className="font-bold text-white text-base leading-snug mb-4 line-clamp-2">{title}</h3>
+                    <button
+                      onClick={() => navigate(`/courses/${courseId}/learn`)}
+                      className="w-full flex items-center justify-between px-5 py-3 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 rounded-xl text-sm font-bold text-indigo-300 transition-all group-hover:border-indigo-400/50"
+                    >
+                      <span>Tiếp tục học</span>
+                      <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </button>
-                  )}
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         </section>
+      )}
 
-        {/* ================= ORGANIC BENTO GRID (No harsh boxes) ================= */}
-        <section className="pt-12">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 auto-rows-min">
-            
-            {/* Bento Cell 1: Today's Agenda (col-span-8) */}
-            <motion.div 
-              className="md:col-span-8 rounded-[3rem] bg-white/30 dark:bg-white/5 backdrop-blur-3xl border border-white/50 dark:border-white/10 shadow-xl p-10 flex flex-col justify-between"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <div className="flex items-center justify-between mb-8 pb-8 border-b border-slate-200/50 dark:border-white/10">
-                <h3 className="text-3xl font-bold tracking-tight text-slate-950 dark:text-white">Today's Agenda</h3>
-                <span className="px-4 py-2 bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-black uppercase tracking-widest rounded-full">
-                  3 Tasks
-                </span>
-              </div>
-              
-              <div className="space-y-4">
-                {focusBlocks.map((block) => (
-                  <div key={block.id} className="group flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-[2rem] bg-white/20 dark:bg-white/5 hover:bg-white/50 dark:hover:bg-white/10 transition-all cursor-pointer border border-white/20 dark:border-transparent">
-                    <div className="flex items-start sm:items-center gap-5">
-                      <div className="mt-1 sm:mt-0 w-8 h-8 rounded-xl bg-white/50 dark:bg-black/20 border-2 border-slate-300 dark:border-slate-600 group-hover:border-indigo-500 transition-colors shrink-0" />
-                      <div>
-                        <h4 className="text-xl font-bold text-slate-900 dark:text-slate-100">{block.title}</h4>
-                        <div className="flex items-center gap-3 mt-1.5">
-                          <span className="text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">{block.type}</span>
-                          <span className="text-xs font-bold text-slate-500">{block.time}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="hidden sm:flex w-10 h-10 rounded-full bg-white dark:bg-white/10 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-indigo-500">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14M12 5l7 7-7 7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Bento Cell 2: Weekly Challenge (col-span-4) */}
-            <motion.div 
-              className="md:col-span-4 rounded-[3rem] bg-gradient-to-br from-amber-200/60 to-orange-300/40 dark:from-amber-500/20 dark:to-orange-600/10 backdrop-blur-3xl border border-amber-300/50 dark:border-amber-500/20 shadow-xl p-10 flex flex-col justify-between"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-            >
-              <div>
-                <div className="w-16 h-16 rounded-[2rem] bg-white/60 dark:bg-amber-500/20 flex items-center justify-center shrink-0 mb-8 shadow-sm">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-amber-600 dark:text-amber-400" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                  </svg>
-                </div>
-                <h3 className="text-3xl font-bold text-slate-950 dark:text-white mb-4">Weekly Challenge</h3>
-                <p className="text-slate-700 dark:text-slate-300 font-medium leading-relaxed mb-8">
-                  Score 90%+ on the comprehensive hooks assessment to unlock the advanced performance module.
-                </p>
-              </div>
-              <button className="w-full rounded-[2rem] py-5 bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-black text-lg hover:scale-[0.98] transition-transform shadow-2xl">
-                Accept Challenge
-              </button>
-            </motion.div>
-
-            {/* Bento Cell 3: Knowledge Stream (col-span-12) */}
-            <motion.div 
-              className="md:col-span-12 rounded-[3rem] bg-white/30 dark:bg-white/5 backdrop-blur-3xl border border-white/50 dark:border-white/10 shadow-xl p-8 md:p-10 flex flex-col md:flex-row md:items-center gap-8 md:gap-16"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              <div className="shrink-0">
-                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Recent Milestones</h3>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-2">Your latest accomplishments</p>
-              </div>
-              
-              <div className="flex-1 flex flex-col md:flex-row gap-8 overflow-hidden">
-                {knowledgeStream.map((item) => (
-                  <div key={item.id} className="relative flex-1 md:border-l md:border-slate-300/50 md:dark:border-slate-700 md:pl-8 pb-6 md:pb-0 border-b border-slate-200/50 dark:border-white/5 md:border-b-0 last:border-b-0">
-                    <div className="hidden md:block absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-slate-400 dark:bg-slate-500 border-[3px] border-white/50 dark:border-slate-900" />
-                    <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-tight">{item.title}</h4>
-                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mt-3">{item.time}</p>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
+      {/* ================================================================
+          STATS
+      ================================================================ */}
+      <section className="py-20 border-t border-b border-white/[0.06]">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
+          <div className="flex flex-col md:flex-row items-center justify-center divide-y md:divide-y-0 md:divide-x divide-white/10 gap-0">
+            <AnimatedStat value={50000} suffix="+" label="Học viên đã tin tưởng" />
+            <AnimatedStat value={200} suffix="+" label="Khóa học chuyên gia" />
+            <AnimatedStat value={98} suffix="%" label="Học viên hài lòng" />
+            <AnimatedStat value={4.9} suffix="★" label="Điểm đánh giá trung bình" />
           </div>
-        </section>
+        </div>
+      </section>
 
-      </div>
+      {/* ================================================================
+          TESTIMONIALS
+      ================================================================ */}
+      <section className="py-20 max-w-[1400px] mx-auto px-6 lg:px-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center mb-12"
+        >
+          <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-3">Học viên nói gì</p>
+          <h2 className="text-4xl md:text-5xl font-black text-white">Thay đổi thật sự từ học viên thật</h2>
+        </motion.div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {TESTIMONIALS.map((t, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+              className="relative bg-[#161b22] border border-white/[0.06] rounded-2xl p-7 hover:border-white/15 transition-colors"
+            >
+              {/* Quote mark */}
+              <div className="text-5xl text-white/10 font-black leading-none mb-3">"</div>
+              <p className="text-slate-300 leading-relaxed text-[15px] mb-6">
+                {t.quote}
+              </p>
+              <div className="flex items-center gap-4 mt-auto">
+                <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${t.color} flex items-center justify-center text-xs font-black text-white`}>
+                  {t.avatar}
+                </div>
+                <div>
+                  <p className="font-bold text-white text-sm">{t.name}</p>
+                  <p className="text-xs text-slate-500">{t.role}</p>
+                </div>
+                <div className="ml-auto">
+                  <StarRating rating={t.rating} />
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ================================================================
+          CTA BOTTOM SECTION
+      ================================================================ */}
+      <section className="py-24 max-w-[1400px] mx-auto px-6 lg:px-12">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="relative rounded-3xl overflow-hidden text-center py-20 px-8"
+        >
+          {/* Gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 via-violet-950 to-slate-900" />
+          <div className="absolute inset-0 opacity-[0.07]"
+            style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }}
+          />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] bg-indigo-600/20 blur-[80px] rounded-full" />
+
+          <div className="relative z-10">
+            <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-4">Bắt đầu ngay hôm nay</p>
+            <h2 className="text-4xl md:text-6xl font-black text-white mb-6 leading-tight">
+              Đầu tư vào bản thân —<br/>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">bắt đầu ngay hôm nay.</span>
+            </h2>
+            <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-10">
+              Hàng trăm khóa học đang chờ bạn. Không cần kinh nghiệm, không cần thẻ tín dụng để thử.
+            </p>
+            <div className="flex flex-wrap gap-4 justify-center">
+              <button
+                onClick={() => navigate('/courses')}
+                className="px-10 py-5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-2xl font-black text-xl text-white shadow-[0_0_40px_rgba(99,102,241,0.4)] hover:shadow-[0_0_60px_rgba(99,102,241,0.6)] transition-all active:scale-95"
+              >
+                Bắt đầu học miễn phí
+              </button>
+              {!isAuthenticated && (
+                <button
+                  onClick={() => navigate('/login')}
+                  className="px-10 py-5 rounded-2xl font-bold text-xl text-white border border-white/20 hover:bg-white/10 transition-all"
+                >
+                  Đăng nhập
+                </button>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      </section>
 
       <style dangerouslySetInnerHTML={{__html: `
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .hide-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        @keyframes marquee {
-          0% { transform: translateX(0%); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-marquee {
-          animation: marquee 30s linear infinite;
-        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
-    </PageShell>
+    </div>
   );
 };
 

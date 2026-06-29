@@ -19,17 +19,18 @@ axiosInstance.interceptors.request.use((config) => {
 axiosInstance.interceptors.response.use(
   (res) => res,
   (err) => {
-    // Nếu lỗi 401 và không phải đang gọi API login/register
     if (
       err.response && 
-      err.response.status === 401 && 
+      (err.response.status === 401 || err.response.status === 403) && 
       !err.config.url?.includes('/auth/login') && 
       !err.config.url?.includes('/auth/register')
     ) {
-      // Bị logout (có thể do token hết hạn)
       store.dispatch(clearAuth());
-      // Xóa header Authorization
       delete axiosInstance.defaults.headers.common['Authorization'];
+      
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+        window.location.href = '/login?expired=true';
+      }
     }
     return Promise.reject(err);
   }

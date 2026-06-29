@@ -18,6 +18,7 @@ router.get('/:courseId/quizzes', authMiddleware.optionalProtect, quizController.
 const reviewController = require('../controllers/review.controller');
 router.get('/:courseId/reviews', reviewController.getCourseReviews);
 router.post('/:courseId/reviews', authMiddleware.protect, reviewController.createReview);
+router.patch('/:courseId/reviews/:id/reply', authMiddleware.protect, requireRole('teacher', 'admin'), reviewController.replyToReview);
 
 /**
  * @swagger

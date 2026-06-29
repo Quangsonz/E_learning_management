@@ -18,6 +18,9 @@ router.use(requireRole('admin', 'teacher'));
 
 router.post('/', requirePermission('manage_lessons'), lessonController.createLesson);
 
+// Route for reordering lessons
+router.patch('/reorder', requirePermission('manage_lessons'), lessonController.reorderLessons);
+
 router
   .route('/:id')
   .patch(requirePermission('manage_lessons'), lessonController.updateLesson)

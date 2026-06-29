@@ -10,6 +10,7 @@ export interface Review {
   course: string;
   rating: number;
   comment: string;
+  instructorReply?: string;
   createdAt: string;
 }
 
@@ -25,5 +26,9 @@ export const reviewApi = {
 
   createReview: (courseId: string, reviewData: ReviewData) => {
     return axiosInstance.post(`/courses/${courseId}/reviews`, reviewData);
+  },
+
+  replyToReview: (courseId: string, reviewId: string, replyText: string) => {
+    return axiosInstance.patch(`/courses/${courseId}/reviews/${reviewId}/reply`, { replyText });
   }
 };

@@ -18,6 +18,7 @@ export { GlassPanel } from './GlassPanel';
 export { SectionHeader } from './SectionHeader';
 export { Input } from './Input';
 export { Toast } from './Toast';
+export { CommandPalette } from './CommandPalette';
 export {
   LoadingScreen,
   InlineLoader,
