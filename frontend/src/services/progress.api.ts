@@ -9,6 +9,8 @@ export interface Progress {
   lastAccessedLesson: string | null;
   isCompleted: boolean;
   lastStudiedAt: string | null;
+  videoProgress?: Record<string, number>;
+  bookmarks?: { lesson: string; time: number; note: string }[];
 }
 
 export interface ProgressResponse {
@@ -52,6 +54,16 @@ export const progressApi = {
    */
   markComplete: async (courseId: string, lessonId: string): Promise<ProgressResponse> => {
     const response = await axiosInstance.post(`/progress/${courseId}/lessons/${lessonId}/complete`);
+    return response.data;
+  },
+
+  updateVideoProgress: async (courseId: string, lessonId: string, time: number): Promise<ProgressResponse> => {
+    const response = await axiosInstance.post(`/progress/${courseId}/lessons/${lessonId}/video-progress`, { time });
+    return response.data;
+  },
+
+  addBookmark: async (courseId: string, lessonId: string, time: number, note: string): Promise<ProgressResponse> => {
+    const response = await axiosInstance.post(`/progress/${courseId}/lessons/${lessonId}/bookmarks`, { time, note });
     return response.data;
   }
 };

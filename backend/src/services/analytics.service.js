@@ -202,19 +202,22 @@ class AnalyticsService {
       overview,
       courseStats,
       monthlyEnrollments,
-      quizResults
+      quizResults,
+      dropOffAnalysis
     ] = await Promise.all([
       this._getTeacherOverview(teacherId),
       this._getTeacherCourseStats(teacherId),
       this._getTeacherMonthlyEnrollments(teacherId),
-      this._getTeacherQuizStats(teacherId)
+      this._getTeacherQuizStats(teacherId),
+      this._getTeacherDropOffAnalysis(teacherId)
     ]);
 
     return {
       overview,
       courseStats,
       monthlyEnrollments,
-      quizResults
+      quizResults,
+      dropOffAnalysis
     };
   }
 
@@ -365,6 +368,40 @@ class AnalyticsService {
           }
         }
       }
+    ]);
+  }
+
+  async _getTeacherDropOffAnalysis(teacherId) {
+    const courses = await Course.find({ instructor: teacherId }, '_id');
+    const courseIds = courses.map(c => c._id);
+
+    return await Progress.aggregate([
+      { $match: { course: { $in: courseIds } } },
+      {
+        $group: {
+          _id: '$lastAccessedLesson',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $lookup: {
+          from: 'lessons',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'lesson'
+        }
+      },
+      { $unwind: { path: '$lesson', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          lessonId: '$_id',
+          lessonTitle: { $ifNull: ['$lesson.title', 'Not Started'] },
+          dropOffCount: '$count'
+        }
+      },
+      { $sort: { dropOffCount: -1 } },
+      { $limit: 10 }
     ]);
   }
 }

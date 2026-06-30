@@ -2,6 +2,7 @@ const progressRepository = require('../repositories/progress.repository');
 const lessonRepository = require('../repositories/lesson.repository');
 const courseRepository = require('../repositories/course.repository');
 const AppError = require('../utils/appError');
+const xpService = require('./xp.service');
 
 class ProgressService {
   async markLessonComplete(courseId, lessonId, user) {
@@ -22,14 +23,41 @@ class ProgressService {
     }
 
     // 3. Đánh dấu bài giảng hoàn thành (nếu chưa có trong mảng)
+    let newlyCompleted = false;
     if (!progress.completedLessons.includes(lessonId)) {
       progress.completedLessons.push(lessonId);
+      newlyCompleted = true;
       
-      // Cộng 10 XP cho học viên
+      // Award XP
+      await xpService.addXP(user.id, 'LESSON_COMPLETE');
+      // Check first lesson badge
+      if (progress.completedLessons.length === 1) {
+        await xpService.awardBadge(user.id, 'FIRST_LESSON');
+      }
+
+      // Restore Study History logic
       const userRepository = require('../repositories/user.repository');
       const student = await userRepository.findById(user.id);
       if (student) {
-        student.xp = (student.xp || 0) + 10;
+        const today = new Date().toISOString().split('T')[0];
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        
+        let todayRecord = student.studyHistory?.find(h => h.date === today);
+        if (!todayRecord) {
+          student.studyHistory = student.studyHistory || [];
+          student.studyHistory.push({ date: today, focusMinutes: 0, lessonsCompleted: 1 });
+          
+          // Tính streak
+          const yesterdayRecord = student.studyHistory.find(h => h.date === yesterday);
+          if (yesterdayRecord) {
+            student.studyStreakDays = (student.studyStreakDays || 0) + 1;
+          } else if (student.studyStreakDays === 0) {
+            student.studyStreakDays = 1;
+          }
+        } else {
+          todayRecord.lessonsCompleted += 1;
+        }
+
         await student.save({ validateBeforeSave: false });
       }
     }
@@ -83,6 +111,42 @@ class ProgressService {
       ongoingCourses,
       details: stats
     };
+  }
+
+  async updateVideoProgress(courseId, lessonId, userId, time) {
+    let progress = await progressRepository.findByStudentAndCourse(userId, courseId);
+    if (!progress) {
+      progress = await progressRepository.create({
+        student: userId,
+        course: courseId,
+        completedLessons: []
+      });
+    }
+
+    if (!progress.videoProgress) {
+      progress.videoProgress = new Map();
+    }
+    progress.videoProgress.set(lessonId, time);
+    await progress.save();
+    return progress;
+  }
+
+  async addBookmark(courseId, lessonId, userId, time, note) {
+    let progress = await progressRepository.findByStudentAndCourse(userId, courseId);
+    if (!progress) {
+      progress = await progressRepository.create({
+        student: userId,
+        course: courseId,
+        completedLessons: []
+      });
+    }
+
+    if (!progress.bookmarks) {
+      progress.bookmarks = [];
+    }
+    progress.bookmarks.push({ lesson: lessonId, time, note });
+    await progress.save();
+    return progress;
   }
 }
 

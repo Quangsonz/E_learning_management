@@ -11,6 +11,7 @@ import { store } from './store/store';
 import { queryClient } from './queries/queryClient';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
+import './i18n';
 
 const container = document.getElementById('root')!;
 const root = createRoot(container);

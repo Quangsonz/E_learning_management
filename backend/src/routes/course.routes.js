@@ -20,6 +20,8 @@ router.get('/:courseId/reviews', reviewController.getCourseReviews);
 router.post('/:courseId/reviews', authMiddleware.protect, reviewController.createReview);
 router.patch('/:courseId/reviews/:id/reply', authMiddleware.protect, requireRole('teacher', 'admin'), reviewController.replyToReview);
 
+router.get('/recommendations', authMiddleware.optionalProtect, courseController.getRecommendations);
+
 /**
  * @swagger
  * /courses:

@@ -3,6 +3,7 @@ const questionRepository = require('../repositories/question.repository');
 const resultRepository = require('../repositories/result.repository');
 const courseRepository = require('../repositories/course.repository');
 const AppError = require('../utils/appError');
+const xpService = require('./xp.service');
 
 class QuizService {
   async createQuiz(courseId, quizData, user) {
@@ -111,6 +112,13 @@ class QuizService {
       await result.save();
     } else {
       result = await resultRepository.create(resultData);
+    }
+
+    if (isPassed) {
+      await xpService.addXP(user.id, 'QUIZ_COMPLETE');
+      if (totalScore === maxScore) {
+        await xpService.awardBadge(user.id, 'QUIZ_MASTER');
+      }
     }
 
     return result;

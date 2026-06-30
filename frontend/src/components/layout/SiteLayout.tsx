@@ -3,26 +3,30 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSocket } from '../../hooks/useSocket';
+import clsx from 'clsx';
 import { useQuery } from '@tanstack/react-query';
 import { userApi } from '../../services/user.api';
 import { CommandPalette } from '../ui/CommandPalette';
 
+import { useTranslation } from 'react-i18next';
+
 /* ── Navigation items ───────────────────────────────────── */
 const sidebarItems = [
-  { label: 'Home', to: '/home' },
-  { label: 'Courses', to: '/courses' },
-  { label: 'Learning', to: '/learning' },
-  { label: 'Leaderboard', to: '/leaderboard' }
+  { key: 'layout.nav.home', to: '/home' },
+  { key: 'layout.nav.courses', to: '/courses' },
+  { key: 'layout.nav.learning', to: '/learning' },
+  { key: 'layout.nav.leaderboard', to: '/leaderboard' }
 ];
 
 /* ── Desktop Nav Item ────────────────────────────────────── */
-const DesktopNavItem: React.FC<{ item: typeof sidebarItems[0]; onClick: () => void }> = ({ item, onClick }) => (
+const DesktopNavItem: React.FC<{ item: { to: string; label: string }; onClick: () => void }> = ({ item, onClick }) => (
   <NavLink
     to={item.to}
     end={item.to === '/'}
     onClick={onClick}
     className={({ isActive }) =>
-      `relative px-6 py-2.5 text-base font-semibold transition-colors duration-300 rounded-full ${
+      `relative px-6 py-2.5 text-base font-semibold transition-colors duration-300 rounded-full whitespace-nowrap ${
         isActive
           ? 'text-slate-900 dark:text-white'
           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -45,7 +49,7 @@ const DesktopNavItem: React.FC<{ item: typeof sidebarItems[0]; onClick: () => vo
 );
 
 /* ── Mobile Nav Item ─────────────────────────────────────── */
-const MobileNavItem: React.FC<{ item: typeof sidebarItems[0]; onClick: () => void; index: number }> = ({ item, onClick, index }) => (
+const MobileNavItem: React.FC<{ item: { to: string; label: string }; onClick: () => void; index: number }> = ({ item, onClick, index }) => (
   <motion.div
     initial={{ opacity: 0, y: 40 }}
     animate={{ opacity: 1, y: 0 }}
@@ -75,8 +79,16 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const { theme, toggleTheme } = useTheme();
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const { notifications, unreadCount, setUnreadCount } = useSocket();
+  const { t } = useTranslation();
+
+  const translatedSidebarItems = sidebarItems.map(item => ({
+    ...item,
+    label: t(item.key)
+  }));
 
   const { data: wishlistData } = useQuery({
     queryKey: ['wishlist'],
@@ -86,11 +98,11 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const wishlistCount = wishlistData?.data?.wishlist?.length || 0;
 
   const activeLabel = useMemo(() => {
-    const match = sidebarItems.find(
+    const match = translatedSidebarItems.find(
       (item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
     );
-    return match?.label ?? 'Home';
-  }, [location.pathname]);
+    return match?.label ?? t('layout.nav.home');
+  }, [location.pathname, translatedSidebarItems, t]);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -128,7 +140,7 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </div>
         
         <nav className="flex items-center px-3 gap-2">
-          {sidebarItems.map((item) => (
+          {translatedSidebarItems.map((item) => (
             <DesktopNavItem key={item.to} item={item} onClick={() => {}} />
           ))}
         </nav>
@@ -151,6 +163,53 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             )}
           </Link>
 
+          <div className="relative">
+            <button
+              onClick={() => { setNotificationsOpen(!notificationsOpen); setProfileOpen(false); if (notificationsOpen) setUnreadCount(0); }}
+              className="relative w-10 h-10 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+              aria-label="Notifications"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-indigo-500 px-1 text-[10px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-slate-900">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            <AnimatePresence>
+              {notificationsOpen && (
+                <motion.div
+                  className="absolute top-12 right-0 w-80 max-h-96 overflow-y-auto rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-2xl origin-top-right z-50 flex flex-col"
+                  initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <div className="p-3 border-b border-slate-100 dark:border-white/5 flex items-center justify-between sticky top-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">Notifications</p>
+                    <button className="text-xs text-indigo-500 font-medium">Mark all as read</button>
+                  </div>
+                  <div className="flex flex-col">
+                    {notifications.length === 0 ? (
+                      <div className="p-8 text-center text-slate-500 text-sm">No new notifications</div>
+                    ) : (
+                      notifications.map(notif => (
+                        <Link 
+                          key={notif._id} 
+                          to={notif.link || '#'} 
+                          className="p-3 border-b border-slate-50 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex flex-col gap-1"
+                        >
+                          <p className="text-sm font-medium text-slate-800 dark:text-white line-clamp-1">{notif.title}</p>
+                          <p className="text-xs text-slate-500 line-clamp-2">{notif.message}</p>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           <button
             onClick={toggleTheme}
             className="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
@@ -165,7 +224,7 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
           <div className="relative">
             <button
-              onClick={() => setProfileOpen(!profileOpen)}
+              onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false); }}
               className="w-10 h-10 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center text-sm font-bold transition-transform hover:scale-105 uppercase"
             >
               {user?.name ? user.name.substring(0, 2) : 'US'}
@@ -186,28 +245,22 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   <div className="p-1">
                     {user?.role === 'admin' && (
                       <Link to="/admin-dashboard" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
-                        Admin Dashboard
+                        {t('layout.nav.admin')}
                       </Link>
                     )}
                     {(user?.role === 'teacher' || user?.role === 'admin') && (
                       <Link to="/teacher-dashboard" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
-                        Teacher Dashboard
+                        {t('layout.nav.dashboard')}
                       </Link>
                     )}
                     <Link to="/profile" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
-                      Profile
+                      {t('settings.profile.title')}
                     </Link>
                     <Link to="/settings" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
-                      Settings
+                      {t('layout.profileMenu.settings')}
                     </Link>
-                    <button 
-                      onClick={() => {
-                        logout();
-                        setProfileOpen(false);
-                      }}
-                      className="w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
-                    >
-                      Sign out
+                    <button onClick={() => { logout(); setProfileOpen(false); navigate('/login'); }} className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10">
+                      {t('layout.profileMenu.logout')}
                     </button>
                   </div>
                 </motion.div>
@@ -260,7 +313,7 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           >
             <nav className="flex flex-col gap-6">
-              {sidebarItems.map((item, i) => (
+              {translatedSidebarItems.map((item, i) => (
                 <MobileNavItem key={item.to} item={item} onClick={() => setMobileOpen(false)} index={i} />
               ))}
             </nav>

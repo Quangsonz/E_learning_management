@@ -14,6 +14,10 @@ export interface AuthUser {
   isVerified: boolean;
   studyStreakDays?: number;
   totalFocusMinutes?: number;
+  studyHistory?: { date: string; focusMinutes: number; lessonsCompleted: number }[];
+  xp?: number;
+  level?: number;
+  badges?: { name: string; icon: string; description: string; awardedAt: string }[];
   createdAt?: string;
 }
 

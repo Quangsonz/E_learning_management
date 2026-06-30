@@ -6,7 +6,7 @@ const streamifier = require('streamifier');
  * Hàm sinh PDF và upload trực tiếp lên Cloudinary
  * Trả về Promise chứa đường dẫn secure_url của file PDF
  */
-exports.generateCertificate = (studentName, courseTitle, certificateId) => {
+exports.generateCertificate = (studentName, courseTitle, certificateId, qrCodeDataUrl) => {
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({
@@ -70,6 +70,18 @@ exports.generateCertificate = (studentName, courseTitle, certificateId) => {
       
       const dateStr = new Date().toLocaleDateString('vi-VN');
       doc.text(`Ngày cấp: ${dateStr}`, { align: 'center' });
+
+      // Nếu có QR Code thì vẽ lên góc dưới bên phải
+      if (qrCodeDataUrl) {
+        // Tách phần Data URL để lấy buffer (data:image/png;base64,....)
+        const qrBase64Data = qrCodeDataUrl.replace(/^data:image\/png;base64,/, '');
+        const qrBuffer = Buffer.from(qrBase64Data, 'base64');
+        
+        const qrSize = 100;
+        doc.image(qrBuffer, doc.page.width - distanceMargin - qrSize - 20, doc.page.height - distanceMargin - qrSize - 20, {
+          fit: [qrSize, qrSize]
+        });
+      }
 
       // Kết thúc stream (kích hoạt sự kiện doc.on('end'))
       doc.end();

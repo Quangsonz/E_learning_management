@@ -24,6 +24,12 @@ const certificateSchema = new mongoose.Schema(
     pdfUrl: {
       type: String,
     },
+    validationUrl: {
+      type: String,
+    },
+    qrCode: {
+      type: String,
+    }
   },
   { timestamps: true }
 );

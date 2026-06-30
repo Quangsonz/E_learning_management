@@ -2,6 +2,16 @@ const courseService = require('../services/course.service');
 const catchAsync = require('../utils/catchAsync');
 
 class CourseController {
+  getRecommendations = catchAsync(async (req, res, next) => {
+    const recommendationService = require('../services/recommendation.service');
+    const data = await recommendationService.getRecommendations(req.user ? req.user.id : null);
+    
+    res.status(200).json({
+      status: 'success',
+      data
+    });
+  });
+
   getAllCourses = catchAsync(async (req, res, next) => {
     // Truyền user object nếu đã đăng nhập để service phân tích quyền lấy Draft/Published
     const user = req.user || null;

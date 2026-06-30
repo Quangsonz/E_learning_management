@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { enrollmentApi } from '../services/enrollment.api';
 import { courseApi, CourseData } from '../services/course.api';
 import { selectIsAuthenticated, selectCurrentUser } from '../store/slices/authSlice';
@@ -12,41 +13,47 @@ import { selectIsAuthenticated, selectCurrentUser } from '../store/slices/authSl
 // =====================================================================
 
 const CATEGORIES = [
-  { emoji: '💻', label: 'Programming', color: 'from-blue-600/20 to-blue-500/10 border-blue-500/30 text-blue-400' },
-  { emoji: '🎨', label: 'Design', color: 'from-pink-600/20 to-pink-500/10 border-pink-500/30 text-pink-400' },
-  { emoji: '📊', label: 'Data Science', color: 'from-violet-600/20 to-violet-500/10 border-violet-500/30 text-violet-400' },
-  { emoji: '🚀', label: 'Business', color: 'from-amber-600/20 to-amber-500/10 border-amber-500/30 text-amber-400' },
-  { emoji: '🌐', label: 'Marketing', color: 'from-emerald-600/20 to-emerald-500/10 border-emerald-500/30 text-emerald-400' },
-  { emoji: '🤖', label: 'AI & ML', color: 'from-cyan-600/20 to-cyan-500/10 border-cyan-500/30 text-cyan-400' },
-  { emoji: '📷', label: 'Photography', color: 'from-rose-600/20 to-rose-500/10 border-rose-500/30 text-rose-400' },
-  { emoji: '🎵', label: 'Music', color: 'from-orange-600/20 to-orange-500/10 border-orange-500/30 text-orange-400' },
+  { emoji: '💻', key: 'home.categories.programming', color: 'from-blue-600/20 to-blue-500/10 border-blue-500/30 text-blue-400' },
+  { emoji: '🎨', key: 'home.categories.design', color: 'from-pink-600/20 to-pink-500/10 border-pink-500/30 text-pink-400' },
+  { emoji: '📊', key: 'home.categories.dataScience', color: 'from-violet-600/20 to-violet-500/10 border-violet-500/30 text-violet-400' },
+  { emoji: '🚀', key: 'home.categories.business', color: 'from-amber-600/20 to-amber-500/10 border-amber-500/30 text-amber-400' },
+  { emoji: '🌐', key: 'home.categories.marketing', color: 'from-emerald-600/20 to-emerald-500/10 border-emerald-500/30 text-emerald-400' },
+  { emoji: '🤖', key: 'home.categories.ai', color: 'from-cyan-600/20 to-cyan-500/10 border-cyan-500/30 text-cyan-400' },
+  { emoji: '📷', key: 'home.categories.photography', color: 'from-rose-600/20 to-rose-500/10 border-rose-500/30 text-rose-400' },
+  { emoji: '🎵', key: 'home.categories.music', color: 'from-orange-600/20 to-orange-500/10 border-orange-500/30 text-orange-400' },
 ];
 
 const TESTIMONIALS = [
   {
-    quote: 'Nền tảng này đã hoàn toàn thay đổi sự nghiệp của tôi. Từ chỗ không biết gì về lập trình, chỉ sau 3 tháng tôi đã có việc làm đầu tiên.',
+    quoteKey: 'home.testimonials.t1quote',
     name: 'Nguyễn Minh Tú',
-    role: 'Junior Developer @ TechStart',
+    roleKey: 'home.testimonials.t1role',
     avatar: 'NMT',
     rating: 5,
     color: 'from-indigo-500 to-blue-500',
   },
   {
-    quote: 'Giảng viên rất tận tâm, nội dung được cập nhật liên tục. Tôi đã hoàn thành khóa UI/UX và nhận được offer lương tốt hơn 40%.',
+    quoteKey: 'home.testimonials.t2quote',
     name: 'Lê Thị Phương',
-    role: 'UX Designer @ Creative Hub',
+    roleKey: 'home.testimonials.t2role',
     avatar: 'LTP',
     color: 'from-pink-500 to-rose-500',
     rating: 5,
   },
   {
-    quote: 'Đầu tư tốt nhất tôi từng làm. Khóa Data Science ở đây thực tiễn hơn bất kỳ nơi nào khác tôi từng thử.',
+    quoteKey: 'home.testimonials.t3quote',
     name: 'Trần Văn Đức',
-    role: 'Data Analyst @ FinTech Corp',
+    roleKey: 'home.testimonials.t3role',
     avatar: 'TVD',
     color: 'from-violet-500 to-purple-500',
     rating: 5,
   },
+];
+
+const HERO_IMAGES = [
+  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=2070&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2071&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=2070&auto=format&fit=crop'
 ];
 
 // =====================================================================
@@ -128,8 +135,8 @@ const CourseCard = ({ course }: { course: CourseData }) => {
   const originalPrice = course.price ? (course.price * 2).toFixed(0) : null;
   return (
     <motion.div
-      className="group relative bg-[#161b22] border border-white/[0.06] rounded-2xl overflow-hidden flex flex-col cursor-pointer hover:border-indigo-500/40 transition-all duration-300"
-      whileHover={{ y: -4, boxShadow: '0 20px 60px rgba(99,102,241,0.15)' }}
+      whileHover={{ y: -8 }}
+      className="group relative flex flex-col bg-white dark:bg-[#111111] border border-slate-200 dark:border-white/5 rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 h-[340px]"
       onClick={() => navigate(`/courses/${course._id}`)}
     >
       {/* Thumbnail */}
@@ -155,7 +162,7 @@ const CourseCard = ({ course }: { course: CourseData }) => {
             {course.category.name}
           </span>
         )}
-        <h3 className="font-bold text-white leading-snug line-clamp-2 text-[15px] group-hover:text-indigo-300 transition-colors">
+        <h3 className="font-bold text-slate-900 dark:text-white leading-snug line-clamp-2 text-[15px] group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors">
           {course.title}
         </h3>
         <div className="flex items-center gap-2 mt-auto">
@@ -175,7 +182,7 @@ const CourseCard = ({ course }: { course: CourseData }) => {
             ) : (
               <>
                 {originalPrice && <span className="text-sm text-slate-500 line-through">${originalPrice}</span>}
-                <span className="text-xl font-black text-white">${course.price}</span>
+                <span className="text-xl font-black text-slate-900 dark:text-white">${course.price}</span>
               </>
             )}
           </div>
@@ -199,6 +206,7 @@ const Home: React.FC = () => {
   const navigate = useNavigate();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const user = useSelector(selectCurrentUser);
+  const { t } = useTranslation();
 
   // Sale countdown — 23:59:59 from page load
   const [saleEnd] = useState(() => new Date(Date.now() + 23 * 3600000 + 59 * 60000 + 59000));
@@ -206,6 +214,16 @@ const Home: React.FC = () => {
 
   // Active category filter
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  // Background slider
+  const [currentBgIndex, setCurrentBgIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentBgIndex((prev) => (prev + 1) % HERO_IMAGES.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch public courses
   const { data: coursesData, isLoading: coursesLoading } = useQuery({
@@ -221,16 +239,40 @@ const Home: React.FC = () => {
     enabled: isAuthenticated,
   });
 
+  // Fetch recommendations
+  const { data: recommendationsData, isLoading: recLoading } = useQuery({
+    queryKey: ['recommendations'],
+    queryFn: () => courseApi.getRecommendations()
+  });
+
   const courses: CourseData[] = coursesData?.data?.courses || [];
+  const trendingCourses: CourseData[] = recommendationsData?.data?.trending || [];
+  const recommendedCourses: CourseData[] = recommendationsData?.data?.recommended || [];
   const enrollments = (enrollmentsData as any)?.enrollments || (enrollmentsData as any)?.data?.enrollments || [];
 
   return (
-    <div className="min-h-screen bg-[#080d18] text-white overflow-x-hidden">
+    <div className="min-h-screen bg-[#FBFBFA] dark:bg-[#080d18] text-slate-900 dark:text-white overflow-x-hidden">
 
       {/* ================================================================
           HERO SECTION
       ================================================================ */}
       <section className="relative min-h-[92vh] flex items-center overflow-hidden">
+        {/* Animated Image Slider Background */}
+        <div className="absolute inset-0 z-0">
+          <AnimatePresence>
+            <motion.img
+              key={currentBgIndex}
+              src={HERO_IMAGES[currentBgIndex]}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.15 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.5, ease: "easeInOut" }}
+              className="absolute inset-0 w-full h-full object-cover mix-blend-luminosity dark:opacity-[0.05]"
+              alt="Background"
+            />
+          </AnimatePresence>
+        </div>
+
         {/* Background gradient blobs */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-indigo-900/30 blur-[120px]" />
@@ -251,13 +293,10 @@ const Home: React.FC = () => {
                 initial={{ opacity: 0, y: -12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 mb-8"
+                className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-gradient-to-r from-indigo-500/10 to-cyan-500/10 border border-indigo-500/20 mb-8"
               >
-                <span className="text-lg">🔥</span>
-                <span className="text-sm font-bold text-orange-300">Flash Sale</span>
-                <span className="text-sm text-orange-400/80">—</span>
-                <span className="text-sm font-black text-orange-300">Giảm đến 60% hôm nay!</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                <span className="text-lg">✨</span>
+                <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{t('home.hero.badge')}</span>
               </motion.div>
 
               {/* Headline */}
@@ -265,11 +304,11 @@ const Home: React.FC = () => {
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] mb-6"
+                className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] mb-6 text-slate-900 dark:text-white"
               >
-                Nắm vững kỹ năng mới,{' '}
+                {t('home.hero.title1')} <br className="hidden md:block" />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400">
-                  thay đổi sự nghiệp.
+                  {t('home.hero.title2')}
                 </span>
               </motion.h1>
 
@@ -278,9 +317,9 @@ const Home: React.FC = () => {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-xl text-slate-300 leading-relaxed mb-10 max-w-[42ch]"
+                className="text-xl text-slate-600 dark:text-slate-300 leading-relaxed mb-10 max-w-[42ch]"
               >
-                Hơn 50.000 học viên đã tin tưởng. Khóa học được thiết kế bởi chuyên gia — thực tiễn, cập nhật, và hiệu quả ngay từ bài đầu tiên.
+                {t('home.hero.subtitle')}
               </motion.p>
 
               {/* CTA Buttons */}
@@ -294,7 +333,7 @@ const Home: React.FC = () => {
                   onClick={() => navigate('/courses')}
                   className="group flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-2xl font-bold text-lg text-white shadow-[0_0_30px_rgba(99,102,241,0.3)] hover:shadow-[0_0_50px_rgba(99,102,241,0.5)] transition-all duration-300 active:scale-95"
                 >
-                  <span>Khám phá khóa học</span>
+                  <span>{t('home.hero.viewBtn')}</span>
                   <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </button>
 
@@ -410,21 +449,21 @@ const Home: React.FC = () => {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-2xl">⚡</span>
-                  <span className="text-sm font-black text-white/80 uppercase tracking-widest">Ưu đãi giới hạn</span>
+                  <span className="text-sm font-black text-white/80 uppercase tracking-widest">{t('home.flashSale.badge')}</span>
                 </div>
                 <h2 className="text-2xl md:text-3xl font-black text-white leading-tight">
-                  Mua 1 tặng 1 — Học cùng bạn bè!
+                  {t('home.flashSale.title')}
                 </h2>
-                <p className="text-white/80 mt-1 font-medium">Mua bất kỳ khóa học nào, nhận thêm 1 code tặng bạn. Hết hạn sau:</p>
+                <p className="text-white/80 mt-1 font-medium">{t('home.flashSale.subtitle')}</p>
               </div>
 
               {/* Countdown */}
               <div className="flex items-center gap-3">
-                <CountdownBlock value={countdown.hours} label="Giờ" />
+                <CountdownBlock value={countdown.hours} label={t('home.flashSale.hours')} />
                 <span className="text-2xl font-black text-white/60 mb-4">:</span>
-                <CountdownBlock value={countdown.minutes} label="Phút" />
+                <CountdownBlock value={countdown.minutes} label={t('home.flashSale.minutes')} />
                 <span className="text-2xl font-black text-white/60 mb-4">:</span>
-                <CountdownBlock value={countdown.seconds} label="Giây" />
+                <CountdownBlock value={countdown.seconds} label={t('home.flashSale.seconds')} />
               </div>
 
               <button
@@ -449,8 +488,8 @@ const Home: React.FC = () => {
           className="flex items-end justify-between mb-8"
         >
           <div>
-            <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-2">Danh mục</p>
-            <h2 className="text-3xl md:text-4xl font-black text-white">Khám phá theo chủ đề</h2>
+            <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-2">{t('home.categories.title')}</p>
+            <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">{t('home.categories.subtitle')}</h2>
           </div>
         </motion.div>
         <div className="flex flex-wrap gap-3">
@@ -458,20 +497,76 @@ const Home: React.FC = () => {
             onClick={() => setActiveCategory(null)}
             className={`px-5 py-2.5 rounded-full font-bold text-sm border transition-all ${!activeCategory ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]' : 'border-white/10 text-slate-400 hover:border-white/30 hover:text-white'}`}
           >
-            Tất cả
+            {t('home.categories.all')}
           </button>
-          {CATEGORIES.map(cat => (
+          {CATEGORIES.map((c) => (
             <button
-              key={cat.label}
-              onClick={() => setActiveCategory(activeCategory === cat.label ? null : cat.label)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm border transition-all bg-gradient-to-r ${cat.color} ${activeCategory === cat.label ? 'ring-2 ring-white/30 scale-105' : 'hover:scale-105'}`}
+              key={c.key}
+              onClick={() => setActiveCategory(t(c.key))}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm border transition-all hover:-translate-y-1 ${
+                activeCategory === t(c.key)
+                  ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]'
+                  : 'bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:border-indigo-500/50 hover:text-indigo-500 dark:hover:text-white'
+              }`}
             >
-              <span>{cat.emoji}</span>
-              <span>{cat.label}</span>
+              <span>{c.emoji}</span>
+              <span>{t(c.key)}</span>
             </button>
           ))}
         </div>
       </section>
+
+      {/* ================================================================
+          TRENDING COURSES
+      ================================================================ */}
+      {!activeCategory && trendingCourses.length > 0 && (
+        <section className="pb-16 max-w-[1400px] mx-auto px-6 lg:px-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="flex items-end justify-between mb-8"
+          >
+            <div>
+              <p className="text-orange-400 text-sm font-bold uppercase tracking-widest mb-2">Đang thịnh hành</p>
+              <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">Top Khóa học Nổi bật 🚀</h2>
+            </div>
+          </motion.div>
+          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {trendingCourses.map((course, i) => (
+              <motion.div key={course._id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-50px' }} transition={{ duration: 0.4, delay: i * 0.05 }}>
+                <CourseCard course={course} />
+              </motion.div>
+            ))}
+          </motion.div>
+        </section>
+      )}
+
+      {/* ================================================================
+          RECOMMENDED FOR YOU
+      ================================================================ */}
+      {!activeCategory && recommendedCourses.length > 0 && (
+        <section className="pb-16 max-w-[1400px] mx-auto px-6 lg:px-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="flex items-end justify-between mb-8"
+          >
+            <div>
+              <p className="text-emerald-400 text-sm font-bold uppercase tracking-widest mb-2">{t('home.sections.recommended')}</p>
+              <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">{t('home.sections.youMightLike')}</h2>
+            </div>
+          </motion.div>
+          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {recommendedCourses.map((course, i) => (
+              <motion.div key={course._id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-50px' }} transition={{ duration: 0.4, delay: i * 0.05 }}>
+                <CourseCard course={course} />
+              </motion.div>
+            ))}
+          </motion.div>
+        </section>
+      )}
 
       {/* ================================================================
           FEATURED COURSES
@@ -485,17 +580,17 @@ const Home: React.FC = () => {
         >
           <div>
             <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-2">
-              {activeCategory ? activeCategory : 'Nổi bật'}
+              {activeCategory ? activeCategory : t('home.sections.exploreAll')}
             </p>
             <h2 className="text-3xl md:text-4xl font-black text-white">
-              {activeCategory ? `Khóa học ${activeCategory}` : 'Khóa học phổ biến nhất'}
+              {activeCategory ? `${t('home.sections.courseWord')} ${activeCategory}` : t('home.sections.allNewCourses')}
             </h2>
           </div>
           <button
             onClick={() => navigate('/courses')}
             className="text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-2 text-sm group"
           >
-            Xem tất cả
+            {t('home.sections.viewAll')}
             <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </button>
         </motion.div>
@@ -516,8 +611,8 @@ const Home: React.FC = () => {
         ) : courses.length === 0 ? (
           <div className="text-center py-24 text-slate-500">
             <p className="text-5xl mb-4">📚</p>
-            <p className="text-xl font-bold">Chưa có khóa học nào được xuất bản.</p>
-            <p className="text-sm mt-2">Giảng viên đang chuẩn bị nội dung — quay lại sớm nhé!</p>
+            <p className="text-xl font-bold">{t('home.sections.noCourses')}</p>
+            <p className="text-sm mt-2">{t('home.sections.instructorPrep')}</p>
           </div>
         ) : (
           <motion.div
@@ -551,11 +646,11 @@ const Home: React.FC = () => {
               viewport={{ once: true }}
               className="mb-8"
             >
-              <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-2">Của bạn</p>
-              <h2 className="text-3xl md:text-4xl font-black text-white">
-                Chào lại, {user?.name?.split(' ').slice(-1)[0] || 'bạn'}! 👋
+              <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-2">{t('home.sections.resumeTitle')}</p>
+              <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">
+                {t('home.sections.welcomeBack')}, {user?.name?.split(' ').slice(-1)[0] || 'User'}! 👋
               </h2>
-              <p className="text-slate-400 mt-2">Tiếp tục hành trình học tập của bạn.</p>
+              <p className="text-slate-400 mt-2">{t('home.sections.resumeDesc')}</p>
             </motion.div>
 
             <div className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar">
@@ -575,14 +670,14 @@ const Home: React.FC = () => {
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-2xl">
                         📚
                       </div>
-                      <span className="text-xs font-bold text-indigo-400 bg-indigo-400/10 px-3 py-1 rounded-full">Đang học</span>
+                      <span className="text-xs font-bold text-indigo-400 bg-indigo-400/10 px-3 py-1 rounded-full">{t('home.sections.learningTag')}</span>
                     </div>
                     <h3 className="font-bold text-white text-base leading-snug mb-4 line-clamp-2">{title}</h3>
                     <button
                       onClick={() => navigate(`/courses/${courseId}/learn`)}
                       className="w-full flex items-center justify-between px-5 py-3 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 rounded-xl text-sm font-bold text-indigo-300 transition-all group-hover:border-indigo-400/50"
                     >
-                      <span>Tiếp tục học</span>
+                      <span>{t('home.sections.continueLearning')}</span>
                       <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </button>
                   </motion.div>
@@ -599,10 +694,10 @@ const Home: React.FC = () => {
       <section className="py-20 border-t border-b border-white/[0.06]">
         <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
           <div className="flex flex-col md:flex-row items-center justify-center divide-y md:divide-y-0 md:divide-x divide-white/10 gap-0">
-            <AnimatedStat value={50000} suffix="+" label="Học viên đã tin tưởng" />
-            <AnimatedStat value={200} suffix="+" label="Khóa học chuyên gia" />
-            <AnimatedStat value={98} suffix="%" label="Học viên hài lòng" />
-            <AnimatedStat value={4.9} suffix="★" label="Điểm đánh giá trung bình" />
+            <AnimatedStat value={50000} suffix="+" label={t('home.stats.students')} />
+            <AnimatedStat value={200} suffix="+" label={t('home.stats.instructors')} />
+            <AnimatedStat value={98} suffix="%" label={t('home.stats.rating')} />
+            <AnimatedStat value={4.9} suffix="★" label={t('home.stats.rating')} />
           </div>
         </div>
       </section>
@@ -617,11 +712,11 @@ const Home: React.FC = () => {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-3">Học viên nói gì</p>
-          <h2 className="text-4xl md:text-5xl font-black text-white">Thay đổi thật sự từ học viên thật</h2>
+          <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-3">{t('home.testimonials.badge')}</p>
+          <h2 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white">{t('home.testimonials.title')}</h2>
         </motion.div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {TESTIMONIALS.map((t, i) => (
+          {TESTIMONIALS.map((item, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, y: 24 }}
@@ -633,18 +728,18 @@ const Home: React.FC = () => {
               {/* Quote mark */}
               <div className="text-5xl text-white/10 font-black leading-none mb-3">"</div>
               <p className="text-slate-300 leading-relaxed text-[15px] mb-6">
-                {t.quote}
+                {t(item.quoteKey)}
               </p>
               <div className="flex items-center gap-4 mt-auto">
-                <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${t.color} flex items-center justify-center text-xs font-black text-white`}>
-                  {t.avatar}
+                <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${item.color} flex items-center justify-center text-xs font-black text-white`}>
+                  {item.avatar}
                 </div>
                 <div>
-                  <p className="font-bold text-white text-sm">{t.name}</p>
-                  <p className="text-xs text-slate-500">{t.role}</p>
+                  <p className="font-bold text-white text-sm">{item.name}</p>
+                  <p className="text-xs text-slate-500">{t(item.roleKey)}</p>
                 </div>
                 <div className="ml-auto">
-                  <StarRating rating={t.rating} />
+                  <StarRating rating={item.rating} />
                 </div>
               </div>
             </motion.div>
@@ -671,7 +766,7 @@ const Home: React.FC = () => {
 
           <div className="relative z-10">
             <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-4">Bắt đầu ngay hôm nay</p>
-            <h2 className="text-4xl md:text-6xl font-black text-white mb-6 leading-tight">
+            <h2 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white mb-6 leading-tight">
               Đầu tư vào bản thân —<br/>
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">bắt đầu ngay hôm nay.</span>
             </h2>

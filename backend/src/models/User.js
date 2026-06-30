@@ -25,7 +25,19 @@ const userSchema = new mongoose.Schema({
   studyStreakDays: { type: Number, default: 0 }, // Số ngày học liên tiếp
   preferences: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }], // Sở thích danh mục để gợi ý
   totalFocusMinutes: { type: Number, default: 0 }, // Tổng thời gian học (phút)
+  studyHistory: [{
+    date: { type: String }, // Format YYYY-MM-DD
+    focusMinutes: { type: Number, default: 0 },
+    lessonsCompleted: { type: Number, default: 0 }
+  }],
   xp: { type: Number, default: 0 }, // Điểm kinh nghiệm
+  level: { type: Number, default: 1 }, // Cấp độ
+  badges: [{ 
+    name: { type: String }, 
+    icon: { type: String }, 
+    description: { type: String },
+    awardedAt: { type: Date, default: Date.now } 
+  }],
   wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }] // Khóa học yêu thích
 }, { timestamps: true });
 

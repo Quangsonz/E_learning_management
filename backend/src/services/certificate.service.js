@@ -4,6 +4,9 @@ const progressRepository = require('../repositories/progress.repository');
 const courseRepository = require('../repositories/course.repository');
 const { generateCertificate } = require('../utils/pdfGenerator');
 const AppError = require('../utils/appError');
+const QRCode = require('qrcode');
+const notificationService = require('./notification.service');
+const xpService = require('./xp.service');
 
 class CertificateService {
   async claimCertificate(courseId, user) {
@@ -26,17 +29,38 @@ class CertificateService {
     // 4. Tạo mã ID ngắn cho chứng chỉ (8 ký tự)
     const certId = uuidv4().split('-')[0].toUpperCase();
 
-    // 5. Sinh PDF và Upload (Sẽ mất vài giây tùy mạng)
-    const pdfUrl = await generateCertificate(user.name, course.title, certId);
+    // 5. Sinh QR Code Data URL
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const validationUrl = `${frontendUrl}/certificates/verify/${certId}`;
+    const qrCodeDataUrl = await QRCode.toDataURL(validationUrl);
 
-    // 6. Lưu dữ liệu vào Database
+    // 6. Sinh PDF và Upload (Sẽ mất vài giây tùy mạng)
+    const pdfUrl = await generateCertificate(user.name, course.title, certId, qrCodeDataUrl);
+
+    // 7. Lưu dữ liệu vào Database
     const newCertificate = await certificateRepository.create({
       student: user.id,
       course: courseId,
       certificateUrl: pdfUrl,
+      pdfUrl: pdfUrl,
       certificateId: certId,
-      issuedAt: new Date()
+      validationUrl: validationUrl,
+      qrCode: qrCodeDataUrl,
+      issueDate: new Date()
     });
+
+    // 8. Gửi Notification
+    await notificationService.createNotification({
+      recipient: user.id,
+      title: 'Chứng chỉ hoàn thành!',
+      message: `Chúc mừng bạn đã nhận chứng chỉ hoàn thành khóa học "${course.title}"!`,
+      type: 'certificate',
+      link: `/certificates/verify/${certId}`
+    });
+
+    // 9. Award XP & Badge
+    await xpService.addXP(user.id, 'COURSE_COMPLETE');
+    await xpService.awardBadge(user.id, 'COURSE_GRADUATE');
 
     return newCertificate;
   }

@@ -6,6 +6,8 @@ import { LoadingScreen, Toast, Button, EmptyState } from '../components/ui';
 import { lessonApi, Lesson as ApiLesson } from '../services/lesson.api';
 import { progressApi } from '../services/progress.api';
 import { quizApi } from '../services/quiz.api';
+import { discussionApi, Discussion, Comment } from '../services/discussion.api';
+import { useAuth } from '../contexts/AuthContext';
 
 type Lesson = {
   id: number;
@@ -37,6 +39,13 @@ const Learning: React.FC = () => {
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
   const [showAchievement, setShowAchievement] = useState(false);
   const [notes, setNotes] = useState(notesSeed.join('\n'));
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [bookmarkNote, setBookmarkNote] = useState('');
+  const [showBookmarkInput, setShowBookmarkInput] = useState(false);
+  const [discussionText, setDiscussionText] = useState('');
+  const [expandedDiscussionId, setExpandedDiscussionId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const { user } = useAuth();
 
   const { data: lessonsData, isLoading: isLoadingLessons, error } = useQuery({
     queryKey: ['lessons', courseId],
@@ -56,6 +65,21 @@ const Learning: React.FC = () => {
     queryFn: () => quizApi.getQuizzesByCourse(courseId!),
     enabled: !!courseId
   });
+
+  const { data: discussionsData } = useQuery({
+    queryKey: ['discussions', courseId, selectedLessonId],
+    queryFn: () => discussionApi.getDiscussions(courseId!, selectedLessonId!),
+    enabled: !!courseId && !!selectedLessonId && !selectedQuizId
+  });
+
+  const { data: commentsData } = useQuery({
+    queryKey: ['comments', courseId, selectedLessonId, expandedDiscussionId],
+    queryFn: () => discussionApi.getComments(courseId!, selectedLessonId!, expandedDiscussionId!),
+    enabled: !!courseId && !!selectedLessonId && !!expandedDiscussionId
+  });
+
+  const discussions: Discussion[] = discussionsData?.data?.discussions || [];
+  const comments: Comment[] = commentsData?.data?.comments || [];
 
   const lessons = lessonsData?.data?.lessons || [];
   const quizzes = quizzesData?.data?.data?.quizzes || [];
@@ -97,10 +121,69 @@ const Learning: React.FC = () => {
     markCompleteMutation.mutate({ cId: courseId, lId: selectedLessonId });
   };
 
+  const updateVideoProgressMutation = useMutation({
+    mutationFn: ({ cId, lId, time }: { cId: string, lId: string, time: number }) => progressApi.updateVideoProgress(cId, lId, time)
+  });
+
+  const addBookmarkMutation = useMutation({
+    mutationFn: ({ cId, lId, time, note }: { cId: string, lId: string, time: number, note: string }) => progressApi.addBookmark(cId, lId, time, note),
+    onSuccess: () => {
+      setShowBookmarkInput(false);
+      setBookmarkNote('');
+      queryClient.invalidateQueries({ queryKey: ['course-progress', courseId] });
+    }
+  });
+
+  const handleVideoPause = () => {
+    if (!courseId || !selectedLessonId || !videoRef.current) return;
+    updateVideoProgressMutation.mutate({ cId: courseId, lId: selectedLessonId, time: videoRef.current.currentTime });
+  };
+
+  const handleVideoLoadedMetadata = () => {
+    if (videoRef.current && progressInfo?.videoProgress && selectedLessonId) {
+      const savedTime = progressInfo.videoProgress[selectedLessonId];
+      if (savedTime) {
+        videoRef.current.currentTime = savedTime;
+      }
+    }
+  };
+
+  const handleAddBookmark = () => {
+    if (!courseId || !selectedLessonId || !videoRef.current || !bookmarkNote.trim()) return;
+    addBookmarkMutation.mutate({ cId: courseId, lId: selectedLessonId, time: videoRef.current.currentTime, note: bookmarkNote });
+  };
+
   const getYoutubeVideoId = (url: string) => {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
     return match && match[2].length === 11 ? match[2] : null;
+  };
+
+  const createDiscussionMutation = useMutation({
+    mutationFn: (content: string) => discussionApi.createDiscussion(courseId!, selectedLessonId!, content),
+    onSuccess: () => {
+      setDiscussionText('');
+      queryClient.invalidateQueries({ queryKey: ['discussions', courseId, selectedLessonId] });
+    }
+  });
+
+  const addCommentMutation = useMutation({
+    mutationFn: ({ dId, content }: { dId: string, content: string }) => discussionApi.addComment(courseId!, selectedLessonId!, dId, content),
+    onSuccess: () => {
+      setCommentText('');
+      queryClient.invalidateQueries({ queryKey: ['comments', courseId, selectedLessonId, expandedDiscussionId] });
+      queryClient.invalidateQueries({ queryKey: ['discussions', courseId, selectedLessonId] });
+    }
+  });
+
+  const handlePostDiscussion = () => {
+    if (!discussionText.trim()) return;
+    createDiscussionMutation.mutate(discussionText);
+  };
+
+  const handlePostComment = (dId: string) => {
+    if (!commentText.trim()) return;
+    addCommentMutation.mutate({ dId, content: commentText });
   };
 
   if (isLoadingLessons || isLoadingProgress) {
@@ -176,7 +259,14 @@ const Learning: React.FC = () => {
                       className="w-full h-full"
                     ></iframe>
                   ) : (
-                    <video controls className="w-full h-full object-contain" src={selectedLesson.videoUrl}>
+                    <video 
+                      ref={videoRef}
+                      controls 
+                      className="w-full h-full object-contain" 
+                      src={selectedLesson.videoUrl}
+                      onPause={handleVideoPause}
+                      onLoadedMetadata={handleVideoLoadedMetadata}
+                    >
                       Your browser does not support the video tag.
                     </video>
                   )
@@ -199,6 +289,52 @@ const Learning: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Bookmark Feature */}
+              {selectedLesson && !selectedQuiz && !getYoutubeVideoId(selectedLesson.videoUrl) && (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => setShowBookmarkInput(!showBookmarkInput)}
+                      className="flex items-center gap-2 text-sm font-medium text-indigo-500 hover:text-indigo-400"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                      Add Bookmark at Current Time
+                    </button>
+                  </div>
+                  {showBookmarkInput && (
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="text" 
+                        value={bookmarkNote}
+                        onChange={(e) => setBookmarkNote(e.target.value)}
+                        placeholder="Note for this bookmark..."
+                        className="flex-1 bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <Button onClick={handleAddBookmark} disabled={!bookmarkNote.trim() || addBookmarkMutation.isPending}>Save</Button>
+                    </div>
+                  )}
+                  {/* List Bookmarks */}
+                  {progressInfo?.bookmarks?.filter((b: any) => b.lesson === selectedLessonId).length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Bookmarks</h4>
+                      <div className="space-y-2">
+                        {progressInfo.bookmarks.filter((b: any) => b.lesson === selectedLessonId).map((bookmark: any, idx: number) => (
+                          <div key={idx} className="flex items-center gap-3 text-sm bg-slate-100 dark:bg-white/5 px-3 py-2 rounded-lg">
+                            <button 
+                              onClick={() => { if(videoRef.current) videoRef.current.currentTime = bookmark.time; }}
+                              className="text-indigo-500 hover:text-indigo-400 font-mono text-xs font-bold"
+                            >
+                              {Math.floor(bookmark.time / 60)}:{(Math.floor(bookmark.time % 60)).toString().padStart(2, '0')}
+                            </button>
+                            <span className="text-slate-700 dark:text-slate-300">{bookmark.note}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Lesson Metadata */}
               <div className="flex items-start justify-between gap-6 pb-8 border-b border-[#EAEAEA] dark:border-white/10">
@@ -249,9 +385,12 @@ const Learning: React.FC = () => {
                 />
               </div>
             </div>
+          </div>
 
+          {/* Right Column (Curriculum & Assessments) */}
+          <div className="lg:col-span-4 flex flex-col gap-8">
             {/* Typography-driven Curriculum */}
-            <div className="flex flex-col">
+            <div className="flex flex-col bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm sticky top-24">
               <div className="pt-6 pb-6 border-b border-[#EAEAEA] dark:border-white/10">
                 <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
                   Curriculum
@@ -343,82 +482,125 @@ const Learning: React.FC = () => {
             </div>
 
           </div>
-
         </div>
 
         {/* Discussion / Q&A Section (Full Width) */}
-        <div className="flex flex-col gap-8 pt-8 border-t border-[#EAEAEA] dark:border-white/10 w-full">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Discussion</h2>
-            <span className="text-sm font-medium text-slate-500">12 Comments</span>
-          </div>
-          
-          {/* Input */}
-          <div className="flex gap-4">
-            <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center font-bold shrink-0">
-              U
+        {!selectedQuiz && (
+          <div className="flex flex-col gap-8 pt-8 border-t border-[#EAEAEA] dark:border-white/10 w-full mt-12">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Discussion</h2>
+              <span className="text-sm font-medium text-slate-500">{discussions.length} Discussions</span>
             </div>
-            <div className="flex-1 flex flex-col gap-3">
-              <textarea 
-                placeholder="Ask a question or share an insight..." 
-                className="w-full min-h-[100px] resize-none bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-              />
-              <div className="flex justify-end">
-                <button className="px-5 py-2 bg-[#111111] dark:bg-white text-white dark:text-[#111111] text-sm font-medium rounded-lg hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors">
-                  Post Comment
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Comments List */}
-          <div className="flex flex-col gap-8 mt-4">
+            
+            {/* Input */}
             <div className="flex gap-4">
-              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-slate-200">
-                <img src="https://i.pravatar.cc/150?u=12" alt="User" className="w-full h-full object-cover" />
+              <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center font-bold shrink-0 uppercase overflow-hidden">
+                {user?.avatar ? <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" /> : user?.name?.charAt(0)}
               </div>
-              <div className="flex flex-col gap-1.5 w-full">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm text-slate-900 dark:text-white">Sarah Jenkins</span>
-                  <span className="text-xs text-slate-500">2 days ago</span>
-                </div>
-                <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                  I found the explanation on component architecture really helpful! Does anyone know if there's a specific pattern for handling global state in this setup?
-                </p>
-                <div className="flex items-center gap-4 mt-1 text-xs font-medium text-slate-500">
-                  <button className="hover:text-indigo-500 transition-colors">Reply</button>
-                  <button className="hover:text-indigo-500 transition-colors flex items-center gap-1">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
-                    12
+              <div className="flex-1 flex flex-col gap-3">
+                <textarea 
+                  value={discussionText}
+                  onChange={(e) => setDiscussionText(e.target.value)}
+                  placeholder="Ask a question or share an insight..." 
+                  className="w-full min-h-[100px] resize-none bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                />
+                <div className="flex justify-end">
+                  <button 
+                    onClick={handlePostDiscussion}
+                    disabled={createDiscussionMutation.isPending || !discussionText.trim()}
+                    className="px-5 py-2 bg-[#111111] dark:bg-white text-white dark:text-[#111111] text-sm font-medium rounded-lg hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors disabled:opacity-50"
+                  >
+                    Post Discussion
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-slate-200">
-                <img src="https://i.pravatar.cc/150?u=34" alt="User" className="w-full h-full object-cover" />
-              </div>
-              <div className="flex flex-col gap-1.5 w-full">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm text-slate-900 dark:text-white">Michael Chang</span>
-                  <span className="text-xs text-slate-500">4 days ago</span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Instructor</span>
+            {/* Comments List */}
+            <div className="flex flex-col gap-8 mt-4">
+              {discussions.map((discussion) => (
+                <div key={discussion._id} className="flex flex-col gap-4">
+                  <div className="flex gap-4">
+                    <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-slate-200">
+                      {discussion.author?.avatar ? (
+                        <img src={discussion.author.avatar} alt="User" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center font-bold text-slate-500 bg-slate-300">
+                          {discussion.author?.name?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1.5 w-full">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm text-slate-900 dark:text-white">{discussion.author?.name}</span>
+                        <span className="text-xs text-slate-500">{new Date(discussion.createdAt).toLocaleDateString()}</span>
+                        {discussion.author?.role === 'teacher' && <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Instructor</span>}
+                      </div>
+                      <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                        {discussion.content}
+                      </p>
+                      <div className="flex items-center gap-4 mt-1 text-xs font-medium text-slate-500">
+                        <button 
+                          onClick={() => setExpandedDiscussionId(expandedDiscussionId === discussion._id ? null : discussion._id)}
+                          className="hover:text-indigo-500 transition-colors"
+                        >
+                          {expandedDiscussionId === discussion._id ? 'Hide Replies' : 'Reply'}
+                        </button>
+                        <span className="flex items-center gap-1 text-slate-400">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                          {discussion.commentsCount}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {expandedDiscussionId === discussion._id && (
+                    <div className="ml-14 pl-4 border-l-2 border-slate-100 dark:border-slate-800 flex flex-col gap-6">
+                      {comments.map((comment) => (
+                        <div key={comment._id} className="flex gap-3">
+                          <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-slate-200">
+                            {comment.author?.avatar ? (
+                              <img src={comment.author.avatar} alt="User" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center font-bold text-slate-500 bg-slate-300 text-xs">
+                                {comment.author?.name?.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-1 w-full">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm text-slate-900 dark:text-white">{comment.author?.name}</span>
+                              <span className="text-xs text-slate-500">{new Date(comment.createdAt).toLocaleDateString()}</span>
+                              {comment.author?.role === 'teacher' && <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Instructor</span>}
+                            </div>
+                            <p className="text-sm text-slate-600 dark:text-slate-300">{comment.content}</p>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      <div className="flex gap-3 mt-2">
+                        <input 
+                          type="text" 
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          placeholder="Write a reply..."
+                          className="flex-1 bg-slate-50 dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <button 
+                          onClick={() => handlePostComment(discussion._id)}
+                          disabled={!commentText.trim() || addCommentMutation.isPending}
+                          className="px-4 py-2 bg-indigo-500 text-white text-sm font-medium rounded-lg hover:bg-indigo-600 transition-colors disabled:opacity-50"
+                        >
+                          Reply
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                  Great question Sarah. In the next module, we dive deep into Context API vs Redux. For now, keep your state localized as much as possible to avoid unnecessary re-renders.
-                </p>
-                <div className="flex items-center gap-4 mt-1 text-xs font-medium text-slate-500">
-                  <button className="hover:text-indigo-500 transition-colors">Reply</button>
-                  <button className="hover:text-indigo-500 transition-colors flex items-center gap-1">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
-                    34
-                  </button>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       <Toast

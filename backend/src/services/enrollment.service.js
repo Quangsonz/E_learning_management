@@ -1,5 +1,7 @@
 const enrollmentRepository = require('../repositories/enrollment.repository');
 const courseRepository = require('../repositories/course.repository');
+const progressRepository = require('../repositories/progress.repository');
+const notificationService = require('./notification.service');
 const AppError = require('../utils/appError');
 
 class EnrollmentService {
@@ -25,7 +27,25 @@ class EnrollmentService {
       paymentStatus
     };
 
-    return await enrollmentRepository.create(enrollmentData);
+    const newEnrollment = await enrollmentRepository.create(enrollmentData);
+
+    // 5. Khởi tạo Tiến độ học tập (Progress)
+    await progressRepository.create({
+      student: user.id,
+      course: courseId,
+      progressPercentage: 0
+    });
+
+    // 6. Gửi Notification
+    await notificationService.createNotification({
+      recipient: user.id,
+      title: 'Đăng ký khóa học thành công!',
+      message: `Bạn đã đăng ký thành công khóa học "${course.title}". Hãy bắt đầu học ngay nhé.`,
+      type: 'course',
+      link: `/courses/${courseId}/learn`
+    });
+
+    return newEnrollment;
   }
 
   async unenrollCourse(courseId, user) {

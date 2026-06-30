@@ -103,4 +103,7 @@ router.get('/:courseId', progressController.getCourseProgress);
  */
 router.post('/:courseId/lessons/:lessonId/complete', progressController.markComplete);
 
+router.post('/:courseId/lessons/:lessonId/video-progress', progressController.updateVideoProgress);
+router.post('/:courseId/lessons/:lessonId/bookmarks', progressController.addBookmark);
+
 module.exports = router;

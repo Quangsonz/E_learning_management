@@ -57,5 +57,9 @@ export const courseApi = {
   deleteCourse: async (id: string): Promise<void> => {
     const response = await axiosInstance.delete(`/courses/${id}`);
     return response.data;
+  },
+  getRecommendations: async (): Promise<any> => {
+    const response = await axiosInstance.get('/courses/recommendations');
+    return response.data;
   }
 };

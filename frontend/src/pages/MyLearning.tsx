@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
   CanvasHero,
   EmptyState,
@@ -15,6 +16,7 @@ import { progressApi } from '../services/progress.api';
 const MotionDiv = motion.div as unknown as React.FC<React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>>;
 
 const MyLearning: React.FC = () => {
+  const { t } = useTranslation();
   const { data: statsData, isLoading } = useQuery({
     queryKey: ['learning-statistics'],
     queryFn: () => progressApi.getLearningStatistics()
@@ -24,9 +26,9 @@ const MyLearning: React.FC = () => {
   const enrolledCourses = stats?.details || [];
 
   const catalogMetrics = [
-    { label: 'Total Enrolled', value: stats?.totalEnrolled || 0 },
-    { label: 'Ongoing', value: stats?.ongoingCourses || 0 },
-    { label: 'Completed', value: stats?.completedCourses || 0 },
+    { label: t('learning.metrics.total'), value: stats?.totalEnrolled || 0 },
+    { label: t('learning.metrics.ongoing'), value: stats?.ongoingCourses || 0 },
+    { label: t('learning.metrics.completed'), value: stats?.completedCourses || 0 },
   ];
 
   const categoryAccent: Record<string, string> = {
@@ -42,17 +44,17 @@ const MyLearning: React.FC = () => {
   return (
     <PageShell wide>
       <CanvasHero
-        badge={<div className="badge">My Learning</div>}
-        eyebrow="Pick up where you left off"
-        title="Your personal learning workspace"
-        description="Track your progress, continue your courses, and take smart quizzes based on your recent activity."
+        badge={<div className="badge">{t('learning.title')}</div>}
+        eyebrow={t('learning.eyebrow')}
+        title={t('learning.heroTitle')}
+        description={t('learning.heroDesc')}
         glow="cool"
       />
 
       <MetricsSurface metrics={catalogMetrics} />
 
       <section className="mt-16 space-y-6">
-        <SectionLead label="Enrolled Courses" title="Continue Learning" size="md" />
+        <SectionLead label={t('learning.enrolled')} title={t('learning.continue')} size="md" />
         
         {isLoading ? (
           <SkeletonGrid count={3} />
@@ -92,7 +94,7 @@ const MyLearning: React.FC = () => {
                     
                     <div className="mt-2">
                       <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
-                        <span className="uppercase tracking-wider">Progress</span>
+                        <span className="uppercase tracking-wider">{t('learning.progress')}</span>
                         <span className="tabular-nums text-slate-900 dark:text-white">{progress.progressPercentage}%</span>
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -111,8 +113,8 @@ const MyLearning: React.FC = () => {
           </div>
         ) : (
           <EmptyState
-            title="No courses yet"
-            message="You haven't enrolled in any courses yet. Explore our catalog to get started."
+            title={t('learning.noCourses')}
+            message={t('learning.noCoursesMsg')}
           />
         )}
       </section>

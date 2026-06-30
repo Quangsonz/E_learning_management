@@ -8,7 +8,20 @@ const progressSchema = new mongoose.Schema({
   // Dashboard fields
   lastAccessedLesson: { type: mongoose.Schema.Types.ObjectId, ref: 'Lesson', default: null },
   isCompleted: { type: Boolean, default: false },
-  lastStudiedAt: { type: Date, default: null } // Dùng để tính study streak
+  lastStudiedAt: { type: Date, default: null }, // Dùng để tính study streak
+  
+  // Advanced Video Learning
+  videoProgress: {
+    type: Map,
+    of: Number,
+    default: {}
+  }, // Lưu vị trí thời gian video cho từng bài giảng (giây)
+  bookmarks: [{
+    lesson: { type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' },
+    time: Number, // Giây
+    note: String,
+    createdAt: { type: Date, default: Date.now }
+  }]
 }, { timestamps: true });
 
 // Chỉ có 1 bản ghi tiến trình duy nhất cho mỗi học viên tại 1 khóa học

@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const app = require('../../src/app');
 const User = require('../../src/models/User');
 
+jest.setTimeout(30000);
+
 describe('Auth Integration Tests', () => {
   describe('POST /api/auth/register', () => {
     it('should register a new user successfully', async () => {

@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import SiteLayout from './components/layout/SiteLayout';
 import AppErrorBoundary from './components/layout/AppErrorBoundary';
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -25,6 +26,7 @@ import ResetPassword from './pages/auth/ResetPassword';
 import Splash from './pages/Splash';
 import Settings from './pages/Settings';
 import Leaderboard from './pages/Leaderboard';
+import CertificateVerify from './pages/CertificateVerify';
 
 // Các routes không cần SiteLayout (không có header/sidebar)
 const noLayoutPaths = [
@@ -35,21 +37,25 @@ const noLayoutPaths = [
   '/splash',
   '/admin-dashboard',
   '/unauthorized',
+  '/certificates/verify',
 ];
 
 // Trang hiển thị khi không có quyền truy cập
-const UnauthorizedPage: React.FC = () => (
-  <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-    <div className="text-center space-y-4">
-      <h1 className="text-4xl font-black text-rose-400">403</h1>
-      <p className="text-xl font-bold">Không có quyền truy cập</p>
-      <p className="text-slate-400">Bạn không đủ quyền hạn để xem trang này.</p>
-      <a href="/home" className="inline-block mt-4 px-6 py-2 bg-indigo-600 rounded-xl hover:bg-indigo-500 transition-colors">
-        Về trang chủ
-      </a>
+const UnauthorizedPage: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+      <div className="text-center space-y-4">
+        <h1 className="text-4xl font-black text-rose-400">403</h1>
+        <p className="text-xl font-bold">{t('app.unauthorized.title')}</p>
+        <p className="text-slate-400">{t('app.unauthorized.desc')}</p>
+        <a href="/home" className="inline-block mt-4 px-6 py-2 bg-indigo-600 rounded-xl hover:bg-indigo-500 transition-colors">
+          {t('app.unauthorized.back')}
+        </a>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const AppRoutes: React.FC = () => (
   <Routes>
@@ -63,6 +69,7 @@ const AppRoutes: React.FC = () => (
     <Route path="/forgot-password" element={<ForgotPassword />} />
     <Route path="/reset-password" element={<ResetPassword />} />
     <Route path="/unauthorized" element={<UnauthorizedPage />} />
+    <Route path="/certificates/verify/:certificateId" element={<CertificateVerify />} />
 
     {/* ==========================================
         PROTECTED ROUTES - Yêu cầu đăng nhập

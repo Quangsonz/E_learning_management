@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
   Button,
   CanvasHero,
@@ -34,12 +35,15 @@ type Course = {
 
 
 
-const catalogMetrics = [
-  { label: 'Active Learners', value: '24.8k' },
-  { label: 'Available Courses', value: '128' },
-  { label: 'Weekly Completion', value: '86%' },
-  { label: 'Avg. Rating', value: '4.8' }
-];
+const useCatalogMetrics = () => {
+  const { t } = useTranslation();
+  return [
+    { label: t('courses.metrics.activeLearners'), value: '24.8k' },
+    { label: t('courses.metrics.availableCourses'), value: '128' },
+    { label: t('courses.metrics.weeklyCompletion'), value: '86%' },
+    { label: t('courses.metrics.avgRating'), value: '4.8' }
+  ];
+};
 
 const MotionDiv = motion.div as unknown as React.FC<React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>>;
 
@@ -168,17 +172,19 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
 };
 
 const CourseList: React.FC = () => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [activeCategoryId, setActiveCategoryId] = useState('');
   const [popPage, setPopPage] = useState(1);
   const [trendPage, setTrendPage] = useState(1);
   const [page, setPage] = useState(1);
+  const catalogMetrics = useCatalogMetrics();
 
   const { data: categoryData } = useQuery({
     queryKey: ['categories'],
     queryFn: () => categoryApi.getAllCategories()
   });
-  const categories = [{ _id: '', name: 'All' }, ...(categoryData?.data?.categories || [])];
+  const categories = [{ _id: '', name: t('home.categories.all') }, ...(categoryData?.data?.categories || [])];
 
   const { data: popData, isLoading: popLoading } = useQuery({
     queryKey: ['courses-popular', query, activeCategoryId, popPage],
@@ -251,21 +257,21 @@ const CourseList: React.FC = () => {
   return (
     <PageShell wide>
       <CanvasHero
-        badge={<div className="badge">Course catalog</div>}
-        eyebrow="Find your next learning path"
-        title="Modern courses with a calm, premium, and motivating browsing experience."
-        description="Inspired by Coursera structure, Duolingo energy, and Notion clarity. Search by topic, filter by category, and jump into popular or trending learning tracks."
+        badge={<div className="badge">{t('courses.hero.badge')}</div>}
+        eyebrow={t('courses.hero.eyebrow')}
+        title={t('courses.hero.title')}
+        description={t('courses.hero.desc')}
         glow="cool"
         aside={
           <MotionDiv className="mx-auto max-w-[240px] lg:-ml-16" animate={floatY(6, 5.8)}>
             <div className="relative rounded-[var(--radius-section)] bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 px-6 py-5 text-white shadow-[0_24px_64px_rgba(15,23,42,0.2)]">
-              <p className="section-label !text-white/55">Discover</p>
-              <h2 className="mt-2 text-xl font-semibold tracking-tight">Learn in a space that feels alive.</h2>
+              <p className="section-label !text-white/55">{t('courses.hero.discover')}</p>
+              <h2 className="mt-2 text-xl font-semibold tracking-tight">{t('courses.hero.title2')}</h2>
               <p className="mt-3 text-sm leading-relaxed text-white/70">
-                Browse a course library built to feel polished, engaging, and easy to scan.
+                {t('courses.hero.desc2')}
               </p>
               <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-xs font-medium text-white/75">
-                {['Smooth transition', 'Hover lift', 'Lazy loading', 'Progress tracking'].map((item) => (
+                {[t('courses.hero.features.f1'), t('courses.hero.features.f2'), t('courses.hero.features.f3'), t('courses.hero.features.f4')].map((item) => (
                   <span key={item} className="flex items-center gap-1.5">
                     <span className="h-1 w-1 rounded-full bg-cyan-400" />
                     {item}
@@ -285,7 +291,7 @@ const CourseList: React.FC = () => {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search courses, teachers, or skills"
+            placeholder={t('courses.filter.search')}
             icon={
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 <path
@@ -323,15 +329,15 @@ const CourseList: React.FC = () => {
 
       <section className="mt-10 space-y-6">
         <SectionLead
-          label="Popular Courses"
-          title="Most loved by learners"
+          label={t('courses.list.popular')}
+          title={t('courses.list.popularDesc')}
           size="md"
           meta={
             <div className="flex items-center gap-2">
-              <span className="text-sm tabular-nums text-slate-400">Page {popPage} of {popTotalPages}</span>
+              <span className="text-sm tabular-nums text-slate-400">{t('courses.list.page')} {popPage} {t('courses.list.of')} {popTotalPages}</span>
               <div className="flex gap-1 ml-3">
-                <Button variant="outline" size="sm" className="!px-3 !py-1 !h-8" onClick={handlePrevPop} disabled={popPage === 1}>Prev</Button>
-                <Button variant="outline" size="sm" className="!px-3 !py-1 !h-8" onClick={handleNextPop} disabled={popPage === popTotalPages}>Next</Button>
+                <Button variant="outline" size="sm" className="!px-3 !py-1 !h-8" onClick={handlePrevPop} disabled={popPage === 1}>{t('courses.list.prev')}</Button>
+                <Button variant="outline" size="sm" className="!px-3 !py-1 !h-8" onClick={handleNextPop} disabled={popPage === popTotalPages}>{t('courses.list.next')}</Button>
               </div>
             </div>
           }
@@ -347,23 +353,23 @@ const CourseList: React.FC = () => {
           </div>
         ) : (
           <EmptyState
-            title="No popular courses found"
-            message="Try a different keyword or category. Popular courses will appear here when your filters match available content."
+            title={t('courses.list.noCourses')}
+            message={t('courses.list.adjustFilter')}
           />
         )}
       </section>
 
       <section className="mt-12 space-y-6">
         <SectionLead 
-          label="Trending Courses" 
-          title="What is hot right now" 
+          label={t('courses.list.trending')} 
+          title={t('courses.list.trendingDesc')} 
           size="md" 
           meta={
             <div className="flex items-center gap-2">
-              <span className="text-sm tabular-nums text-slate-400">Page {trendPage} of {trendTotalPages}</span>
+              <span className="text-sm tabular-nums text-slate-400">{t('courses.list.page')} {trendPage} {t('courses.list.of')} {trendTotalPages}</span>
               <div className="flex gap-1 ml-3">
-                <Button variant="outline" size="sm" className="!px-3 !py-1 !h-8" onClick={handlePrevTrend} disabled={trendPage === 1}>Prev</Button>
-                <Button variant="outline" size="sm" className="!px-3 !py-1 !h-8" onClick={handleNextTrend} disabled={trendPage === trendTotalPages}>Next</Button>
+                <Button variant="outline" size="sm" className="!px-3 !py-1 !h-8" onClick={handlePrevTrend} disabled={trendPage === 1}>{t('courses.list.prev')}</Button>
+                <Button variant="outline" size="sm" className="!px-3 !py-1 !h-8" onClick={handleNextTrend} disabled={trendPage === trendTotalPages}>{t('courses.list.next')}</Button>
               </div>
             </div>
           } 
@@ -379,14 +385,14 @@ const CourseList: React.FC = () => {
           </div>
         ) : (
           <EmptyState
-            title="No trending courses found"
-            message="Trending content is hidden by the current filters. Adjust the search or category to reveal matching courses."
+            title={t('courses.list.noCourses')}
+            message={t('courses.list.adjustFilter')}
           />
         )}
       </section>
 
       <section className="mt-16 space-y-6">
-        <SectionLead label="Complete Catalog" title="All Courses" size="md" meta={<p className="text-sm text-slate-400">Page {page} of {totalPages}</p>} />
+        <SectionLead label={t('courses.list.allCoursesDesc')} title={t('courses.list.allCourses')} size="md" meta={<p className="text-sm text-slate-400">{t('courses.list.page')} {page} {t('courses.list.of')} {totalPages}</p>} />
         
         {isLoading ? (
           <SkeletonGrid count={6} />
@@ -402,21 +408,21 @@ const CourseList: React.FC = () => {
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-4 mt-12">
                 <Button variant="outline" onClick={handlePrevPage} disabled={page === 1}>
-                  Previous
+                  {t('courses.list.prev')}
                 </Button>
                 <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-                  Page {page} of {totalPages}
+                  {t('courses.list.page')} {page} {t('courses.list.of')} {totalPages}
                 </span>
                 <Button variant="outline" onClick={handleNextPage} disabled={page === totalPages}>
-                  Next
+                  {t('courses.list.next')}
                 </Button>
               </div>
             )}
           </>
         ) : (
           <EmptyState
-            title="No courses found"
-            message="We couldn't find any courses matching your criteria."
+            title={t('courses.list.noCourses')}
+            message={t('courses.list.adjustFilter')}
           />
         )}
       </section>

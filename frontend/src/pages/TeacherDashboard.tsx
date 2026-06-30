@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { analyticsApi } from '../services/analytics.api';
+import {
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
+} from 'recharts';
 import {
   Button,
   CanvasHero,
@@ -81,19 +86,34 @@ const useCountUp = (target: number, duration = 1200) => {
 
 const TeacherDashboard: React.FC = () => {
   const [showPulse, setShowPulse] = useState(true);
-  const isLoading = useSimulatedLoading(900);
-  const revenueValue = useCountUp(48200);
-  const studentsValue = useCountUp(3842);
-  const coursesValue = useCountUp(18);
-  const passRateValue = useCountUp(92);
+
+  const { data: analyticsResponse, isLoading } = useQuery({
+    queryKey: ['teacher-analytics'],
+    queryFn: () => analyticsApi.getTeacherDashboard()
+  });
+
+  const dashboardData = analyticsResponse?.data;
+  const overview = dashboardData?.overview;
+  const monthlyEnrollments = dashboardData?.monthlyEnrollments || [];
+  const courseStats = dashboardData?.courseStats || [];
+  const quizResults = dashboardData?.quizResults || [];
+  const dropOffAnalysis = dashboardData?.dropOffAnalysis || [];
+
+  const revenueValue = useCountUp(overview?.totalRevenue || 0);
+  const studentsValue = useCountUp(overview?.totalStudents || 0);
+  const coursesValue = useCountUp(overview?.totalCourses || 0);
+  const passRateValue = useCountUp(quizResults.length > 0 ? (quizResults[0]?.passRate || 0) : 0);
 
   useEffect(() => {
     const timer = window.setInterval(() => setShowPulse((current) => !current), 2200);
     return () => window.clearInterval(timer);
   }, []);
 
-  const revenueMax = useMemo(() => Math.max(...revenueSeries.map((item) => item.value)), []);
-  const studentMax = useMemo(() => Math.max(...studentSeries.map((item) => item.value)), []);
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const enrollmentChartData = monthlyEnrollments.map((item: any) => ({
+    label: monthNames[item.month - 1] || `Month ${item.month}`,
+    value: item.enrollments
+  }));
 
   const metrics = [
     { label: 'Revenue', value: `$${(revenueValue / 1000).toFixed(1)}k`, delta: '+18.4% this month' },
@@ -126,17 +146,18 @@ const TeacherDashboard: React.FC = () => {
               <p className="section-label !text-white/55">Live Statistics</p>
               <h2 className="mt-2 text-xl font-semibold tracking-tight">Your LMS is performing strongly.</h2>
               <div className="mt-4 space-y-2.5 text-sm">
-                {[
-                  { label: 'Revenue growth', value: '+18.4%' },
-                  { label: 'Student retention', value: '91.2%' },
-                  { label: 'Completion rate', value: '84.7%' },
-                  { label: 'Quiz average', value: '92.0%' }
-                ].map((item) => (
-                  <div key={item.label} className="flex items-baseline justify-between gap-4">
-                    <span className="text-white/60">{item.label}</span>
-                    <span className="font-semibold tabular-nums">{item.value}</span>
-                  </div>
-                ))}
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="text-white/60">Total Revenue</span>
+                  <span className="font-semibold tabular-nums">${overview?.totalRevenue?.toLocaleString() || 0}</span>
+                </div>
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="text-white/60">Total Students</span>
+                  <span className="font-semibold tabular-nums">{overview?.totalStudents?.toLocaleString() || 0}</span>
+                </div>
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="text-white/60">Completions</span>
+                  <span className="font-semibold tabular-nums">{overview?.completionCount?.toLocaleString() || 0}</span>
+                </div>
               </div>
             </div>
           </MotionDiv>
@@ -153,71 +174,53 @@ const TeacherDashboard: React.FC = () => {
 
       <section className="mt-10 grid gap-10 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,0.72fr)] xl:gap-12">
         <div className="space-y-10">
-          <ChartBlock label="Monthly revenue trend" title="Revenue Analytics" badge={<span className="text-xs font-medium text-slate-400">Live</span>}>
-            <div className="canvas-chart-area">
-              <div className="flex items-end justify-between gap-2">
-                {revenueSeries.map((point, index) => {
-                  const height = (point.value / revenueMax) * 190;
-                  return (
-                    <div key={point.label} className="flex flex-1 flex-col items-center gap-2">
-                      <MotionDiv
-                        className="w-full max-w-[42px] rounded-t-[20px] chart-bar-growth"
-                        initial={{ height: 0 }}
-                        animate={{ height }}
-                        transition={{ duration: 0.8, delay: index * 0.05 }}
-                      />
-                      <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{point.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
+          <ChartBlock label="Drop-off Analysis" title="Student Retention" badge={<span className="text-xs font-medium text-slate-400">Live</span>}>
+            <div className="canvas-chart-area h-64 mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dropOffAnalysis} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.2} horizontal={false} />
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="lessonTitle" type="category" width={150} tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <RechartsTooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ borderRadius: '12px', border: 'none', background: '#0f172a', color: '#fff' }} />
+                  <Bar dataKey="dropOffCount" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </ChartBlock>
 
           <div className="grid gap-10 lg:grid-cols-2">
-            <ChartBlock label="Weekly enrollment growth" title="Student Analytics">
-              <div className="canvas-chart-area">
-                <div className="flex h-56 items-end gap-4">
-                  {studentSeries.map((point, index) => {
-                    const height = (point.value / studentMax) * 170;
-                    return (
-                      <div key={point.label} className="flex flex-1 flex-col items-center gap-2">
-                        <MotionDiv
-                          className={`w-full rounded-t-[22px] ${
-                            showPulse && index === studentSeries.length - 1
-                              ? 'chart-bar-success'
-                              : 'chart-bar-neutral'
-                          }`}
-                          initial={{ height: 0 }}
-                          animate={{ height }}
-                          transition={{ duration: 0.85, delay: index * 0.06 }}
-                        />
-                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{point.label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+            <ChartBlock label="Monthly enrollment growth" title="Student Analytics">
+              <div className="canvas-chart-area h-56 mt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={enrollmentChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.2} vertical={false} />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                    <RechartsTooltip cursor={{ stroke: 'rgba(255,255,255,0.1)' }} contentStyle={{ borderRadius: '12px', border: 'none', background: '#0f172a', color: '#fff' }} />
+                    <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={4} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 0 }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
             </ChartBlock>
 
-            <ChartBlock label="Quiz performance split" title="Quiz Analytics">
+            <ChartBlock label="Quiz performance" title="Quiz Analytics">
               <div className="canvas-chart-area space-y-4">
-                {quizPerformance.map((item, index) => (
-                  <div key={item.label} className="space-y-2">
+                {quizResults.map((item: any, index: number) => (
+                  <div key={item.quizTitle} className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-slate-600 dark:text-slate-300">{item.label}</span>
-                      <span className="font-semibold tabular-nums text-slate-950 dark:text-white">{item.value}%</span>
+                      <span className="font-medium text-slate-600 dark:text-slate-300 line-clamp-1 mr-4">{item.quizTitle}</span>
+                      <span className="font-semibold tabular-nums text-slate-950 dark:text-white shrink-0">{item.passRate}%</span>
                     </div>
                     <div className="progress-track">
                       <MotionDiv
                         className="progress-fill chart-bar-growth"
                         initial={{ width: 0 }}
-                        animate={{ width: `${item.value}%` }}
+                        animate={{ width: `${item.passRate}%` }}
                         transition={{ duration: 0.8, delay: index * 0.08 }}
                       />
                     </div>
                   </div>
                 ))}
+                {quizResults.length === 0 && <p className="text-sm text-slate-500">No quiz data available.</p>}
               </div>
             </ChartBlock>
           </div>
@@ -225,9 +228,9 @@ const TeacherDashboard: React.FC = () => {
           <div>
             <SectionLead label="Course health overview" title="Course Analytics" size="md" />
             <div className="mt-5">
-              {courseMetrics.map((course, index) => (
+              {courseStats.map((course: any, index: number) => (
                 <MotionDiv
-                  key={course.title}
+                  key={course._id}
                   className="flex flex-col gap-3 py-4 border-b border-slate-100 last:border-0 lg:flex-row lg:items-center lg:justify-between"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -235,14 +238,15 @@ const TeacherDashboard: React.FC = () => {
                 >
                   <div>
                     <h4 className="text-lg font-semibold text-slate-950 dark:text-white">{course.title}</h4>
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{course.students}</p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{course.enrollmentCount} students enrolled</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-slate-600 dark:text-slate-300">
-                    <span>{course.completion}</span>
-                    <span className="font-semibold text-primary-600">{course.revenue}</span>
+                    <span>{course.avgProgress?.toFixed(1) || 0}% completion</span>
+                    <span className="font-semibold text-primary-600">${course.price}</span>
                   </div>
                 </MotionDiv>
               ))}
+              {courseStats.length === 0 && <p className="text-sm text-slate-500">No courses published yet.</p>}
             </div>
           </div>
         </div>

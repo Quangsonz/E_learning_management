@@ -179,6 +179,22 @@ const ProfileHero: React.FC = () => {
                 Verified Account
               </div>
             )}
+            
+            {/* XP & Level Badge */}
+            <div className="flex items-center gap-3 mt-4">
+              <div className="flex flex-col">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Level {user?.level || 1}</div>
+                <div className="flex items-center gap-2">
+                  <div className="w-32 h-2 bg-slate-800 rounded-full overflow-hidden border border-white/5">
+                    <div 
+                      className="h-full bg-gradient-to-r from-indigo-500 to-cyan-400" 
+                      style={{ width: `${Math.min(((user?.xp || 0) % 100), 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-bold text-indigo-400">{user?.xp || 0} XP</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -209,29 +225,114 @@ const ProfileHero: React.FC = () => {
 // ============================================================================
 
 const LearningStory: React.FC = () => {
+  const user = useSelector(selectCurrentUser);
+  const totalFocusHours = user?.totalFocusMinutes ? Math.round(user.totalFocusMinutes / 60) : 0;
+  const lessonsCompleted = user?.studyHistory?.reduce((acc: number, curr: any) => acc + (curr.lessonsCompleted || 0), 0) || 0;
+
+  // Heatmap generation
+  const today = new Date();
+  const getDaysArray = function(start: Date, end: Date) {
+      for(var arr=[],dt=new Date(start); dt<=new Date(end); dt.setDate(dt.getDate()+1)){
+          arr.push(new Date(dt).toISOString().split('T')[0]);
+      }
+      return arr;
+  };
+  
+  const past30Days = new Date(today);
+  past30Days.setDate(past30Days.getDate() - 29);
+  const dayLabels = getDaysArray(past30Days, today);
+
+  const historyMap = new Map();
+  if (user?.studyHistory) {
+    user.studyHistory.forEach((h: any) => historyMap.set(h.date, h));
+  }
+
   return (
-    <section className="py-12 border-b border-slate-200 dark:border-white/5">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-12 md:gap-8">
-        <div>
-          <p className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white">0</p>
-          <p className="text-sm font-bold uppercase tracking-widest text-slate-500 mt-2">Hours Learned</p>
+    <div className="space-y-12">
+      <section className="py-8 border-b border-slate-200 dark:border-white/5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-12 md:gap-8 mb-12">
+          <div>
+            <p className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white">{totalFocusHours}</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-slate-500 mt-2">Hours Learned</p>
+          </div>
+          <div>
+            <p className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white">{lessonsCompleted}</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-slate-500 mt-2">Lessons Done</p>
+          </div>
+          <div>
+            <p className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white">
+              {user?.xp || 0}
+            </p>
+            <p className="text-sm font-bold uppercase tracking-widest text-slate-500 mt-2">Total XP</p>
+          </div>
+          <div>
+            <p className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white">{user?.studyStreakDays || 0}</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-slate-500 mt-2">Day Streak</p>
+          </div>
         </div>
-        <div>
-          <p className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white">0</p>
-          <p className="text-sm font-bold uppercase tracking-widest text-slate-500 mt-2">Courses Done</p>
+        
+        {/* Achievements Section */}
+        <div className="space-y-8">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl p-6 shadow-sm">
+            <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white mb-6">Achievements</h3>
+            {(!user?.badges || user.badges.length === 0) ? (
+              <div className="text-center py-6">
+                <span className="text-3xl mb-2 block opacity-50">🏆</span>
+                <p className="text-xs font-medium text-slate-500">No badges earned yet.</p>
+                <p className="text-[10px] text-slate-400 mt-1">Keep learning to unlock achievements!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                {user.badges.map((badge, idx) => (
+                  <div key={idx} className="flex flex-col items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-white/5 rounded-2xl relative group">
+                    <span className="text-2xl">{badge.icon}</span>
+                    <span className="text-[10px] font-bold text-center text-slate-600 dark:text-slate-300 line-clamp-2">{badge.name}</span>
+                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-10">
+                      {badge.description}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-        <div>
-          <p className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white">
-            0<span className="text-3xl text-indigo-500">%</span>
-          </p>
-          <p className="text-sm font-bold uppercase tracking-widest text-slate-500 mt-2">Avg Score</p>
+      </section>
+
+      <section className="p-8 rounded-3xl border border-slate-200 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02]">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Learning Activity (Last 30 Days)</h3>
+        <div className="flex flex-wrap gap-2">
+          {dayLabels.map(dateStr => {
+            const record = historyMap.get(dateStr);
+            const intensity = record ? Math.min(record.lessonsCompleted, 4) : 0;
+            const colors = [
+              'bg-slate-200 dark:bg-slate-800',
+              'bg-indigo-300 dark:bg-indigo-900/40',
+              'bg-indigo-400 dark:bg-indigo-800/60',
+              'bg-indigo-500 dark:bg-indigo-600',
+              'bg-indigo-600 dark:bg-indigo-500'
+            ];
+            return (
+              <div 
+                key={dateStr}
+                title={`${dateStr}: ${record?.lessonsCompleted || 0} lessons`}
+                className={`w-4 h-4 rounded-sm ${colors[intensity]} transition-colors duration-300 hover:ring-2 hover:ring-indigo-400 hover:ring-offset-1 hover:ring-offset-transparent cursor-pointer`}
+              />
+            )
+          })}
         </div>
-        <div>
-          <p className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white">0</p>
-          <p className="text-sm font-bold uppercase tracking-widest text-slate-500 mt-2">Certificates</p>
+        <div className="flex items-center gap-2 mt-4 text-xs font-medium text-slate-500">
+          <span>Less</span>
+          <div className="flex gap-1">
+            <div className="w-3 h-3 rounded-sm bg-slate-200 dark:bg-slate-800"></div>
+            <div className="w-3 h-3 rounded-sm bg-indigo-300 dark:bg-indigo-900/40"></div>
+            <div className="w-3 h-3 rounded-sm bg-indigo-400 dark:bg-indigo-800/60"></div>
+            <div className="w-3 h-3 rounded-sm bg-indigo-500 dark:bg-indigo-600"></div>
+            <div className="w-3 h-3 rounded-sm bg-indigo-600 dark:bg-indigo-500"></div>
+          </div>
+          <span>More</span>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 };
 

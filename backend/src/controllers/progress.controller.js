@@ -38,6 +38,30 @@ class ProgressController {
       },
     });
   });
+
+  updateVideoProgress = catchAsync(async (req, res, next) => {
+    const { courseId, lessonId } = req.params;
+    const { time } = req.body;
+
+    const progress = await progressService.updateVideoProgress(courseId, lessonId, req.user.id, time);
+
+    res.status(200).json({
+      status: 'success',
+      data: { progress }
+    });
+  });
+
+  addBookmark = catchAsync(async (req, res, next) => {
+    const { courseId, lessonId } = req.params;
+    const { time, note } = req.body;
+
+    const progress = await progressService.addBookmark(courseId, lessonId, req.user.id, time, note);
+
+    res.status(201).json({
+      status: 'success',
+      data: { progress }
+    });
+  });
 }
 
 module.exports = new ProgressController();
