@@ -7,11 +7,11 @@ const { requirePermission } = require('../middlewares/permissionMiddleware');
 // mergeParams: true giúp nhận được params từ nested route (VD: /courses/:courseId/lessons)
 const router = express.Router({ mergeParams: true });
 
-router.use(authMiddleware.protect);
+// Học viên/khách có thể xem danh sách bài giảng (để render Curriculum)
+router.get('/', authMiddleware.optionalProtect, lessonController.getLessons);
+router.get('/:id', authMiddleware.optionalProtect, lessonController.getLesson);
 
-// Học viên có thể xem danh sách bài giảng (Chặn access video ở cấp thấp hơn hoặc Font-end)
-router.get('/', lessonController.getLessons);
-router.get('/:id', lessonController.getLesson);
+router.use(authMiddleware.protect);
 
 // Chỉ Teacher và Admin mới được thao tác thêm, sửa, xóa bài giảng
 router.use(requireRole('admin', 'teacher'));

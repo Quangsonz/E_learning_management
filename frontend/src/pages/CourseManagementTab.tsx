@@ -171,6 +171,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
     mutationFn: (data: any) => courseApi.createCourse(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
       setToast('Course created successfully.');
       setCreateOpen(false);
     },
@@ -183,6 +184,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
     mutationFn: ({ id, data }: { id: string; data: any }) => courseApi.updateCourse(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
       setToast('Course updated successfully.');
       setEditOpen(false);
       setEditingCourse(null);

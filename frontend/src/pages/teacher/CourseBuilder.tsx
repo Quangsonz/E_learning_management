@@ -20,6 +20,8 @@ const CourseBuilder = () => {
     mutationFn: (data: any) => courseApi.createCourse(data),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['teacher-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
       setToast({ message: 'Course created successfully!', type: 'success' });
       // Redirect to the detailed curriculum editor
       const newCourseId = res?.data?.course?._id;

@@ -6,6 +6,7 @@ import { LoadingScreen, Toast, Button, EmptyState } from '../components/ui';
 import { lessonApi, Lesson as ApiLesson } from '../services/lesson.api';
 import { progressApi } from '../services/progress.api';
 import { quizApi } from '../services/quiz.api';
+import { enrollmentApi } from '../services/enrollment.api';
 import { discussionApi, Discussion, Comment } from '../services/discussion.api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -45,7 +46,7 @@ const Learning: React.FC = () => {
   const [discussionText, setDiscussionText] = useState('');
   const [expandedDiscussionId, setExpandedDiscussionId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
 
   const { data: lessonsData, isLoading: isLoadingLessons, error } = useQuery({
     queryKey: ['lessons', courseId],
@@ -59,6 +60,19 @@ const Learning: React.FC = () => {
     queryFn: () => progressApi.getCourseProgress(courseId!),
     enabled: !!courseId
   });
+
+  const { data: enrollmentsData, isLoading: isLoadingEnrollments } = useQuery({
+    queryKey: ['my-enrollments'],
+    queryFn: () => enrollmentApi.getMyEnrollments()
+  });
+
+  const isEnrolled = useMemo(() => {
+    if (!enrollmentsData?.enrollments || !courseId) return false;
+    // Kiểm tra mảng enrollments, nếu enrollment.course là string hay object
+    return enrollmentsData.enrollments.some((e: any) => 
+      (typeof e.course === 'object' ? e.course._id : e.course) === courseId
+    );
+  }, [enrollmentsData, courseId]);
 
   const { data: quizzesData, isLoading: isLoadingQuizzes } = useQuery({
     queryKey: ['quizzes', courseId],
@@ -97,6 +111,33 @@ const Learning: React.FC = () => {
     return lessons.find((item: ApiLesson) => item._id === selectedLessonId) || (!selectedQuizId ? lessons[0] : null);
   }, [selectedLessonId, selectedQuizId, lessons]);
 
+  const groupedLessons = useMemo(() => {
+    const groups: { [key: string]: ApiLesson[] } = {};
+    lessons.forEach((lesson: ApiLesson) => {
+      const parts = lesson.title.split(': ');
+      const chapter = parts.length > 1 ? parts[0] : 'Phần chung';
+      if (!groups[chapter]) groups[chapter] = [];
+      groups[chapter].push({ ...lesson, title: parts.length > 1 ? parts[1] : lesson.title });
+    });
+    return Object.entries(groups).map(([chapter, items]) => ({ chapter, items }));
+  }, [lessons]);
+
+  const [openChapters, setOpenChapters] = useState<string[]>([]);
+  
+  useEffect(() => {
+    if (selectedLesson) {
+      const parts = selectedLesson.title.split(': ');
+      const chapter = parts.length > 1 ? parts[0] : 'Phần chung';
+      if (!openChapters.includes(chapter)) {
+        setOpenChapters(prev => [...prev, chapter]);
+      }
+    }
+  }, [selectedLesson]);
+
+  const toggleChapter = (chapter: string) => {
+    setOpenChapters(prev => prev.includes(chapter) ? prev.filter(c => c !== chapter) : [...prev, chapter]);
+  };
+
   const selectedQuiz = useMemo(() => {
     return quizzes.find((item: any) => item._id === selectedQuizId);
   }, [selectedQuizId, quizzes]);
@@ -105,6 +146,12 @@ const Learning: React.FC = () => {
     mutationFn: ({ cId, lId }: { cId: string, lId: string }) => progressApi.markComplete(cId, lId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['course-progress', courseId] });
+      queryClient.invalidateQueries({ queryKey: ['my-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      
+      refreshProfile(); // Đồng bộ với Account Overview (Redux auth user object)
+      
       setShowAchievement(true);
       window.setTimeout(() => setShowAchievement(false), 2600);
       
@@ -186,7 +233,7 @@ const Learning: React.FC = () => {
     addCommentMutation.mutate({ dId, content: commentText });
   };
 
-  if (isLoadingLessons || isLoadingProgress) {
+  if (isLoadingLessons || isLoadingProgress || isLoadingEnrollments) {
     return (
       <div className="bg-[#FBFBFA] dark:bg-[#111111] flex items-center justify-center py-32 min-h-screen">
         <LoadingScreen title="Loading workspace" message="Preparing video stream and curriculum..." />
@@ -195,7 +242,7 @@ const Learning: React.FC = () => {
   }
 
   const err: any = error;
-  if (err?.response?.status === 403) {
+  if ((err && err.response?.status === 403) || (!isEnrolled && user?.role === 'student')) {
     return (
       <div className="bg-[#FBFBFA] dark:bg-[#111111] flex items-center justify-center min-h-screen p-4">
         <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-xl text-center space-y-6">
@@ -262,10 +309,12 @@ const Learning: React.FC = () => {
                     <video 
                       ref={videoRef}
                       controls 
+                      autoPlay
                       className="w-full h-full object-contain" 
                       src={selectedLesson.videoUrl}
                       onPause={handleVideoPause}
                       onLoadedMetadata={handleVideoLoadedMetadata}
+                      onEnded={completeLesson}
                     >
                       Your browser does not support the video tag.
                     </video>
@@ -273,19 +322,6 @@ const Learning: React.FC = () => {
                 ) : (
                   <div className="w-full h-full flex items-center justify-center opacity-60">
                      <p className="text-white">No content selected</p>
-                  </div>
-                )}
-                {selectedLesson && !selectedQuiz && (
-                  <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-between text-white text-xs font-medium">
-                    <div className="flex items-center gap-3">
-                      <button className="hover:opacity-80 transition-opacity"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>
-                      <span>02:14 / {selectedLesson.duration || '00:00'}</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <button className="hover:opacity-80 transition-opacity">1x</button>
-                      <button className="hover:opacity-80 transition-opacity">CC</button>
-                      <button className="hover:opacity-80 transition-opacity"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
-                    </div>
                   </div>
                 )}
               </div>
@@ -385,10 +421,7 @@ const Learning: React.FC = () => {
                 />
               </div>
             </div>
-          </div>
 
-          {/* Right Column (Curriculum & Assessments) */}
-          <div className="lg:col-span-4 flex flex-col gap-8">
             {/* Typography-driven Curriculum */}
             <div className="flex flex-col bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm sticky top-24">
               <div className="pt-6 pb-6 border-b border-[#EAEAEA] dark:border-white/10">
@@ -398,29 +431,47 @@ const Learning: React.FC = () => {
                 {lessons.length === 0 ? (
                   <p className="text-sm text-slate-500">No lessons available.</p>
                 ) : (
-                  <div className="flex flex-col gap-1">
-                    {lessons.map((lesson: ApiLesson, index: number) => {
-                      const isActive = lesson._id === selectedLessonId && !selectedQuizId;
-                      const isCompleted = completedLessons.includes(lesson._id);
+                  <div className="flex flex-col gap-2">
+                    {groupedLessons.map((group, gIdx) => {
+                      const isOpen = openChapters.includes(group.chapter);
                       return (
-                        <button
-                          key={lesson._id}
-                          onClick={() => { setSelectedLessonId(lesson._id); setSelectedQuizId(null); }}
-                          className={`group flex items-center justify-between py-2 text-left w-full transition-colors ${isActive ? 'text-[#111111] dark:text-white font-medium' : 'text-slate-600 dark:text-slate-400 hover:text-[#111111] dark:hover:text-white'}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-4 h-4 shrink-0 flex items-center justify-center">
-                              {isCompleted ? (
-                                <svg className="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
-                              ) : isActive ? (
-                                <div className="w-1.5 h-1.5 rounded-full bg-[#111111] dark:bg-white" />
-                              ) : (
-                                <span className="text-[10px] text-slate-400">{index + 1}</span>
-                              )}
+                        <div key={gIdx} className="border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden">
+                          <button
+                            onClick={() => toggleChapter(group.chapter)}
+                            className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left"
+                          >
+                            <span className="font-semibold text-sm text-slate-800 dark:text-slate-200">{group.chapter}</span>
+                            <motion.svg animate={{ rotate: isOpen ? 180 : 0 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></motion.svg>
+                          </button>
+                          {isOpen && (
+                            <div className="flex flex-col gap-1 p-2 bg-white dark:bg-[#1A1A1A]">
+                              {group.items.map((lesson: ApiLesson, index: number) => {
+                                const isActive = lesson._id === selectedLessonId && !selectedQuizId;
+                                const isCompleted = completedLessons.includes(lesson._id);
+                                return (
+                                  <button
+                                    key={lesson._id}
+                                    onClick={() => { setSelectedLessonId(lesson._id); setSelectedQuizId(null); }}
+                                    className={`group flex items-center justify-between py-2 px-2 rounded-md text-left w-full transition-colors ${isActive ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'}`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                                        {isCompleted ? (
+                                          <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
+                                        ) : isActive ? (
+                                          <div className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                                        ) : (
+                                          <span className="text-[10px] text-slate-400">{index + 1}</span>
+                                        )}
+                                      </div>
+                                      <span className="text-sm line-clamp-1">{lesson.title}</span>
+                                    </div>
+                                  </button>
+                                )
+                              })}
                             </div>
-                            <span className="text-sm line-clamp-1">{lesson.title}</span>
-                          </div>
-                        </button>
+                          )}
+                        </div>
                       )
                     })}
                   </div>

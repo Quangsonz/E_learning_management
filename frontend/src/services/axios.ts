@@ -21,7 +21,7 @@ axiosInstance.interceptors.response.use(
   (err) => {
     if (
       err.response && 
-      (err.response.status === 401 || err.response.status === 403) && 
+      err.response.status === 401 && 
       !err.config.url?.includes('/auth/login') && 
       !err.config.url?.includes('/auth/register')
     ) {

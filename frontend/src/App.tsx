@@ -149,22 +149,22 @@ const AppRoutes: React.FC = () => (
         ROLE-BASED PROTECTED ROUTES
     ========================================== */}
     <Route path="/teacher-dashboard" element={
-      <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+      <ProtectedRoute allowedRoles={['teacher']}>
         <TeacherDashboard />
       </ProtectedRoute>
     } />
     <Route path="/teacher-courses" element={
-      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+      <ProtectedRoute allowedRoles={['teacher']}>
         <TeacherCourses />
       </ProtectedRoute>
     } />
     <Route path="/teacher/courses/new" element={
-      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+      <ProtectedRoute allowedRoles={['teacher']}>
         <CourseBuilder />
       </ProtectedRoute>
     } />
     <Route path="/teacher/courses/:courseId/curriculum" element={
-      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+      <ProtectedRoute allowedRoles={['teacher']}>
         <CurriculumEditor />
       </ProtectedRoute>
     } />

@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { courseApi } from '../services/course.api';
 import { paymentApi } from '../services/payment.api';
 import { Button, PageShell, SectionHeader } from '../components/ui';
@@ -65,6 +67,12 @@ const Checkout = () => {
   const navigate = useNavigate();
   const [clientSecret, setClientSecret] = useState('');
   const [isMockLoading, setIsMockLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { refreshProfile } = useAuth();
+
+  const { success: successToast, error: errorToast } = useToast();
+  const isMockMode = true; // Tạm thời bật thanh toán ảo. Sau này tích hợp Stripe thì đổi thành: !import.meta.env.VITE_STRIPE_PUBLIC_KEY
 
   const { data: courseData, isLoading: isCourseLoading } = useQuery({
     queryKey: ['course', courseId],
@@ -73,13 +81,13 @@ const Checkout = () => {
   });
 
   useEffect(() => {
-    if (courseId) {
+    if (courseId && !isMockMode) {
       // Create PaymentIntent as soon as the page loads
       paymentApi.createPaymentIntent(courseId)
         .then((res) => setClientSecret(res.clientSecret))
         .catch((err) => console.error('Failed to create payment intent', err));
     }
-  }, [courseId]);
+  }, [courseId, isMockMode]);
 
   if (isCourseLoading || !courseData) {
     return <PageShell><div className="pt-24 text-center">Loading checkout...</div></PageShell>;
@@ -97,8 +105,6 @@ const Checkout = () => {
     },
   };
 
-  const isMockMode = !import.meta.env.VITE_STRIPE_PUBLIC_KEY;
-
   const options = {
     clientSecret: clientSecret || 'mock_secret',
     appearance,
@@ -108,14 +114,14 @@ const Checkout = () => {
     <PageShell>
       <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <SectionHeader 
-          title="Checkout" 
-          description="Complete your enrollment to start learning."
+          title="Thanh toán khóa học" 
+          description="Hoàn tất thủ tục để bắt đầu học tập."
         />
 
         <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-12">
           {/* Order Summary */}
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Order Summary</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Tóm tắt đơn hàng</h3>
             <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50">
               <div className="flex gap-4 items-start pb-6 border-b border-slate-200 dark:border-slate-700">
                 {course?.thumbnail && (
@@ -123,20 +129,20 @@ const Checkout = () => {
                 )}
                 <div>
                   <h4 className="font-semibold text-slate-900 dark:text-white line-clamp-2">{course?.title}</h4>
-                  <p className="text-sm text-slate-500 mt-1">{course?.instructor?.name || 'Instructor'}</p>
+                  <p className="text-sm text-slate-500 mt-1">{course?.instructor?.name || 'Giảng viên'}</p>
                 </div>
               </div>
               <div className="pt-6 space-y-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Original Price</span>
+                  <span className="text-slate-500">Giá gốc</span>
                   <span className="font-medium text-slate-900 dark:text-white">${price.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Tax</span>
+                  <span className="text-slate-500">Thuế</span>
                   <span className="font-medium text-slate-900 dark:text-white">$0.00</span>
                 </div>
                 <div className="flex justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
-                  <span className="font-bold text-slate-900 dark:text-white">Total</span>
+                  <span className="font-bold text-slate-900 dark:text-white">Tổng cộng</span>
                   <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">${price.toFixed(2)}</span>
                 </div>
               </div>
@@ -145,30 +151,40 @@ const Checkout = () => {
 
           {/* Payment Form */}
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Payment Details</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Thông tin thanh toán</h3>
             {isMockMode ? (
               <div className="space-y-6 bg-white dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xl">
                 <div className="p-4 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-lg text-sm mb-4 border border-amber-200 dark:border-amber-800/50">
-                  <p className="font-bold mb-1">MOCK MODE ACTIVE</p>
-                  <p>No Stripe keys configured. Clicking 'Pay Now' will simulate a successful payment.</p>
+                  <p className="font-bold mb-1">CHẾ ĐỘ THANH TOÁN ẢO (MOCK)</p>
+                  <p>Chức năng thanh toán đang được phát triển. Bấm 'Thanh toán ngay' để giả lập đăng ký thành công mà không bị trừ tiền.</p>
                 </div>
                 <Button 
                   onClick={async () => {
                     setIsMockLoading(true);
                     try {
                       await enrollmentApi.enrollCourse(courseId!);
+                      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+                      queryClient.invalidateQueries({ queryKey: ['my-enrollments'] });
+                      queryClient.invalidateQueries({ queryKey: ['course', courseId] });
+                      
+                      refreshProfile(); // Đồng bộ tài khoản
+
+                      successToast('Thanh toán thành công! Chào mừng bạn đến với khóa học.', 'Giao dịch thành công');
                       setTimeout(() => {
                         navigate(`/courses/${courseId}/learn`);
                       }, 1000);
-                    } catch (err) {
-                      console.error('Mock enrollment failed', err);
+                    } catch (err: any) {
+                      const msg = err.response?.data?.message || 'Mock enrollment failed';
+                      console.error('Enrollment error:', msg);
+                      setError(msg);
+                      errorToast(msg, 'Thanh toán thất bại');
                       setIsMockLoading(false);
                     }
                   }}
                   disabled={isMockLoading}
                   className="w-full h-12"
                 >
-                  {isMockLoading ? 'Processing...' : 'Pay Now'}
+                  {isMockLoading ? 'Đang xử lý...' : 'Thanh toán ngay (Ảo)'}
                 </Button>
               </div>
             ) : clientSecret ? (

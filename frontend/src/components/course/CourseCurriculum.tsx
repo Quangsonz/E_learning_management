@@ -15,59 +15,43 @@ export type CurriculumItem = {
   lessons: CurriculumLesson[];
 };
 
-const curriculum: CurriculumItem[] = [
-  { 
-    title: 'Course overview and success roadmap', 
-    duration: '22 min', 
-    lectures: 3,
-    lessons: [
-      { title: 'Welcome to the Masterclass', duration: '5 min', status: 'completed' },
-      { title: 'Setting up your workspace', duration: '12 min', status: 'completed' },
-      { title: 'How to get feedback and support', duration: '5 min', status: 'current' }
-    ]
-  },
-  { 
-    title: 'Core concepts and practical setup', 
-    duration: '1h 15m', 
-    lectures: 4,
-    lessons: [
-      { title: 'The philosophy of borderless design', duration: '18 min', status: 'locked' },
-      { title: 'Typography as structure', duration: '25 min', status: 'locked' },
-      { title: 'Color theory for modern SaaS', duration: '20 min', status: 'locked' },
-      { title: 'Grid systems vs Canvas layouts', duration: '12 min', status: 'locked' }
-    ]
-  },
-  { 
-    title: 'Building high-converting learning experiences', 
-    duration: '1h 40m', 
-    lectures: 4,
-    lessons: [
-      { title: 'Designing the Hero section', duration: '30 min', status: 'locked' },
-      { title: 'Creating immersive metadata', duration: '20 min', status: 'locked' },
-      { title: 'Interactive components', duration: '25 min', status: 'locked' },
-      { title: 'Progress and motivation indicators', duration: '25 min', status: 'locked' }
-    ]
-  },
-  { 
-    title: 'Design systems, motion, and polish', 
-    duration: '1h 05m', 
-    lectures: 3,
-    lessons: [
-      { title: 'Micro-interactions', duration: '20 min', status: 'locked' },
-      { title: 'Framer Motion fundamentals', duration: '25 min', status: 'locked' },
-      { title: 'Performance and perceived speed', duration: '20 min', status: 'locked' }
-    ]
-  }
-];
-
-export const CourseCurriculum: React.FC = () => {
+export const CourseCurriculum: React.FC<{ lessons?: any[] }> = ({ lessons = [] }) => {
   const [openCurriculum, setOpenCurriculum] = useState<number>(0);
+
+  const curriculum = React.useMemo(() => {
+    const groups: { [key: string]: any[] } = {};
+    lessons.forEach(lesson => {
+      const parts = lesson.title.split(': ');
+      const chapter = parts.length > 1 ? parts[0] : 'Phần chung';
+      if (!groups[chapter]) groups[chapter] = [];
+      groups[chapter].push({ ...lesson, title: parts.length > 1 ? parts[1] : lesson.title });
+    });
+    
+    return Object.entries(groups).map(([chapter, items]) => {
+      const totalDuration = items.reduce((acc, curr) => acc + (curr.duration || 0), 0);
+      const minutes = Math.floor(totalDuration / 60);
+      const seconds = totalDuration % 60;
+      
+      return {
+        title: chapter,
+        duration: `${minutes}m ${seconds}s`,
+        lectures: items.length,
+        lessons: items.map(l => ({
+          title: l.title,
+          duration: `${Math.floor((l.duration || 0) / 60)}m ${(l.duration || 0) % 60}s`,
+          status: 'locked' // Placeholder status
+        }))
+      };
+    });
+  }, [lessons]);
 
   return (
     <section>
       <SectionLead label="Curriculum Roadmap" title="Structured path to mastery" />
       <div className="mt-6 space-y-3">
-        {curriculum.map((item, index) => {
+        {curriculum.length === 0 ? (
+           <p className="text-slate-500 text-sm">Chưa có dữ liệu bài học.</p>
+        ) : curriculum.map((item, index) => {
           const isOpen = openCurriculum === index;
           return (
             <div key={index} className="group relative rounded-2xl border border-slate-200/60 dark:border-white/5 bg-white dark:bg-slate-900/50 transition-shadow hover:shadow-md dark:hover:shadow-none overflow-hidden">

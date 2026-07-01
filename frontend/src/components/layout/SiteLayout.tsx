@@ -248,7 +248,7 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                         {t('layout.nav.admin')}
                       </Link>
                     )}
-                    {(user?.role === 'teacher' || user?.role === 'admin') && (
+                    {user?.role === 'teacher' && (
                       <Link to="/teacher-dashboard" className="block w-full text-left px-3 py-2 text-sm rounded-xl transition-colors text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
                         {t('layout.nav.dashboard')}
                       </Link>

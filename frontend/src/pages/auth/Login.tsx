@@ -5,13 +5,16 @@ import { useAuth } from '../../contexts/AuthContext';
 import AuthLayout from '../../components/auth/AuthLayout';
 import AuthField from '../../components/auth/AuthField';
 
+import { useToast } from '../../contexts/ToastContext';
+
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [errorState, setErrorState] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
+  const { success, error } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -21,20 +24,23 @@ const Login: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setError('Vui lòng nhập email và mật khẩu.');
+      setErrorState('Vui lòng nhập email và mật khẩu.');
+      error('Vui lòng nhập email và mật khẩu.', 'Đăng nhập thất bại');
       return;
     }
-    setError('');
+    setErrorState('');
     setLoading(true);
     try {
       await login({ email, password });
+      success('Đăng nhập thành công! Đang chuyển hướng...', 'Chào mừng trở lại');
       navigate(from, { replace: true });
     } catch (err: any) {
       const msg =
         err.response?.data?.message ||
         err.message ||
         'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
-      setError(msg);
+      setErrorState(msg);
+      error(msg, 'Đăng nhập thất bại');
     } finally {
       setLoading(false);
     }
@@ -65,13 +71,13 @@ const Login: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
       >
-        {error && (
+        {errorState && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             className="p-3 text-sm font-medium text-rose-200 bg-rose-500/20 border border-rose-500/30 rounded-xl backdrop-blur-md"
           >
-            {error}
+            {errorState}
           </motion.div>
         )}
 

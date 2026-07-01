@@ -11,6 +11,7 @@ import { store } from './store/store';
 import { queryClient } from './queries/queryClient';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
 import './i18n';
 
 const container = document.getElementById('root')!;
@@ -23,9 +24,11 @@ root.render(
         <ThemeProvider>
           {/* BrowserRouter phải bọc AuthProvider vì AuthContext dùng useNavigate */}
           <BrowserRouter>
-            <AuthProvider>
-              <App />
-            </AuthProvider>
+            <ToastProvider>
+              <AuthProvider>
+                <App />
+              </AuthProvider>
+            </ToastProvider>
           </BrowserRouter>
         </ThemeProvider>
       </QueryClientProvider>

@@ -11,16 +11,34 @@ class LessonService {
       throw new AppError('Không tìm thấy khóa học này', 404);
     }
 
-    // Kiểm tra quyền truy cập (Admin và Giảng viên sở hữu khóa học luôn được phép)
-    if (user.role === 'student') {
-      const enrollment = await enrollmentRepository.findByStudentAndCourse(user.id, courseId);
-      if (!enrollment || enrollment.paymentStatus !== 'completed') {
-        throw new AppError('Bạn phải mua khóa học này để xem bài giảng', 403);
+    let hasFullAccess = false;
+    
+    try {
+      if (user && (user.role === 'admin' || user.role === 'teacher')) {
+        hasFullAccess = true;
+      } else if (user && user.role === 'student' && user.id) {
+        const enrollment = await enrollmentRepository.findByStudentAndCourse(user.id, courseId);
+        if (enrollment && enrollment.paymentStatus === 'completed') {
+          hasFullAccess = true;
+        }
       }
+    } catch (e) {
+      console.error('Lỗi khi kiểm tra phân quyền bài giảng:', e);
     }
 
     const lessons = await lessonRepository.find({ course: courseId });
-    return lessons.sort((a, b) => (a.order || 0) - (b.order || 0));
+    const sortedLessons = lessons.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    if (!hasFullAccess) {
+      // Chỉ trả về curriculum, giấu videoUrl
+      return sortedLessons.map(lesson => {
+        const doc = lesson.toObject ? lesson.toObject() : { ...lesson };
+        delete doc.videoUrl;
+        return doc;
+      });
+    }
+
+    return sortedLessons;
   }
 
   async getLessonById(id, courseId, user) {
@@ -29,11 +47,20 @@ class LessonService {
       throw new AppError('Không tìm thấy bài giảng trong khóa học này', 404);
     }
 
-    if (user.role === 'student') {
+    let hasFullAccess = false;
+    if (user && (user.role === 'admin' || user.role === 'teacher')) {
+      hasFullAccess = true;
+    } else if (user && user.role === 'student') {
       const enrollment = await enrollmentRepository.findByStudentAndCourse(user.id, courseId);
-      if (!enrollment || enrollment.paymentStatus !== 'completed') {
-        throw new AppError('Bạn phải mua khóa học này để xem bài giảng', 403);
+      if (enrollment && enrollment.paymentStatus === 'completed') {
+        hasFullAccess = true;
       }
+    }
+    
+    if (!hasFullAccess) {
+      const doc = lesson.toObject ? lesson.toObject() : { ...lesson };
+      delete doc.videoUrl;
+      return doc;
     }
     
     return lesson;

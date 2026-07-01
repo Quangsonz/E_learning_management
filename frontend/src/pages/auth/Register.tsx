@@ -5,16 +5,19 @@ import { useAuth } from '../../contexts/AuthContext';
 import AuthLayout from '../../components/auth/AuthLayout';
 import AuthField from '../../components/auth/AuthField';
 
+import { useToast } from '../../contexts/ToastContext';
+
 const Register: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [role, setRole] = useState<'student' | 'teacher'>('student');
-  const [error, setError] = useState('');
+  const [errorState, setErrorState] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { register } = useAuth();
+  const { success, error } = useToast();
   const navigate = useNavigate();
 
   const passwordStrength =
@@ -26,22 +29,24 @@ const Register: React.FC = () => {
     e.preventDefault();
 
     // Validation
-    if (!name.trim()) return setError('Vui lòng nhập họ tên.');
-    if (!email.trim()) return setError('Vui lòng nhập email.');
-    if (password.length < 6) return setError('Mật khẩu phải có ít nhất 6 ký tự.');
-    if (password !== passwordConfirm) return setError('Mật khẩu xác nhận không khớp.');
+    if (!name.trim()) { setErrorState('Vui lòng nhập họ tên.'); error('Vui lòng nhập họ tên.'); return; }
+    if (!email.trim()) { setErrorState('Vui lòng nhập email.'); error('Vui lòng nhập email.'); return; }
+    if (password.length < 6) { setErrorState('Mật khẩu phải có ít nhất 6 ký tự.'); error('Mật khẩu phải có ít nhất 6 ký tự.'); return; }
+    if (password !== passwordConfirm) { setErrorState('Mật khẩu xác nhận không khớp.'); error('Mật khẩu xác nhận không khớp.'); return; }
 
-    setError('');
+    setErrorState('');
     setLoading(true);
     try {
       await register({ name, email, password, passwordConfirm, role });
+      success('Tài khoản đã được tạo thành công!', 'Đăng ký thành công');
       navigate('/home', { replace: true });
     } catch (err: any) {
       const msg =
         err.response?.data?.message ||
         err.message ||
         'Đăng ký thất bại. Vui lòng thử lại.';
-      setError(msg);
+      setErrorState(msg);
+      error(msg, 'Đăng ký thất bại');
     } finally {
       setLoading(false);
     }
@@ -72,13 +77,13 @@ const Register: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
       >
-        {error && (
+        {errorState && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             className="p-3 text-sm font-medium text-rose-200 bg-rose-500/20 border border-rose-500/30 rounded-xl backdrop-blur-md"
           >
-            {error}
+            {errorState}
           </motion.div>
         )}
 

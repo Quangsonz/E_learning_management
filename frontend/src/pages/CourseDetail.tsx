@@ -174,7 +174,7 @@ const CourseDetail: React.FC = () => {
   const { data: lessonsData } = useQuery({
     queryKey: ['lessons', courseId],
     queryFn: () => lessonApi.getLessons(courseId!),
-    enabled: isEnrolled
+    enabled: !!courseId
   });
 
   const { data: reviewsData } = useQuery({
@@ -387,7 +387,7 @@ const CourseDetail: React.FC = () => {
               </section>
 
               {/* Interactive Curriculum */}
-              <CourseCurriculum />
+              <CourseCurriculum lessons={lessons} />
 
               {/* Instructor Profile */}
               <section>
