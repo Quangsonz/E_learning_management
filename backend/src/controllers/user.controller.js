@@ -159,14 +159,40 @@ class UserController {
       query.role = 'student';
     }
 
-    const users = await userService.getAllUsers(query);
+    const result = await userService.getAllUsers(query);
 
     res.status(200).json({
       status: 'success',
-      results: users.length,
+      results: result.users.length,
       data: {
-        users,
+        users: result.users,
+        total: result.total,
+        page: result.page,
+        totalPages: result.totalPages
       },
+    });
+  });
+
+  /**
+   * PATCH /api/users/:id/toggle-active
+   * Bật/tắt trạng thái isActive của user (Admin only)
+   */
+  toggleUserActive = catchAsync(async (req, res, next) => {
+    const user = await userService.getUserById(req.params.id);
+
+    // Không cho phép admin tự suspend chính mình
+    if (user._id.toString() === req.user.id) {
+      return next(new AppError('Bạn không thể thay đổi trạng thái tài khoản của chính mình.', 400));
+    }
+
+    const updatedUser = await userService.updateUser(req.params.id, {
+      isActive: !user.isActive
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: updatedUser.isActive ? 'Tài khoản đã được kích hoạt.' : 'Tài khoản đã bị tạm ngưng.',
+      data: { user: updatedUser }
     });
   });
 

@@ -260,32 +260,32 @@ async function seed() {
     // 5. Tạo Lessons
     console.log('🌱 Seeding Lessons...');
     const reactLessons = await Lesson.insertMany([
-      { course: courseReact._id, title: 'Chương 1: Giới thiệu về React.js', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', duration: 596, order: 1 },
-      { course: courseReact._id, title: 'Chương 1: Cài đặt môi trường', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', duration: 653, order: 2 },
+      { course: courseReact._id, title: 'Chương 1: Giới thiệu về React.js', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 1 },
+      { course: courseReact._id, title: 'Chương 1: Cài đặt môi trường', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 2 },
       { course: courseReact._id, title: 'Chương 2: JSX và Components', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 3 },
-      { course: courseReact._id, title: 'Chương 2: State và Props', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', duration: 900, order: 4 },
-      { course: courseReact._id, title: 'Chương 3: React Hooks (useState & useEffect)', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4', duration: 1200, order: 5 },
-      { course: courseReact._id, title: 'Chương 3: Custom Hooks', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4', duration: 850, order: 6 },
-      { course: courseReact._id, title: 'Chương 4: Quản lý State với Redux Toolkit', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4', duration: 1500, order: 7 },
-      { course: courseReact._id, title: 'Chương 4: React Query cơ bản', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4', duration: 3100, order: 8 }
+      { course: courseReact._id, title: 'Chương 2: State và Props', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 4 },
+      { course: courseReact._id, title: 'Chương 3: React Hooks (useState & useEffect)', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 5 },
+      { course: courseReact._id, title: 'Chương 3: Custom Hooks', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 6 },
+      { course: courseReact._id, title: 'Chương 4: Quản lý State với Redux Toolkit', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 7 },
+      { course: courseReact._id, title: 'Chương 4: React Query cơ bản', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 8 }
     ]);
 
     const uiuxLessons = await Lesson.insertMany([
-      { course: courseUIUX._id, title: 'Module 1: Nguyên lý thiết kế UI/UX', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4', duration: 734, order: 1 },
+      { course: courseUIUX._id, title: 'Module 1: Nguyên lý thiết kế UI/UX', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 1 },
       { course: courseUIUX._id, title: 'Module 1: Typography trong Design', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 2 },
-      { course: courseUIUX._id, title: 'Module 2: Làm quen với Figma', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4', duration: 1100, order: 3 },
-      { course: courseUIUX._id, title: 'Module 2: Xây dựng Design System', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4', duration: 850, order: 4 },
-      { course: courseUIUX._id, title: 'Module 3: Prototyping cơ bản', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4', duration: 1200, order: 5 },
-      { course: courseUIUX._id, title: 'Module 3: Phân tích trải nghiệm người dùng', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4', duration: 900, order: 6 }
+      { course: courseUIUX._id, title: 'Module 2: Làm quen với Figma', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 3 },
+      { course: courseUIUX._id, title: 'Module 2: Xây dựng Design System', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 4 },
+      { course: courseUIUX._id, title: 'Module 3: Prototyping cơ bản', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 5 },
+      { course: courseUIUX._id, title: 'Module 3: Phân tích trải nghiệm người dùng', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 6 }
     ]);
 
     const pythonLessons = await Lesson.insertMany([
-      { course: coursePython._id, title: 'Phần 1: Cài đặt Python và Jupyter', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', duration: 650, order: 1 },
+      { course: coursePython._id, title: 'Phần 1: Cài đặt Python và Jupyter', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 1 },
       { course: coursePython._id, title: 'Phần 1: Cú pháp cơ bản', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 2 },
-      { course: coursePython._id, title: 'Phần 2: Data Structures (List, Dict, Tuple)', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', duration: 800, order: 3 },
-      { course: coursePython._id, title: 'Phần 2: Loops và Functions', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4', duration: 950, order: 4 },
-      { course: coursePython._id, title: 'Phần 3: Giới thiệu về Pandas', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4', duration: 3100, order: 5 },
-      { course: coursePython._id, title: 'Phần 3: Trực quan hóa với Matplotlib', videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4', duration: 1400, order: 6 }
+      { course: coursePython._id, title: 'Phần 2: Data Structures (List, Dict, Tuple)', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 3 },
+      { course: coursePython._id, title: 'Phần 2: Loops và Functions', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 4 },
+      { course: coursePython._id, title: 'Phần 3: Giới thiệu về Pandas', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 5 },
+      { course: coursePython._id, title: 'Phần 3: Trực quan hóa với Matplotlib', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 6 }
     ]);
 
     const extraLessons = [];
@@ -301,9 +301,9 @@ async function seed() {
     newCourses.forEach((c) => {
       extraLessons.push(
         { course: c._id, title: 'Chương 1: Bắt đầu nhanh', videoUrl: videoSamples[0], duration: 10, order: 1 },
-        { course: c._id, title: 'Chương 1: Kiến thức nền tảng', videoUrl: videoSamples[1], duration: 653, order: 2 },
-        { course: c._id, title: 'Chương 2: Cốt lõi và thực hành', videoUrl: videoSamples[2], duration: 596, order: 3 },
-        { course: c._id, title: 'Chương 2: Ứng dụng nâng cao', videoUrl: videoSamples[3], duration: 3100, order: 4 }
+        { course: c._id, title: 'Chương 1: Kiến thức nền tảng', videoUrl: videoSamples[0], duration: 10, order: 2 },
+        { course: c._id, title: 'Chương 2: Cốt lõi và thực hành', videoUrl: videoSamples[0], duration: 10, order: 3 },
+        { course: c._id, title: 'Chương 2: Ứng dụng nâng cao', videoUrl: videoSamples[0], duration: 10, order: 4 }
       );
     });
     

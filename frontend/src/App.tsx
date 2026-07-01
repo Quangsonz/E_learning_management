@@ -154,21 +154,22 @@ const AppRoutes: React.FC = () => (
       </ProtectedRoute>
     } />
     <Route path="/teacher-courses" element={
-      <ProtectedRoute allowedRoles={['teacher']}>
+      <ProtectedRoute allowedRoles={['teacher', 'admin']}>
         <TeacherCourses />
       </ProtectedRoute>
     } />
     <Route path="/teacher/courses/new" element={
-      <ProtectedRoute allowedRoles={['teacher']}>
+      <ProtectedRoute allowedRoles={['teacher', 'admin']}>
         <CourseBuilder />
       </ProtectedRoute>
     } />
     <Route path="/teacher/courses/:courseId/curriculum" element={
-      <ProtectedRoute allowedRoles={['teacher']}>
+      <ProtectedRoute allowedRoles={['teacher', 'admin']}>
         <CurriculumEditor />
       </ProtectedRoute>
     } />
-    <Route path="/admin-dashboard" element={
+    <Route path="/admin-dashboard" element={<Navigate to="/admin-dashboard/pulse" replace />} />
+    <Route path="/admin-dashboard/:tabId" element={
       <ProtectedRoute allowedRoles={['admin']}>
         <AdminDashboard />
       </ProtectedRoute>

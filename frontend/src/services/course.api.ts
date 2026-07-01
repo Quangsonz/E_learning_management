@@ -61,5 +61,15 @@ export const courseApi = {
   getRecommendations: async (): Promise<any> => {
     const response = await axiosInstance.get('/courses/recommendations');
     return response.data;
+  },
+  /**
+   * Admin duyệt hoặc thu hồi khóa học - PATCH /api/courses/:id/approve
+   * @param id - Course ID
+   * @param status - 'published' | 'draft'
+   */
+  approveCourse: async (id: string, status: 'published' | 'draft'): Promise<any> => {
+    const response = await axiosInstance.patch(`/courses/${id}/approve`, { status });
+    return response.data;
   }
 };
+

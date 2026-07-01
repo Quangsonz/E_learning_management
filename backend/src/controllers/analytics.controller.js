@@ -21,6 +21,19 @@ class AnalyticsController {
       data,
     });
   });
+
+  /**
+   * GET /api/analytics/orders
+   * Admin xem danh sách orders và revenue summary
+   */
+  getOrderStats = catchAsync(async (req, res, next) => {
+    const data = await analyticsService.getOrderStats(req.query);
+
+    res.status(200).json({
+      status: 'success',
+      data,
+    });
+  });
 }
 
 module.exports = new AnalyticsController();

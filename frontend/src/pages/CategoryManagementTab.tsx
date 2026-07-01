@@ -8,6 +8,8 @@ const CategoryManagementTab: React.FC = () => {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  // FIX ISSUE-04: State cho confirm modal (thay window.confirm)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   
   // Form State
   const [formData, setFormData] = useState<CategoryRequest>({ name: '', slug: '', description: '' });
@@ -89,9 +91,15 @@ const CategoryManagementTab: React.FC = () => {
     }
   };
 
+  // FIX ISSUE-04: Thay window.confirm bằng ConfirmModal state
   const handleDelete = (id: string, name: string) => {
-    if (window.confirm(`Are you sure you want to delete category "${name}"?`)) {
-      deleteMutation.mutate(id);
+    setDeleteConfirm({ id, name });
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      deleteMutation.mutate(deleteConfirm.id);
+      setDeleteConfirm(null);
     }
   };
 
@@ -287,6 +295,45 @@ const CategoryManagementTab: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* FIX ISSUE-04: ConfirmModal thay window.confirm */}
+      <AnimatePresence>
+        {deleteConfirm && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setDeleteConfirm(null)}
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 shadow-2xl"
+            >
+              <h3 className="text-lg font-semibold text-white mb-2">Delete Category?</h3>
+              <p className="text-sm text-white/50 mb-1">
+                Bạn có chắc muốn xóa category <span className="font-bold text-white">"{deleteConfirm.name}"</span>?
+              </p>
+              <p className="text-xs text-amber-400/70 mb-6">
+                ⚠️ Các khóa học thuộc category này sẽ bị mất liên kết.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 text-sm font-semibold text-white/60 hover:text-white transition-colors">
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleteMutation.isPending}
+                  className="px-4 py-2 text-sm font-bold bg-rose-500 hover:bg-rose-400 text-white rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

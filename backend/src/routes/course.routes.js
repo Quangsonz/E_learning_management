@@ -164,4 +164,36 @@ router
   .patch(requirePermission('edit_own_course'), courseController.updateCourse)
   .delete(requirePermission('delete_own_course'), courseController.deleteCourse);
 
+/**
+ * @swagger
+ * /courses/{id}/approve:
+ *   patch:
+ *     summary: Admin duyệt hoặc thu hồi khóa học (Admin only)
+ *     tags: [Courses]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [published, draft]
+ *     responses:
+ *       200:
+ *         description: Cập nhật status thành công
+ *       403:
+ *         description: Không đủ quyền (chỉ admin)
+ */
+router.patch('/:id/approve', requireRole('admin'), requirePermission('approve_courses'), courseController.approveCourse);
+
 module.exports = router;

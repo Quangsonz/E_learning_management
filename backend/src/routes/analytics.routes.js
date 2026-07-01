@@ -88,4 +88,32 @@ router.use(authMiddleware.protect);
 router.get('/admin', requireRole('admin'), requirePermission('view_statistics'), analyticsController.getAdminDashboard);
 router.get('/teacher', requireRole('admin', 'teacher'), analyticsController.getTeacherDashboard);
 
+/**
+ * @swagger
+ * /analytics/orders:
+ *   get:
+ *     summary: Lấy danh sách Orders và revenue summary (Admin only)
+ *     tags: [Analytics]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, paid, failed]
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Danh sách orders + summary
+ */
+router.get('/orders', requireRole('admin'), requirePermission('view_statistics'), analyticsController.getOrderStats);
+
 module.exports = router;

@@ -3,153 +3,256 @@ import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '../../services/analytics.api';
 import { useCountUp } from '../../hooks/useCountUp';
+import {
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
+} from 'recharts';
+
+// Tháng viết tắt
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+interface RevenueMonth {
+  month: number;
+  revenue: number;
+  enrollments: number;
+}
+
+interface RecentEnrollment {
+  student: { name: string; email: string; avatar?: string };
+  course: { title: string };
+  createdAt: string;
+  paymentStatus: string;
+}
+
+// Custom Tooltip cho recharts
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 shadow-2xl">
+        <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">{label}</p>
+        {payload.map((entry: any) => (
+          <div key={entry.name} className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full" style={{ background: entry.color }} />
+            <span className="text-xs text-white/60">{entry.name}:</span>
+            <span className="text-xs font-bold text-white">
+              {entry.name === 'Revenue' ? `${entry.value.toLocaleString('vi-VN')}đ` : entry.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
 export const PlatformPulse = () => {
-  const { data: analyticsData } = useQuery({
+  const { data: analyticsData, isLoading } = useQuery({
     queryKey: ['admin-analytics'],
     queryFn: analyticsApi.getAdminDashboard,
   });
 
   const overview = analyticsData?.data?.overview || {};
+  const revenueByMonth: RevenueMonth[] = analyticsData?.data?.revenueByMonth || [];
+  const recentEnrollments: RecentEnrollment[] = analyticsData?.data?.recentEnrollments || [];
+  const topCourses: any[] = analyticsData?.data?.topCourses || [];
+
   const usersTarget = overview.totalUsers || 0;
   const enrollmentsTarget = overview.totalEnrollments || 0;
   const revenueTarget = overview.totalRevenue || 0;
+  const coursesTarget = overview.totalCourses || 0;
 
   const users = useCountUp(usersTarget);
-  const activeToday = useCountUp(enrollmentsTarget); // Using enrollments as active metric fallback
+  const enrollments = useCountUp(enrollmentsTarget);
   const revenue = useCountUp(revenueTarget);
+  const courses = useCountUp(coursesTarget);
+
+  // Build full 12-month chart data
+  const chartData = Array.from({ length: 12 }, (_, i) => {
+    const monthData = revenueByMonth.find(m => m.month === i + 1);
+    return {
+      month: MONTHS[i],
+      Revenue: monthData?.revenue || 0,
+      Enrollments: monthData?.enrollments || 0,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-12 animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20">
-      
-      {/* ── HERO METRICS ── */}
-      <div className="grid grid-cols-12 gap-12 items-end mt-4">
-        
-        {/* Primary KPI */}
-        <div className="col-span-12 lg:col-span-8 flex flex-col gap-3">
-          <span className="text-sm font-semibold uppercase tracking-[0.25em] text-white/40 pl-1">Revenue Today</span>
-          <div className="flex flex-col sm:flex-row sm:items-baseline gap-4 sm:gap-6">
-            <h1 className="text-[4rem] sm:text-[5rem] lg:text-[6rem] leading-[0.9] font-light tracking-tighter text-white">
-              <span className="text-white/40 mr-1">$</span>
-              {(revenue / 1000).toFixed(1)}
-              <span className="text-white/40 ml-1">k</span>
-            </h1>
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 self-start sm:self-auto sm:mb-4">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-              <span className="text-xs font-bold tracking-widest">+18.2%</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Orbiting KPIs */}
-        <div className="col-span-12 lg:col-span-4 flex flex-col gap-6 lg:pb-4">
-           <div className="flex items-center justify-between border-l-2 border-white/10 pl-5">
-              <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">Total Users</span>
-              <span className="text-2xl font-light tracking-tight text-white/90">{users.toLocaleString()}</span>
-           </div>
-           <div className="flex items-center justify-between border-l-2 border-white/10 pl-5">
-              <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">Total Enrollments</span>
-              <div className="flex items-center gap-3">
-                <span className="text-2xl font-light tracking-tight text-white/90">{activeToday.toLocaleString()}</span>
-                <span className="text-xs font-bold text-emerald-500 tracking-wider">+4.2%</span>
-              </div>
-           </div>
-           <div className="flex items-center justify-between border-l-2 border-emerald-500/30 pl-5">
-              <span className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-500/60">System Status</span>
-              <div className="flex items-center gap-2">
-                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                 <span className="text-lg font-medium text-emerald-400">Optimal</span>
-              </div>
-           </div>
-        </div>
+      {/* ── HERO METRICS (BENTO ROW 1) ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+        {[
+          { label: 'Total Revenue', value: `${revenue.toLocaleString('vi-VN')}đ`, sub: 'All time', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
+          { label: 'Total Users', value: users.toLocaleString('vi-VN'), sub: 'Registered', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
+          { label: 'Total Enrollments', value: enrollments.toLocaleString('vi-VN'), sub: 'Active learners', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+          { label: 'Courses', value: courses.toLocaleString('vi-VN'), sub: 'On platform', color: 'bg-violet-500/10 text-violet-400 border-violet-500/20' },
+        ].map((kpi, i) => (
+          <motion.div
+            key={kpi.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08 }}
+            className={`flex flex-col gap-3 border ${kpi.color} rounded-2xl p-5 backdrop-blur-sm shadow-xl transition-all hover:scale-[1.02]`}
+          >
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-70">{kpi.label}</span>
+            <div className={`text-3xl font-light tracking-tight`}>
+              {isLoading ? <span className="opacity-30">---</span> : kpi.value}
+            </div>
+            <span className="text-xs opacity-50">{kpi.sub}</span>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Subtle Divider */}
-      <div className="w-full h-[1px] bg-gradient-to-r from-white/10 via-white/5 to-transparent" />
-
-      {/* ── FLOWING CHART & LIVE OPERATIONS ── */}
-      <div className="grid grid-cols-12 gap-12">
-        
-        {/* Business Intelligence directly embedded */}
-        <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
+      {/* ── BENTO ROW 2: CHART & ACTIVITY ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="lg:col-span-8 flex flex-col gap-6 bg-[#0a0a0a]/50 border border-white/5 rounded-3xl p-6 md:p-8 backdrop-blur-xl shadow-2xl">
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1">
-               <h2 className="text-2xl font-light tracking-tight text-white/90">Business Intelligence</h2>
-               <span className="text-xs font-medium text-white/40">Revenue vs Active Learners (30 Days)</span>
-            </div>
-            <div className="flex gap-3">
-               {['7D', '30D', '1Y'].map(filter => (
-                 <button key={filter} className={`text-xs font-bold uppercase tracking-widest transition-colors ${filter === '30D' ? 'text-indigo-400' : 'text-white/30 hover:text-white/70'}`}>
-                   {filter}
-                 </button>
-               ))}
+              <h2 className="text-2xl font-light tracking-tight text-white/90">Revenue & Enrollments</h2>
+              <span className="text-xs font-medium text-white/40">Monthly breakdown — current year</span>
             </div>
           </div>
 
-          <div className="h-[320px] w-full relative flex items-end">
-             {/* Atmospheric Chart Base */}
-             <div className="absolute bottom-0 left-0 right-0 h-[240px] opacity-30 pointer-events-none" style={{ backgroundImage: 'linear-gradient(to top, rgba(99, 102, 241, 0.4), transparent)' }}></div>
-             
-             {/* Barely visible Grid lines */}
-             <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-               {[1,2,3,4,5].map(i => <div key={i} className="w-full h-[1px] bg-white/[0.03]" />)}
-             </div>
-
-             <svg viewBox="0 0 1000 320" className="absolute inset-0 w-full h-full preserve-3d overflow-visible" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="rgb(99, 102, 241)" stopOpacity="0.8" />
-                    <stop offset="100%" stopColor="rgb(99, 102, 241)" stopOpacity="0" />
-                  </linearGradient>
-                  <filter id="glowHeavy" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="8" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                  </filter>
-                </defs>
-                <motion.path 
-                  d="M0,280 C100,270 200,300 300,220 C400,140 500,200 600,170 C700,150 800,200 900,80 L1000,40 L1000,320 L0,320 Z" 
-                  fill="url(#chartGlow)" 
-                />
-                <motion.path 
-                  d="M0,280 C100,270 200,300 300,220 C400,140 500,200 600,170 C700,150 800,200 900,80 L1000,40" 
-                  fill="none" 
-                  stroke="rgb(129, 140, 248)" 
-                  strokeWidth="3"
-                  filter="url(#glowHeavy)"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ duration: 2.5, ease: [0.16, 1, 0.3, 1] }}
-                />
-             </svg>
-
-             {/* Typographic Annotation directly on canvas */}
-             <motion.div 
-               initial={{ opacity: 0, y: 10 }}
-               animate={{ opacity: 1, y: 0 }}
-               transition={{ delay: 2 }}
-               className="absolute top-[60px] right-[12%] flex flex-col gap-1 items-end"
-             >
-               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-400">Launch Peak</span>
-               <span className="text-xl font-light text-white">$142k Day</span>
-               <div className="w-[1px] h-16 bg-gradient-to-b from-indigo-400 to-transparent mt-2 mr-4" />
-             </motion.div>
-          </div>
-        </div>
-
-        {/* Live Operations Feed directly embedded */}
-        <div className="col-span-12 lg:col-span-4 flex flex-col gap-8">
-           <div className="flex items-center justify-between">
-             <h2 className="text-2xl font-light tracking-tight text-white/90">Live Operations</h2>
-             <span className="text-xs font-bold text-white/30 uppercase tracking-widest">Realtime</span>
-           </div>
-           
-           <div className="flex flex-col gap-6 relative">
-              <div className="flex flex-col items-center justify-center py-8 text-white/30">
-                <span className="text-sm">No recent operations detected.</span>
+          {/* FIX BUG-03: Recharts AreaChart với data thật từ API */}
+          <div className="h-[280px] w-full">
+            {isLoading ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="w-6 h-6 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
               </div>
-           </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="revGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="enrGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={40}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="Revenue"
+                    stroke="#6366f1"
+                    strokeWidth={2}
+                    fill="url(#revGradient)"
+                    dot={false}
+                    activeDot={{ r: 4, fill: '#6366f1' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="Enrollments"
+                    stroke="#06b6d4"
+                    strokeWidth={1.5}
+                    fill="url(#enrGradient)"
+                    dot={false}
+                    activeDot={{ r: 4, fill: '#06b6d4' }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-0.5 bg-indigo-500 rounded" />
+              <span className="text-xs text-white/40">Revenue</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-0.5 bg-cyan-500 rounded" />
+              <span className="text-xs text-white/40">Enrollments</span>
+            </div>
+          </div>
         </div>
 
+        {/* Recent Enrollments Feed */}
+        <div className="lg:col-span-4 flex flex-col gap-6 bg-[#0a0a0a]/50 border border-white/5 rounded-3xl p-6 md:p-8 backdrop-blur-xl shadow-2xl">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-light tracking-tight text-white/90">Recent Enrollments</h2>
+            <span className="text-xs font-bold text-white/30 uppercase tracking-widest">Live</span>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {isLoading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 animate-pulse">
+                  <div className="w-8 h-8 rounded-full bg-white/5" />
+                  <div className="flex-1 space-y-1">
+                    <div className="h-3 bg-white/5 rounded w-3/4" />
+                    <div className="h-2.5 bg-white/5 rounded w-1/2" />
+                  </div>
+                </div>
+              ))
+            ) : recentEnrollments.length === 0 ? (
+              <div className="py-8 text-center text-white/30 text-sm">No enrollments yet.</div>
+            ) : (
+              recentEnrollments.slice(0, 6).map((enr: any, idx: number) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.06 }}
+                  className="flex items-center gap-3"
+                >
+                  <img
+                    src={enr.student?.avatar?.startsWith('http')
+                      ? enr.student.avatar
+                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(enr.student?.name || 'U')}&background=6366f1&color=fff&size=32`
+                    }
+                    alt={enr.student?.name}
+                    className="w-8 h-8 rounded-full border border-white/10 flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-white/80 truncate">{enr.student?.name}</p>
+                    <p className="text-[10px] text-white/40 truncate">{enr.course?.title}</p>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    enr.paymentStatus === 'completed'
+                      ? 'bg-emerald-500/10 text-emerald-400'
+                      : 'bg-white/5 text-white/40'
+                  }`}>
+                    {enr.paymentStatus === 'completed' ? 'Paid' : 'Free'}
+                  </span>
+                </motion.div>
+              ))
+            )}
+          </div>
+
+          {/* Top Courses mini-list */}
+          {topCourses.length > 0 && (
+            <>
+              <div className="w-full h-[1px] bg-white/5 mt-2" />
+              <div className="flex flex-col gap-1">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-white/30 mb-2">Top Courses</h3>
+                {topCourses.slice(0, 3).map((c: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white/20 w-4">{i + 1}</span>
+                      <span className="text-xs text-white/70 truncate max-w-[140px]">{c.title}</span>
+                    </div>
+                    <span className="text-xs font-bold text-white/40">{c.enrollmentCount}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

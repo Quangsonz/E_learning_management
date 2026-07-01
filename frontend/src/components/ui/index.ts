@@ -31,3 +31,4 @@ export {
   ErrorState,
   SuccessState
 } from './StateViews';
+export * from './ActionDropdown';

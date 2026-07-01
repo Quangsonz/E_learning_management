@@ -132,7 +132,7 @@ const AnimatedStat = ({ value, suffix, label }: { value: number; suffix: string;
 
 const CourseCard = ({ course }: { course: CourseData }) => {
   const navigate = useNavigate();
-  const originalPrice = course.price ? (course.price * 2).toFixed(0) : null;
+  const originalPrice = course.price ? (course.price * 2) : null;
   return (
     <motion.div
       whileHover={{ y: -8 }}
@@ -181,8 +181,8 @@ const CourseCard = ({ course }: { course: CourseData }) => {
               <span className="text-xl font-black text-emerald-400">Free</span>
             ) : (
               <>
-                {originalPrice && <span className="text-sm text-slate-500 line-through">${originalPrice}</span>}
-                <span className="text-xl font-black text-slate-900 dark:text-white">${course.price}</span>
+                {originalPrice && <span className="text-sm text-slate-500 line-through">{Number(originalPrice).toLocaleString('vi-VN')}đ</span>}
+                <span className="text-xl font-black text-slate-900 dark:text-white">{Number(course.price || 0).toLocaleString('vi-VN')}đ</span>
               </>
             )}
           </div>
@@ -416,8 +416,8 @@ const Home: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-slate-400 text-sm line-through">$99</span>
-                    <span className="text-xl font-black text-white">$39</span>
+                    <span className="text-slate-400 text-sm line-through">2.400.000đ</span>
+                    <span className="text-xl font-black text-white">900.000đ</span>
                     <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">-61%</span>
                   </div>
                 </div>

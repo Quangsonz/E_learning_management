@@ -3,6 +3,7 @@ const Course = require('../models/Course');
 const User = require('../models/User');
 const Progress = require('../models/Progress');
 const Result = require('../models/Result');
+const Order = require('../models/Order');
 
 class AnalyticsService {
   // ==================================================
@@ -403,6 +404,59 @@ class AnalyticsService {
       { $sort: { dropOffCount: -1 } },
       { $limit: 10 }
     ]);
+  }
+
+  // ==================================================
+  // FINANCIAL / ORDERS
+  // ==================================================
+
+  /**
+   * Lấy danh sách orders có pagination, filter, và revenue summary
+   * @param {Object} query - { page, limit, status }
+   */
+  async getOrderStats(query = {}) {
+    const { page = 1, limit = 15, status } = query;
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 15;
+    const skip = (pageNum - 1) * limitNum;
+
+    const filter = {};
+    if (status && ['pending', 'paid', 'failed'].includes(status)) {
+      filter.status = status;
+    }
+
+    const [orders, total, revenueSummary] = await Promise.all([
+      Order.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .populate('user', 'name email avatar')
+        .populate('course', 'title price'),
+      Order.countDocuments(filter),
+      Order.aggregate([
+        { $match: { status: 'paid' } },
+        { $group: {
+          _id: null,
+          totalRevenue: { $sum: '$amount' },
+          totalOrders: { $sum: 1 },
+          avgOrderValue: { $avg: '$amount' }
+        }}
+      ])
+    ]);
+
+    const summary = revenueSummary[0] || { totalRevenue: 0, totalOrders: 0, avgOrderValue: 0 };
+
+    return {
+      orders,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+      summary: {
+        totalRevenue: summary.totalRevenue,
+        totalPaidOrders: summary.totalOrders,
+        avgOrderValue: Math.round(summary.avgOrderValue || 0)
+      }
+    };
   }
 }
 

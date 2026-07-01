@@ -348,7 +348,7 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </AnimatePresence>
 
       {/* ── Main Content ──────────────────────────────────── */}
-      <main className="flex-1 w-full min-w-0 md:pt-24 relative z-0">
+      <main className="flex-1 w-full min-w-0 relative z-0">
         <CommandPalette />
         {children}
       </main>

@@ -38,7 +38,8 @@ const userSchema = new mongoose.Schema({
     description: { type: String },
     awardedAt: { type: Date, default: Date.now } 
   }],
-  wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }] // Khóa học yêu thích
+  wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }], // Khóa học yêu thích
+  isActive: { type: Boolean, default: true } // Trạng thái tài khoản (admin có thể suspend)
 }, { timestamps: true });
 
 // Tối ưu hóa truy vấn đăng nhập và lấy người dùng theo vai trò

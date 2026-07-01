@@ -169,4 +169,7 @@ router
   .patch(userController.updateUser)
   .delete(userController.deleteUser);
 
+// Toggle suspend/activate user
+router.patch('/:id/toggle-active', userController.toggleUserActive);
+
 module.exports = router;

@@ -92,7 +92,7 @@ const CourseBuilder = () => {
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label htmlFor="price" className="block text-sm font-bold text-slate-700 dark:text-slate-300">
-                  Price ($)
+                  Price (đ)
                 </label>
                 <Input
                   id="price"

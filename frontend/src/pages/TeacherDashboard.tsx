@@ -51,9 +51,9 @@ const studentSeries: SeriesPoint[] = [
 ];
 
 const courseMetrics: CourseMetric[] = [
-  { title: 'Product Design Masterclass', students: '1,240 students', completion: '84% completion', revenue: '$13.4k' },
-  { title: 'React System Architecture', students: '980 students', completion: '78% completion', revenue: '$11.8k' },
-  { title: 'Learning Analytics Strategy', students: '710 students', completion: '91% completion', revenue: '$9.3k' }
+  { title: 'Product Design Masterclass', students: '1.240 students', completion: '84% completion', revenue: '300.000.000đ' },
+  { title: 'React System Architecture', students: '980 students', completion: '78% completion', revenue: '280.000.000đ' },
+  { title: 'Learning Analytics Strategy', students: '710 students', completion: '91% completion', revenue: '230.000.000đ' }
 ];
 
 const quizPerformance = [
@@ -116,8 +116,8 @@ const TeacherDashboard: React.FC = () => {
   }));
 
   const metrics = [
-    { label: 'Revenue', value: `$${(revenueValue / 1000).toFixed(1)}k`, delta: '+18.4% this month' },
-    { label: 'Active Students', value: studentsValue.toLocaleString(), delta: '+12.1% this week' },
+    { label: 'Revenue', value: `${revenueValue.toLocaleString('vi-VN')}đ`, delta: '+18.4% this month' },
+    { label: 'Active Students', value: studentsValue.toLocaleString('vi-VN'), delta: '+12.1% this week' },
     { label: 'Courses Published', value: coursesValue.toString(), delta: '+3 new courses' },
     { label: 'Quiz Pass Rate', value: `${passRateValue}%`, delta: '+4.8% improved' }
   ];
@@ -148,15 +148,15 @@ const TeacherDashboard: React.FC = () => {
               <div className="mt-4 space-y-2.5 text-sm">
                 <div className="flex items-baseline justify-between gap-4">
                   <span className="text-white/60">Total Revenue</span>
-                  <span className="font-semibold tabular-nums">${overview?.totalRevenue?.toLocaleString() || 0}</span>
+                  <span className="font-semibold tabular-nums">{overview?.totalRevenue?.toLocaleString('vi-VN') || 0}đ</span>
                 </div>
                 <div className="flex items-baseline justify-between gap-4">
                   <span className="text-white/60">Total Students</span>
-                  <span className="font-semibold tabular-nums">{overview?.totalStudents?.toLocaleString() || 0}</span>
+                  <span className="font-semibold tabular-nums">{overview?.totalStudents?.toLocaleString('vi-VN') || 0}</span>
                 </div>
                 <div className="flex items-baseline justify-between gap-4">
                   <span className="text-white/60">Completions</span>
-                  <span className="font-semibold tabular-nums">{overview?.completionCount?.toLocaleString() || 0}</span>
+                  <span className="font-semibold tabular-nums">{overview?.completionCount?.toLocaleString('vi-VN') || 0}</span>
                 </div>
               </div>
             </div>
@@ -242,7 +242,7 @@ const TeacherDashboard: React.FC = () => {
                   </div>
                   <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-slate-600 dark:text-slate-300">
                     <span>{course.avgProgress?.toFixed(1) || 0}% completion</span>
-                    <span className="font-semibold text-primary-600">${course.price}</span>
+                    <span className="font-semibold text-primary-600">{Number(course.price || 0).toLocaleString('vi-VN')}đ</span>
                   </div>
                 </MotionDiv>
               ))}

@@ -144,4 +144,12 @@ export const userApi = {
   deleteUser: async (id: string): Promise<void> => {
     await axiosInstance.delete(`/users/${id}`);
   },
+
+  /**
+   * Toggle suspend/activate user (Admin) - PATCH /api/users/:id/toggle-active
+   */
+  toggleUserActive: async (id: string): Promise<UserResponse> => {
+    const response = await axiosInstance.patch(`/users/${id}/toggle-active`);
+    return response.data;
+  },
 };

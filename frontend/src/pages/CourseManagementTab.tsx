@@ -8,7 +8,8 @@ import {
   Modal,
   SectionLead,
   SkeletonTable,
-  Toast
+  Toast,
+  ActionDropdown
 } from '../components/ui';
 import { Input } from '../components/ui/Input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -36,11 +37,10 @@ type Course = {
 
 type CourseFormState = {
   title: string;
+  description: string;
   categoryId: string;
   instructorId: string;
-  lessons: string;
   price: string;
-  students: string;
   status: CourseStatus;
 };
 
@@ -50,11 +50,10 @@ const MotionTr = motion.tr as unknown as React.FC<
 
 const emptyForm: CourseFormState = {
   title: '',
+  description: '',
   categoryId: '',
   instructorId: '',
-  lessons: '8',
-  price: '49',
-  students: '0',
+  price: '0',
   status: 'draft'
 };
 
@@ -108,7 +107,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       categoryId: course.category?._id || '',
       categoryName: course.category?.name || 'Uncategorized',
       lessons: 0,
-      price: course.price,
+      price: Number(course.price) || 0,
       students: 0,
       status: course.status,
       updatedAt: new Date(course.updatedAt).toLocaleDateString(),
@@ -125,11 +124,59 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
   const [managingQuizzesCourse, setManagingQuizzesCourse] = useState<Course | null>(null);
   const [workflowStep, setWorkflowStep] = useState(0);
   const [form, setForm] = useState<CourseFormState>(emptyForm);
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+  const [selectedCourseIds, setSelectedCourseIds] = useState<Set<string>>(new Set());
 
   const filteredCourses = courses;
 
+  const sortedCourses = useMemo(() => {
+    let sortableItems = [...filteredCourses];
+    if (sortConfig !== null) {
+      sortableItems.sort((a: any, b: any) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        if (sortConfig.key === 'updatedAt') {
+          const parseDate = (dStr: string) => {
+            const parts = dStr.split('/');
+            if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+            return new Date(dStr).getTime();
+          };
+          aValue = parseDate(aValue);
+          bValue = parseDate(bValue);
+        }
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredCourses, sortConfig]);
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
+    setSortConfig({ key, direction });
+  };
+
   const handleNextPage = () => setPage(p => Math.min(p + 1, totalPages));
   const handlePrevPage = () => setPage(p => Math.max(p - 1, 1));
+
+  const toggleSelectAll = () => {
+    if (selectedCourseIds.size === sortedCourses.length) {
+      setSelectedCourseIds(new Set());
+    } else {
+      setSelectedCourseIds(new Set(sortedCourses.map(c => c.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedCourseIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedCourseIds(newSet);
+  };
 
   const summary = useMemo(() => {
     const published = courses.filter((course) => course.status === 'published').length;
@@ -142,7 +189,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
   const categoryNames = ['All', ...new Set(courses.map((course) => course.categoryName))];
 
   const metrics = [
-    { label: 'Total Revenue', value: `$${(summary.revenue / 1000).toFixed(1)}k`, delta: '+12.4%' },
+    { label: 'Total Revenue', value: `${summary.revenue.toLocaleString('vi-VN')}đ`, delta: '+12.4%' },
     { label: 'Published', value: summary.published.toString(), delta: 'Live courses' },
     { label: 'In Review', value: summary.review.toString(), delta: 'Needs approval' },
     { label: 'Drafts', value: summary.draft.toString(), delta: 'Ready to publish' }
@@ -157,11 +204,10 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
     setEditingCourse(course);
     setForm({
       title: course.title,
+      description: '',
       categoryId: course.categoryId,
       instructorId: course.instructorId || '',
-      lessons: course.lessons.toString(),
       price: course.price.toString(),
-      students: course.students.toString(),
       status: course.status
     });
     setEditOpen(true);
@@ -194,6 +240,22 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
     }
   });
 
+  // FIX BUG-02: Approve/Reject mutation
+  const approveMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'published' | 'draft' }) =>
+      courseApi.approveCourse(id, status),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+      setToast(vars.status === 'published' ? 'Khóa học đã được xuất bản.' : 'Khóa học đã thu hồi về Draft.');
+    },
+    onError: (error: any) => {
+      setToast(error.response?.data?.message || 'Không thể thay đổi trạng thái khóa học.');
+    }
+  });
+
+  const [approveConfirm, setApproveConfirm] = useState<{ id: string; currentStatus: CourseStatus } | null>(null);
+
   const saveCourse = () => {
     if (!form.title.trim()) {
       setToast('Title is required');
@@ -203,15 +265,24 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       setToast('Category is required');
       return;
     }
+    if (!form.description.trim()) {
+      setToast('Description is required');
+      return;
+    }
 
-    const payload = {
+    // FIX BUG-02: Bỏ hardcode description, gửi form.description thật
+    const payload: Record<string, any> = {
       title: form.title,
+      description: form.description,
       category: form.categoryId,
-      instructor: form.instructorId,
-      description: 'Default description',
       price: Number(form.price),
       status: form.status,
     };
+
+    // Chỉ admin mới set instructor từ dropdown
+    if (!teacherMode && form.instructorId) {
+      payload.instructor = form.instructorId;
+    }
 
     if (editingCourse) {
       updateMutation.mutate({ id: editingCourse.id, data: payload });
@@ -241,12 +312,10 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
          <div>
            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Course Management</h2>
-           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Create, edit, and publish platform courses.</p>
+           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Create, edit, publish and approve platform courses.</p>
          </div>
+         {/* FIX ISSUE-06: Xóa fake Sync button */}
          <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={() => setToast('Courses synced successfully.')}>
-              Sync data
-            </Button>
             <Button onClick={openCreate}>Create course</Button>
          </div>
       </div>
@@ -315,19 +384,35 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                 <table className="min-w-full">
                   <thead>
                     <tr className="border-b border-slate-200/60 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-                      <th className="px-5 py-4">Course</th>
-                      <th className="px-5 py-4">Category</th>
-                      <th className="px-5 py-4">Lessons</th>
-                      <th className="px-5 py-4">Price</th>
-                      <th className="px-5 py-4">Students</th>
-                      <th className="px-5 py-4">Status</th>
-                      <th className="px-5 py-4">Updated</th>
+                      <th className="px-5 py-4 w-12">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-slate-300 dark:border-slate-700 bg-transparent text-indigo-500 focus:ring-indigo-500/30 cursor-pointer"
+                          checked={sortedCourses.length > 0 && selectedCourseIds.size === sortedCourses.length}
+                          onChange={toggleSelectAll}
+                        />
+                      </th>
+                      <th className="px-5 py-4 cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('title')}>
+                        Course {sortConfig?.key === 'title' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
+                      </th>
+                      <th className="px-5 py-4 cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('lessons')}>
+                        Lessons {sortConfig?.key === 'lessons' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
+                      </th>
+                      <th className="px-5 py-4 cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('price')}>
+                        Price {sortConfig?.key === 'price' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
+                      </th>
+                      <th className="px-5 py-4 cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('students')}>
+                        Students {sortConfig?.key === 'students' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
+                      </th>
+                      <th className="px-5 py-4 cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('status')}>
+                        Status {sortConfig?.key === 'status' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
+                      </th>
                       <th className="px-5 py-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200/60">
                     <AnimatePresence initial={false}>
-                      {filteredCourses.map((course, index) => (
+                      {sortedCourses.map((course, index) => (
                         <MotionTr
                           key={course.id}
                           layout
@@ -335,45 +420,77 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
                           transition={{ duration: 0.24, delay: index * 0.03 }}
-                          className="text-sm text-slate-700 dark:text-slate-200 transition duration-sm hover:bg-white/50 dark:hover:bg-slate-800/50"
+                          className={`text-sm text-slate-700 dark:text-slate-200 transition duration-sm hover:bg-white/50 dark:hover:bg-slate-800/50 ${selectedCourseIds.has(course.id) ? 'bg-indigo-50 dark:bg-indigo-500/10' : ''}`}
                         >
                           <td className="px-5 py-4">
-                            <div className="font-semibold text-slate-950 dark:text-white">{course.title}</div>
+                            <input 
+                              type="checkbox" 
+                              className="rounded border-slate-300 dark:border-slate-700 bg-transparent text-indigo-500 focus:ring-indigo-500/30 cursor-pointer"
+                              checked={selectedCourseIds.has(course.id)}
+                              onChange={() => toggleSelect(course.id)}
+                            />
                           </td>
-                          <td className="px-5 py-4">{course.categoryName}</td>
+                          <td className="px-5 py-4">
+                            <div className="font-semibold text-slate-950 dark:text-white line-clamp-1">{course.title}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{course.categoryName}</div>
+                          </td>
                           <td className="px-5 py-4">{course.lessons}</td>
-                          <td className="px-5 py-4">${course.price}</td>
-                          <td className="px-5 py-4">{course.students.toLocaleString()}</td>
+                          <td className="px-5 py-4">{Number(course.price || 0).toLocaleString('vi-VN')}đ</td>
+                          <td className="px-5 py-4">{course.students.toLocaleString('vi-VN')}</td>
                           <td className="px-5 py-4">
-                            <span className={`status-badge ${statusTone[course.status]}`}>{course.status}</span>
+                            <div className="flex flex-col items-start gap-1">
+                              <span className={`status-badge ${statusTone[course.status]}`}>{course.status}</span>
+                              <span className="text-[10px] text-slate-400">{course.updatedAt}</span>
+                            </div>
                           </td>
-                          <td className="px-5 py-4 text-slate-400">{course.updatedAt}</td>
                           <td className="px-5 py-4">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                className="rounded-full px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-100 dark:hover:bg-slate-800/50"
-                                onClick={() => navigate(`/teacher/courses/${course.id}/curriculum`)}
-                              >
-                                Lessons
-                              </button>
-                              <button
-                                type="button"
-                                className="rounded-full px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-100 dark:hover:bg-slate-800/50"
-                                onClick={() => setManagingQuizzesCourse(course)}
-                              >
-                                Quizzes
-                              </button>
-                              <button
-                                type="button"
-                                className="rounded-full px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-100 dark:hover:bg-slate-800/50"
-                                onClick={() => openEdit(course)}
-                              >
-                                Edit
-                              </button>
-                              <Button variant="pill" size="sm" className="!h-8 !px-3 !text-xs" onClick={() => openPublish(course)}>
-                                Publish
-                              </Button>
+                            <div className="flex items-center justify-end">
+                              <ActionDropdown>
+                                <button
+                                  type="button"
+                                  className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                  onClick={() => navigate(`/teacher/courses/${course.id}/curriculum`)}
+                                >
+                                  Manage Lessons
+                                </button>
+                                <button
+                                  type="button"
+                                  className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                  onClick={() => setManagingQuizzesCourse(course)}
+                                >
+                                  Manage Quizzes
+                                </button>
+                                <button
+                                  type="button"
+                                  className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                  onClick={() => openEdit(course)}
+                                >
+                                  Edit Details
+                                </button>
+                                {/* Approve/Reject — chỉ admin */}
+                                {!teacherMode && (
+                                  <button
+                                    type="button"
+                                    className={`w-full text-left px-4 py-2 text-xs font-semibold transition-colors ${
+                                      course.status === 'published' 
+                                        ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10' 
+                                        : 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
+                                    }`}
+                                    onClick={() => setApproveConfirm({ id: course.id, currentStatus: course.status })}
+                                  >
+                                    {course.status === 'published' ? 'Unpublish Course' : 'Approve Course'}
+                                  </button>
+                                )}
+                                {teacherMode && (
+                                  <button 
+                                    type="button"
+                                    className="w-full text-left px-4 py-2 text-xs font-semibold text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
+                                    onClick={() => openPublish(course)}
+                                  >
+                                    Publish Course
+                                  </button>
+                                )}
+                              </ActionDropdown>
                             </div>
                           </td>
                         </MotionTr>
@@ -383,7 +500,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                 </table>
               </div>
 
-              {filteredCourses.length === 0 ? (
+              {sortedCourses.length === 0 ? (
                 <div className="px-5 py-10">
                   <EmptyState
                     title="No courses match your filters"
@@ -406,6 +523,36 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
             </>
           )}
         </div>
+
+        {/* Floating Bulk Action Bar */}
+        <AnimatePresence>
+          {selectedCourseIds.size > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 dark:bg-[#0a0a0a] border border-slate-700 dark:border-white/10 shadow-2xl rounded-full px-6 py-4 flex items-center gap-6 text-white"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-500 text-xs font-bold text-white">
+                  {selectedCourseIds.size}
+                </div>
+                <span className="text-sm font-semibold whitespace-nowrap">Courses Selected</span>
+              </div>
+              <div className="h-6 w-px bg-white/20"></div>
+              <div className="flex items-center gap-2">
+                <button className="px-4 py-2 bg-emerald-500/10 text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-full hover:bg-emerald-500/20 transition-colors">Approve All</button>
+                <button className="px-4 py-2 bg-rose-500/10 text-rose-400 text-xs font-bold uppercase tracking-wider rounded-full hover:bg-rose-500/20 transition-colors">Delete</button>
+                <button 
+                  onClick={() => setSelectedCourseIds(new Set())}
+                  className="px-4 py-2 bg-white/5 text-white/50 text-xs font-bold uppercase tracking-wider rounded-full hover:bg-white/10 hover:text-white transition-colors ml-2"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </section>
 
       <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)}>
@@ -501,10 +648,39 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       <Toast 
         visible={Boolean(toast)} 
         message={toast} 
-        title={toast.includes('successfully') || toast.includes('synced') ? "Success" : "Error"} 
-        variant={toast.includes('successfully') || toast.includes('synced') ? "success" : "error"} 
+        title={toast.includes('xuất bản') || toast.includes('thành công') || toast.includes('thu hồi') ? "Success" : "Error"} 
+        variant={toast.includes('xuất bản') || toast.includes('thành công') || toast.includes('thu hồi') ? "success" : "error"} 
         onClose={() => setToast('')} 
       />
+
+      {/* Approve/Unpublish Confirm */}
+      {approveConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+          <div onClick={() => setApproveConfirm(null)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+              {approveConfirm.currentStatus === 'draft' ? 'Approve & Publish Course?' : 'Unpublish Course?'}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+              {approveConfirm.currentStatus === 'draft'
+                ? 'Khóa học sẽ được xuất bản và hiển thị cho học viên.'
+                : 'Khóa học sẽ bị ẩn khỏi danh sách công khai.'}
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button variant="ghost" onClick={() => setApproveConfirm(null)}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  const newStatus = approveConfirm.currentStatus === 'draft' ? 'published' : 'draft';
+                  approveMutation.mutate({ id: approveConfirm.id, status: newStatus });
+                  setApproveConfirm(null);
+                }}
+              >
+                {approveConfirm.currentStatus === 'draft' ? 'Approve' : 'Unpublish'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -522,9 +698,27 @@ const CourseForm: React.FC<{
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Field label="Course title" value={form.title} onChange={(value) => update('title', value)} placeholder="Enter course title" />
+      {/* Title - full width */}
+      <div className="sm:col-span-2">
+        <Field label="Course title *" value={form.title} onChange={(value) => update('title', value)} placeholder="e.g. Complete JavaScript Course" />
+      </div>
+
+      {/* Description - full width */}
+      <div className="sm:col-span-2">
+        <label className="block space-y-2">
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Description *</span>
+          <textarea
+            value={form.description}
+            onChange={(event) => update('description', event.target.value)}
+            rows={3}
+            placeholder="Mô tả ngắn về khóa học, nội dung và mục tiêu học tập..."
+            className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50 px-4 py-3 text-sm font-medium text-slate-900 dark:text-white outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10 resize-none"
+          />
+        </label>
+      </div>
+
       <label className="block space-y-2">
-        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Category</span>
+        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Category *</span>
         <select
           value={form.categoryId}
           onChange={(event) => update('categoryId', event.target.value)}
@@ -536,7 +730,9 @@ const CourseForm: React.FC<{
           ))}
         </select>
       </label>
-      
+
+      <Field label="Price (đ)" value={form.price} onChange={(value) => update('price', value)} type="number" placeholder="0" />
+
       {!teacherMode && (
         <label className="block space-y-2">
           <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Instructor</span>
@@ -553,9 +749,6 @@ const CourseForm: React.FC<{
         </label>
       )}
 
-      <Field label="Lessons" value={form.lessons} onChange={(value) => update('lessons', value)} type="number" />
-      <Field label="Price" value={form.price} onChange={(value) => update('price', value)} type="number" />
-      <Field label="Students" value={form.students} onChange={(value) => update('students', value)} type="number" />
       <label className="block space-y-2">
         <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Status</span>
         <select

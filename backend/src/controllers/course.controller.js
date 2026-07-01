@@ -77,6 +77,27 @@ class CourseController {
       data: null,
     });
   });
+
+  /**
+   * PATCH /api/courses/:id/approve
+   * Admin duyệt hoặc reject khóa học (chuyển status)
+   * Body: { status: 'published' | 'draft' }
+   */
+  approveCourse = catchAsync(async (req, res, next) => {
+    const { status } = req.body;
+
+    if (!['published', 'draft'].includes(status)) {
+      return next(new (require('../utils/appError'))('Status không hợp lệ. Chỉ chấp nhận published hoặc draft.', 400));
+    }
+
+    const updatedCourse = await courseService.updateCourse(req.params.id, { status }, req.user);
+
+    res.status(200).json({
+      status: 'success',
+      message: status === 'published' ? 'Khóa học đã được duyệt và xuất bản.' : 'Khóa học đã bị thu hồi về draft.',
+      data: { course: updatedCourse }
+    });
+  });
 }
 
 module.exports = new CourseController();

@@ -16,12 +16,12 @@
   .page-container {
     margin-inline: auto;
     max-width: 82rem;
-    padding: clamp(var(--space-4), 3vw, var(--space-6)) clamp(var(--space-4), 4vw, var(--space-8));
+    padding: 104px clamp(var(--space-4), 4vw, var(--space-8)) clamp(var(--space-4), 3vw, var(--space-6));
   }
 
   .page-container-wide {
     max-width: clamp(100rem, 94vw, 112.5rem);
-    padding-inline: clamp(var(--space-4), 2.5vw, var(--space-6));
+    padding: 104px clamp(var(--space-4), 2.5vw, var(--space-6)) clamp(var(--space-4), 3vw, var(--space-6));
   }
 
   /* ── Canvas Layout ───────────────────────────────────── */
@@ -54,7 +54,7 @@
 
   @media (min-width: 1024px) {
     .page-container {
-      padding-block: var(--space-6);
+      padding-bottom: var(--space-6);
     }
   }
 

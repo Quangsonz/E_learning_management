@@ -73,7 +73,7 @@ class LessonService {
     }
 
     // Chỉ Admin hoặc Giảng viên tạo khóa học mới được thêm bài giảng
-    if (user.role !== 'admin' && course.instructor._id.toString() !== user.id) {
+    if (user.role !== 'admin' && (!course.instructor || course.instructor._id.toString() !== user.id)) {
       throw new AppError('Bạn không có quyền thêm bài giảng vào khóa học của người khác', 403);
     }
 
@@ -92,7 +92,7 @@ class LessonService {
     const course = await courseRepository.findById(courseId);
     if (!course) throw new AppError('Không tìm thấy khóa học', 404);
 
-    if (user.role !== 'admin' && course.instructor._id.toString() !== user.id) {
+    if (user.role !== 'admin' && (!course.instructor || course.instructor._id.toString() !== user.id)) {
       throw new AppError('Bạn không có quyền sửa bài giảng này', 403);
     }
 
@@ -106,7 +106,7 @@ class LessonService {
     const course = await courseRepository.findById(courseId);
     if (!course) throw new AppError('Không tìm thấy khóa học', 404);
 
-    if (user.role !== 'admin' && course.instructor._id.toString() !== user.id) {
+    if (user.role !== 'admin' && (!course.instructor || course.instructor._id.toString() !== user.id)) {
       throw new AppError('Bạn không có quyền xóa bài giảng này', 403);
     }
 

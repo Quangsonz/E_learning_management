@@ -1,15 +1,42 @@
 const userRepository = require('../repositories/user.repository');
+const User = require('../models/User');
 const AppError = require('../utils/appError');
 
 class UserService {
   /**
-   * Lấy tất cả user với filter query
-   * @param {Object} query - Mongoose filter query
+   * Lấy tất cả user với filter query + pagination + search
+   * @param {Object} query - { page, limit, role, search, isActive }
    */
   async getAllUsers(query) {
-    // Tách các params không phải filter
-    const { page, limit, sort, fields, ...filter } = query;
-    return await userRepository.find(filter);
+    const { page = 1, limit = 20, sort = '-createdAt', search, ...filter } = query;
+
+    // Search theo name hoặc email
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
+    const skip = (pageNum - 1) * limitNum;
+
+    const [users, total] = await Promise.all([
+      User.find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(limitNum)
+        .select('-password -verificationToken -passwordResetToken -refreshToken'),
+      User.countDocuments(filter)
+    ]);
+
+    return {
+      users,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum)
+    };
   }
 
   /**

@@ -1,12 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { analyticsApi } from '../services/analytics.api';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../contexts/AuthContext';
 import { userApi } from '../services/user.api';
+import { useCountUp } from '../hooks/useCountUp';
 import CourseManagementTab from './CourseManagementTab';
 import CategoryManagementTab from './CategoryManagementTab';
 import { PlatformPulse } from '../components/admin/PlatformPulse';
+import { AnalyticsTab } from '../components/admin/AnalyticsTab';
+import { FinancialTab } from '../components/admin/FinancialTab';
 
 /* ── Icons ────────────────────────────────────────────────────────── */
 const Icons = {
@@ -32,106 +35,297 @@ const navigation = [
   { id: 'monitoring', label: 'System Monitoring', icon: Icons.Monitor },
 ];
 
-
-/* ── Hooks ────────────────────────────────────────────────────────── */
-const useCountUp = (target: number, duration = 1500) => {
-  const [value, setValue] = useState(0);
-
-  useEffect(() => {
-    let start: number | null = null;
-    let frame = 0;
-
-    const step = (timestamp: number) => {
-      if (start === null) start = timestamp;
-      const progress = Math.min((timestamp - start) / duration, 1);
-      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
-      setValue(Math.round(target * easeOutQuart));
-      if (progress < 1) frame = window.requestAnimationFrame(step);
-    };
-
-    frame = window.requestAnimationFrame(step);
-    return () => window.cancelAnimationFrame(frame);
-  }, [duration, target]);
-
-  return value;
+/* ── COMMAND PALETTE ───────────────────────────────────────────────── */
+const CommandPalette = ({ isOpen, onClose, navigate }: { isOpen: boolean, onClose: () => void, navigate: any }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[110] flex items-start justify-center pt-[20vh] px-4 animate-in fade-in duration-200">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-2xl bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+        <div className="flex items-center px-4 border-b border-white/10">
+          <svg className="text-white/40" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input 
+            autoFocus 
+            type="text" 
+            placeholder="Type a command or search..." 
+            className="w-full bg-transparent px-4 py-4 text-white focus:outline-none placeholder:text-white/30 text-lg" 
+          />
+          <button onClick={onClose} className="px-2 py-1 bg-white/10 rounded text-[10px] font-bold tracking-widest text-white/50 uppercase hover:text-white">Esc</button>
+        </div>
+        <div className="p-2 max-h-[40vh] overflow-y-auto">
+          <div className="px-3 py-2 text-[10px] font-bold text-white/30 uppercase tracking-widest">Navigation</div>
+          {navigation.map(nav => (
+            <button 
+              key={nav.id} 
+              onClick={() => { navigate(`/admin-dashboard/${nav.id}`); onClose(); }}
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-white/5 text-left transition-colors"
+            >
+              <div className="text-indigo-400"><nav.icon /></div>
+              <span className="text-sm font-medium text-white">{nav.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 };
 
-/* ── Components ───────────────────────────────────────────────────── */
+/* ── CONFIRM MODAL ─────────────────────────────────────────────────── */
+interface ConfirmModalProps {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  confirmVariant?: 'danger' | 'warning' | 'success';
+  onConfirm: () => void;
+  onCancel: () => void;
+}
 
+const ConfirmModal: React.FC<ConfirmModalProps> = ({
+  isOpen, title, message, confirmLabel = 'Confirm', confirmVariant = 'danger', onConfirm, onCancel
+}) => (
+  <AnimatePresence>
+    {isOpen && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          onClick={onCancel}
+          className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 16 }}
+          className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 shadow-2xl"
+        >
+          <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
+          <p className="text-sm text-white/50 mb-6">{message}</p>
+          <div className="flex justify-end gap-3">
+            <button onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-white/60 hover:text-white transition-colors">
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
+                confirmVariant === 'danger' ? 'bg-rose-500 hover:bg-rose-400 text-white' :
+                confirmVariant === 'warning' ? 'bg-amber-500 hover:bg-amber-400 text-black' :
+                'bg-emerald-500 hover:bg-emerald-400 text-white'
+              }`}
+            >
+              {confirmLabel}
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    )}
+  </AnimatePresence>
+);
 
+/* ── EDIT USER MODAL ───────────────────────────────────────────────── */
+interface EditUserModalProps {
+  user: any | null;
+  onClose: () => void;
+  onSave: (id: string, data: { name: string; role: string }) => void;
+  isSaving: boolean;
+}
 
-/* ── USER MANAGEMENT COMPONENT ── */
+const EditUserModal: React.FC<EditUserModalProps> = ({ user, onClose, onSave, isSaving }) => {
+  const [name, setName] = useState(user?.name || '');
+  const [role, setRole] = useState(user?.role || 'student');
+
+  if (!user) return null;
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 16 }}
+          className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 shadow-2xl"
+        >
+          <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+
+          <h3 className="text-xl font-light text-white mb-1">Edit User</h3>
+          <p className="text-sm text-white/40 mb-6">{user.email}</p>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-widest text-white/40">Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-widest text-white/40">Role</label>
+              <select
+                value={role}
+                onChange={e => setRole(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              >
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-6 border-t border-white/10 mt-6">
+            <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-white/60 hover:text-white transition-colors">
+              Cancel
+            </button>
+            <button
+              onClick={() => onSave(user.id, { name, role })}
+              disabled={isSaving}
+              className="px-5 py-2 text-sm font-bold bg-white text-black rounded-lg hover:bg-white/90 transition-colors disabled:opacity-50"
+            >
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+};
+
+/* ── ACTION DROPDOWN ─────────────────────────────────────────────────── */
+const ActionDropdown = ({ children }: { children: React.ReactNode }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="relative inline-block text-left">
+      <button onClick={() => setIsOpen(!isOpen)} className="p-2 text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      </button>
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 mt-2 w-32 origin-top-right rounded-lg bg-[#111] border border-white/10 shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+            {React.Children.map(children, child => 
+              React.isValidElement(child) ? React.cloneElement(child as React.ReactElement<any>, { 
+                onClick: (e: any) => { 
+                  if (child.props.onClick) child.props.onClick(e); 
+                  setIsOpen(false); 
+                }
+              }) : child
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+/* ── USER MANAGEMENT COMPONENT ─────────────────────────────────────── */
 const UserIntelligence = () => {
+  const queryClient = useQueryClient();
+  // FIX BUG-01: Tab values khớp với dữ liệu backend (role: student/teacher/admin)
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [editUser, setEditUser] = useState<any | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ userId: string; action: 'suspend' | 'activate' } | null>(null);
 
   const { data: usersData, isLoading: usersLoading } = useQuery({
-    queryKey: ['admin-users'],
-    queryFn: () => userApi.getAllUsers(),
+    queryKey: ['admin-users', filter, search, page],
+    queryFn: () => userApi.getAllUsers({
+      role: filter === 'All' ? undefined : filter.toLowerCase(),
+      search: search || undefined,
+      page,
+      limit: 15
+    }),
   });
 
-  const realUsers: any[] = (usersData as any)?.data?.users || [];
+  // FIX: Lấy users + pagination từ response mới (có total, page, totalPages)
+  const rawData = (usersData as any)?.data;
+  const realUsers: any[] = rawData?.users || [];
+  const totalPages: number = rawData?.totalPages || 1;
 
   const mappedUsers = realUsers.map((u: any) => ({
     id: u._id,
     name: u.name || 'Unknown',
     email: u.email || '',
-    role: u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : 'Student',
-    status: u.isActive !== false ? 'Active' : 'Suspended',
-    lastActive: u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'Never',
-    avatar: u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'U')}&background=random`
+    role: u.role || 'student',
+    isActive: u.isActive !== false,
+    avatar: u.avatar?.startsWith('http')
+      ? u.avatar
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'U')}&background=6366f1&color=fff`,
+    createdAt: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A',
   }));
 
-  const filteredUsers = mappedUsers.filter((u: any) => {
-    const matchesFilter = filter === 'All' || u.role === filter;
-    const matchesSearch = u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
-    return matchesFilter && matchesSearch;
+  const updateUserMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => userApi.updateUser(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      setEditUser(null);
+    }
   });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: (userId: string) => userApi.toggleUserActive(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      setConfirmAction(null);
+    }
+  });
+
+  // FIX BUG-01: Tab labels hiển thị friendly, value map sang role backend
+  const tabs = [
+    { label: 'All', value: 'All' },
+    { label: 'Students', value: 'student' },
+    { label: 'Teachers', value: 'teacher' },
+    { label: 'Admins', value: 'admin' }
+  ];
 
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20 mt-4">
-      
       {/* Header & Controls */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <div className="flex flex-col gap-2">
           <span className="text-sm font-semibold uppercase tracking-[0.25em] text-white/40 pl-1">Directory</span>
           <h1 className="text-4xl font-light tracking-tight text-white">User Intelligence</h1>
         </div>
-        
+
         <div className="flex items-center gap-4">
           <div className="relative group">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            <input 
-              type="text" 
-              placeholder="Search users..." 
+            <input
+              type="text"
+              placeholder="Search users..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="pl-9 pr-4 py-2 text-sm bg-white/5 border border-white/10 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors w-64 text-white placeholder:text-white/30"
             />
           </div>
-          <button className="px-4 py-2 bg-white text-black text-sm font-bold rounded-lg hover:bg-white/90 transition-colors">
-            Invite User
-          </button>
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — FIX BUG-01 */}
       <div className="flex gap-6 border-b border-white/10 pb-2">
-        {['All', 'Student', 'Instructor', 'Admin'].map(tab => (
-          <button 
-            key={tab}
-            onClick={() => setFilter(tab)}
-            className={`text-sm font-semibold tracking-wide pb-2 relative transition-colors ${filter === tab ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
+        {tabs.map(tab => (
+          <button
+            key={tab.value}
+            onClick={() => { setFilter(tab.value); setPage(1); }}
+            className={`text-sm font-semibold tracking-wide pb-2 relative transition-colors ${filter === tab.value ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
           >
-            {tab}
-            {filter === tab && (
+            {tab.label}
+            {filter === tab.value && (
               <motion.div layoutId="user-tab" className="absolute -bottom-[3px] left-0 right-0 h-0.5 bg-white" />
             )}
           </button>
         ))}
       </div>
 
-      {/* Data Table directly on canvas */}
+      {/* Data Table */}
       <div className="w-full overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -140,86 +334,150 @@ const UserIntelligence = () => {
               <th className="pb-4 text-xs font-bold uppercase tracking-widest text-white/30 border-b border-white/10">User</th>
               <th className="pb-4 text-xs font-bold uppercase tracking-widest text-white/30 border-b border-white/10">Role</th>
               <th className="pb-4 text-xs font-bold uppercase tracking-widest text-white/30 border-b border-white/10">Status</th>
-              <th className="pb-4 text-xs font-bold uppercase tracking-widest text-white/30 border-b border-white/10">Last Active</th>
+              <th className="pb-4 text-xs font-bold uppercase tracking-widest text-white/30 border-b border-white/10">Joined</th>
               <th className="pb-4 text-xs font-bold uppercase tracking-widest text-white/30 border-b border-white/10 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             <AnimatePresence>
-              {filteredUsers.map((user, idx) => (
-                <motion.tr 
-                  key={user.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="group hover:bg-white/[0.02] transition-colors"
-                >
-                  <td className="py-4 border-b border-white/5">
-                    <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full border border-white/10 object-cover" />
-                  </td>
-                  <td className="py-4 border-b border-white/5">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-white/90">{user.name}</span>
-                      <span className="text-xs text-white/40">{user.email}</span>
-                    </div>
-                  </td>
-                  <td className="py-4 border-b border-white/5">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-md ${
-                      user.role === 'Admin' ? 'bg-indigo-500/10 text-indigo-400' :
-                      user.role === 'Instructor' ? 'bg-cyan-500/10 text-cyan-400' :
-                      'bg-white/5 text-white/60'
-                    }`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="py-4 border-b border-white/5">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-1.5 h-1.5 rounded-full ${user.status === 'Active' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                      <span className="text-sm text-white/70">{user.status}</span>
-                    </div>
-                  </td>
-                  <td className="py-4 border-b border-white/5">
-                    <span className="text-sm text-white/50">{user.lastActive}</span>
-                  </td>
-                  <td className="py-4 border-b border-white/5 text-right">
-                    <button className="text-xs font-semibold text-white/40 hover:text-white transition-colors">
-                      Edit
-                    </button>
-                    <span className="text-white/20 mx-2">•</span>
-                    <button className="text-xs font-semibold text-red-400/50 hover:text-red-400 transition-colors">
-                      Suspend
-                    </button>
-                  </td>
-                </motion.tr>
-              ))}
               {usersLoading ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-white/40 text-sm">
-                    Loading users from secure channel...
+                    Loading users...
                   </td>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
+              ) : mappedUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-white/40 text-sm">
                     No users found matching your criteria.
                   </td>
                 </tr>
-              ) : null}
+              ) : (
+                mappedUsers.map((user, idx) => (
+                  <motion.tr
+                    key={user.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ delay: idx * 0.04 }}
+                    className="group hover:bg-white/[0.02] transition-colors"
+                  >
+                    <td className="py-4 border-b border-white/5">
+                      <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full border border-white/10 object-cover" />
+                    </td>
+                    <td className="py-4 border-b border-white/5">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-white/90">{user.name}</span>
+                        <span className="text-xs text-white/40">{user.email}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 border-b border-white/5">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-md ${
+                        user.role === 'admin' ? 'bg-indigo-500/10 text-indigo-400' :
+                        user.role === 'teacher' ? 'bg-cyan-500/10 text-cyan-400' :
+                        'bg-white/5 text-white/60'
+                      }`}>
+                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                      </span>
+                    </td>
+                    <td className="py-4 border-b border-white/5">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-1.5 h-1.5 rounded-full ${user.isActive ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                        <span className="text-sm text-white/70">{user.isActive ? 'Active' : 'Suspended'}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 border-b border-white/5">
+                      <span className="text-sm text-white/50">{user.createdAt}</span>
+                    </td>
+                    {/* FIX BUG-05: Actions với handler thật */}
+                    <td className="py-4 border-b border-white/5 text-right">
+                      <ActionDropdown>
+                        <button
+                          onClick={() => setEditUser(user)}
+                          className="w-full text-left px-4 py-2 text-xs font-semibold text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                        >
+                          Edit User
+                        </button>
+                        <button
+                          onClick={() => setConfirmAction({ userId: user.id, action: user.isActive ? 'suspend' : 'activate' })}
+                          className={`w-full text-left px-4 py-2 text-xs font-semibold transition-colors ${
+                            user.isActive
+                              ? 'text-red-400 hover:bg-red-500/10'
+                              : 'text-emerald-400 hover:bg-emerald-500/10'
+                          }`}
+                        >
+                          {user.isActive ? 'Suspend User' : 'Activate User'}
+                        </button>
+                      </ActionDropdown>
+                    </td>
+                  </motion.tr>
+                ))
+              )}
             </AnimatePresence>
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-white/30">Page {page} of {totalPages}</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(p - 1, 1))}
+              disabled={page === 1}
+              className="px-4 py-1.5 text-xs font-semibold bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+              disabled={page === totalPages}
+              className="px-4 py-1.5 text-xs font-semibold bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal — FIX BUG-05 */}
+      {editUser && (
+        <EditUserModal
+          user={editUser}
+          onClose={() => setEditUser(null)}
+          onSave={(id, data) => updateUserMutation.mutate({ id, data })}
+          isSaving={updateUserMutation.isPending}
+        />
+      )}
+
+      {/* Confirm Suspend/Activate — thay window.confirm */}
+      <ConfirmModal
+        isOpen={!!confirmAction}
+        title={confirmAction?.action === 'suspend' ? 'Suspend User?' : 'Activate User?'}
+        message={
+          confirmAction?.action === 'suspend'
+            ? 'User sẽ không thể đăng nhập cho đến khi được kích hoạt lại.'
+            : 'User sẽ có thể đăng nhập trở lại.'
+        }
+        confirmLabel={confirmAction?.action === 'suspend' ? 'Suspend' : 'Activate'}
+        confirmVariant={confirmAction?.action === 'suspend' ? 'danger' : 'success'}
+        onConfirm={() => {
+          if (confirmAction) toggleActiveMutation.mutate(confirmAction.userId);
+        }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 };
 
+/* ── SYSTEM MONITORING ─────────────────────────────────────────────── */
 const SystemMonitoring = () => {
   const metrics = [
-    { label: 'API Latency', value: '24ms', status: 'optimal', color: 'emerald' },
-    { label: 'Database Load', value: '12%', status: 'optimal', color: 'emerald' },
-    { label: 'Storage Usage', value: '82%', status: 'warning', color: 'amber' },
-    { label: 'Edge Cache', value: '98.5%', status: 'optimal', color: 'emerald' },
+    { label: 'API Latency', value: '~24ms', status: 'optimal', color: 'emerald' },
+    { label: 'DB Connection', value: 'Atlas', status: 'optimal', color: 'emerald' },
+    { label: 'Storage', value: 'Cloudinary', status: 'optimal', color: 'emerald' },
+    { label: 'Payment', value: 'Stripe', status: 'optimal', color: 'emerald' },
   ];
 
   return (
@@ -231,7 +489,7 @@ const SystemMonitoring = () => {
         </div>
         <div className="flex items-center gap-3 mb-2 px-4 py-2 border border-emerald-500/20 rounded-full text-emerald-400">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs font-bold tracking-widest uppercase">All Systems Optimal</span>
+          <span className="text-xs font-bold tracking-widest uppercase">All Systems Operational</span>
         </div>
       </div>
 
@@ -239,49 +497,184 @@ const SystemMonitoring = () => {
         {metrics.map(metric => (
           <div key={metric.label} className="flex flex-col gap-2 border-l-2 border-white/10 pl-5 hover:border-white/30 transition-colors">
             <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">{metric.label}</span>
-            <div className={`text-4xl font-light tracking-tight text-${metric.color}-400`}>
+            <div className={`text-2xl font-light tracking-tight text-${metric.color}-400`}>
               {metric.value}
             </div>
+            <span className="text-xs text-emerald-500 font-semibold uppercase tracking-widest">{metric.status}</span>
           </div>
         ))}
       </div>
 
       <div className="w-full h-[1px] bg-gradient-to-r from-white/10 via-white/5 to-transparent" />
 
-      <div className="flex flex-col gap-6">
-        <h2 className="text-2xl font-light tracking-tight text-white/90">Live Traffic Logs</h2>
-        <div className="w-full h-[350px] font-mono text-sm text-white/50 overflow-y-auto flex flex-col gap-3">
-          <div className="text-emerald-500 font-bold mb-2">root@elearning-prod:~# tail -f /var/log/nginx/access.log</div>
-          <div>[22:41:02] GET /api/v1/courses/ 200 OK - 12ms</div>
-          <div>[22:41:05] GET /api/v1/users/me 200 OK - 8ms</div>
-          <div>[22:41:08] POST /api/v1/tracking/event 201 Created - 4ms</div>
-          <div className="text-amber-400">[22:41:15] WARN: High DB connection count detected (80%)</div>
-          <div>[22:41:16] GET /api/v1/analytics/pulse 200 OK - 45ms</div>
-          <div>[22:41:19] POST /api/v1/payments/webhook 200 OK - 110ms</div>
+      <div className="flex flex-col gap-4">
+        <h2 className="text-2xl font-light tracking-tight text-white/90">Stack Overview</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[
+            { label: 'Backend', value: 'Node.js + Express v5', badge: 'CommonJS' },
+            { label: 'Database', value: 'MongoDB Atlas', badge: 'Mongoose ODM' },
+            { label: 'Storage', value: 'Cloudinary', badge: 'CDN' },
+            { label: 'Realtime', value: 'Socket.IO v4', badge: 'WebSocket' },
+            { label: 'Payment', value: 'Stripe', badge: 'Webhook' },
+            { label: 'Frontend', value: 'React 18 + Vite', badge: 'TypeScript' },
+          ].map(item => (
+            <div key={item.label} className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-bold text-white/30 uppercase tracking-widest">{item.label}</span>
+                <span className="text-sm font-medium text-white/80">{item.value}</span>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 bg-indigo-500/10 text-indigo-400 rounded">{item.badge}</span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
-}
+};
 
-const EmptySection = ({ title, description }: { title: string, description: string }) => (
-  <div className="flex flex-col justify-center h-full min-h-[400px] gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 mt-12">
-    <span className="text-sm font-semibold uppercase tracking-[0.25em] text-white/30 pl-1">Workspace</span>
-    <h2 className="text-4xl lg:text-5xl font-light text-white tracking-tight">{title}</h2>
-    <p className="text-lg text-white/40 max-w-xl leading-relaxed font-light">{description}</p>
-    <button className="mt-4 px-6 py-3 bg-white text-black text-xs font-bold uppercase tracking-widest rounded-lg self-start hover:bg-white/90 transition-colors">
-      Configure Area
-    </button>
+/* ── ENGAGEMENT CENTER ─────────────────────────────────────────────── */
+const EngagementCenter = () => {
+  const activities = [
+    { type: 'review', user: 'Alex N.', action: 'left a 5-star review on', target: 'React Mastery', time: '2 mins ago', color: 'text-amber-400 bg-amber-400/10 border-amber-400/20', icon: '⭐' },
+    { type: 'discussion', user: 'Sarah W.', action: 'started a new thread in', target: 'Advanced System Design', time: '15 mins ago', color: 'text-blue-400 bg-blue-400/10 border-blue-400/20', icon: '💬' },
+    { type: 'completion', user: 'Mike T.', action: 'just completed the course', target: 'UX/UI Fundamentals', time: '1 hour ago', color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', icon: '🎓' },
+    { type: 'report', user: 'System', action: 'flagged a suspicious comment in', target: 'Python for Beginners', time: '3 hours ago', color: 'text-rose-400 bg-rose-400/10 border-rose-400/20', icon: '⚠️' },
+  ];
+
+  return (
+    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20 mt-4">
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-semibold uppercase tracking-[0.25em] text-white/40 pl-1">Community</span>
+        <h1 className="text-4xl font-light tracking-tight text-white">Engagement Center</h1>
+        <p className="text-white/40 text-base max-w-lg">Quản lý thông báo hệ thống, review học viên, và thảo luận khóa học.</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-4">
+        {/* Real-time Activity Feed */}
+        <div className="lg:col-span-8 flex flex-col gap-6 bg-[#0a0a0a]/50 border border-white/5 rounded-3xl p-6 md:p-8 backdrop-blur-xl shadow-2xl">
+          <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <h2 className="text-xl font-light tracking-tight text-white/90">Real-time Activity Feed</h2>
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">Live</span>
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-4 mt-2">
+            {activities.map((item, i) => (
+              <motion.div 
+                key={i} 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.1 }}
+                className="flex items-start gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors cursor-pointer group"
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${item.color} border shrink-0`}>
+                  {item.icon}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm text-white/80 group-hover:text-white transition-colors">
+                    <span className="font-bold">{item.user}</span> {item.action} <span className="font-medium text-indigo-400">{item.target}</span>
+                  </p>
+                  <span className="text-xs text-white/30">{item.time}</span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* Modules */}
+        <div className="lg:col-span-4 flex flex-col gap-4">
+          {[
+            { label: 'Reviews', desc: 'Quản lý đánh giá khóa học', icon: '⭐' },
+            { label: 'Discussions', desc: 'Kiểm duyệt thảo luận', icon: '💬' },
+            { label: 'Notifications', desc: 'Gửi thông báo', icon: '📢' },
+          ].map((item, i) => (
+            <motion.div 
+              key={item.label}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="flex items-center gap-4 p-5 bg-[#0a0a0a]/50 border border-white/5 rounded-3xl backdrop-blur-xl shadow-xl hover:bg-white/[0.02] hover:border-white/10 transition-all cursor-pointer group"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-2xl shrink-0 group-hover:bg-white/10 transition-colors">
+                {item.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-white">{item.label}</p>
+                <p className="text-xs text-white/40 truncate mt-0.5">{item.desc}</p>
+              </div>
+              <svg className="w-4 h-4 text-white/20 group-hover:text-white/50 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"></path></svg>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ── SYSTEM CONFIG ─────────────────────────────────────────────────── */
+const SystemConfig = () => (
+  <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20 mt-4">
+    <div className="flex flex-col gap-2">
+      <span className="text-sm font-semibold uppercase tracking-[0.25em] text-white/40 pl-1">Configuration</span>
+      <h1 className="text-4xl font-light tracking-tight text-white">System Config</h1>
+      <p className="text-white/40 text-base max-w-lg">Cấu hình hệ thống, JWT, CORS, và các biến môi trường.</p>
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {[
+        { key: 'NODE_ENV', value: 'development', label: 'Environment' },
+        { key: 'JWT_EXPIRES_IN', value: '1d', label: 'JWT Expiry' },
+        { key: 'RATE_LIMIT', value: '100 req/hour', label: 'API Rate Limit' },
+        { key: 'DB', value: 'MongoDB Atlas', label: 'Database' },
+        { key: 'STORAGE', value: 'Cloudinary', label: 'Cloud Storage' },
+        { key: 'PAYMENT', value: 'Stripe', label: 'Payment Gateway' },
+      ].map(item => (
+        <div key={item.key} className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl">
+          <div>
+            <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{item.label}</p>
+            <p className="text-xs font-mono text-white/60 mt-0.5">{item.key}</p>
+          </div>
+          <span className="text-sm font-mono text-cyan-400">{item.value}</span>
+        </div>
+      ))}
+    </div>
+    <p className="text-xs text-white/20 italic">* Thay đổi cấu hình qua file .env và restart server.</p>
   </div>
 );
 
 /* ── Main Layout ───────────────────────────────────────────────────── */
 const AdminDashboard: React.FC = () => {
-  const [activeSection, setActiveSection] = useState('pulse');
+  const { tabId } = useParams<{ tabId: string }>();
+  const navigate = useNavigate();
+  const activeSection = tabId || 'pulse';
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isCmdKOpen, setIsCmdKOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCmdKOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // FIX BUG-06: Lấy user thật từ AuthContext thay vì hardcode
+  const { user } = useAuth();
+
+  const adminInitials = user?.name
+    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : 'AD';
 
   return (
     <div className="dark flex h-[100dvh] w-full bg-[#050505] overflow-hidden text-white/90 font-sans selection:bg-indigo-500/30 relative">
-      
+
       {/* ── ATMOSPHERIC BACKGROUND SYSTEM ── */}
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden mix-blend-screen opacity-50">
         <div className="absolute top-0 -left-[10%] w-[60%] h-[60%] rounded-full bg-indigo-500/10 blur-[150px]" />
@@ -289,13 +682,24 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       {/* ── FLOATING NAVIGATION RAIL ── */}
-      <aside className="w-[280px] h-full bg-black/40 border-r border-white/5 backdrop-blur-3xl flex flex-col z-20 shrink-0 shadow-[20px_0_50px_rgba(0,0,0,0.5)]">
-        <div className="h-28 flex items-center px-8">
-          <Link to="/home" className="flex items-center gap-4 group">
-            <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center font-bold tracking-tighter text-sm transition-transform group-hover:scale-110">
+      <aside className={`h-full bg-black/40 border-r border-white/5 backdrop-blur-3xl flex flex-col z-20 shrink-0 shadow-[20px_0_50px_rgba(0,0,0,0.5)] transition-all duration-300 relative ${isSidebarOpen ? 'w-[280px]' : 'w-[88px]'}`}>
+        
+        {/* Toggle Button */}
+        <button 
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="absolute -right-3 top-[3.5rem] w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center text-white z-50 hover:bg-indigo-400 transition-colors shadow-lg"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={`transition-transform duration-300 ${isSidebarOpen ? '' : 'rotate-180'}`}>
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+
+        <div className={`h-28 flex items-center px-8 ${isSidebarOpen ? '' : 'justify-center'}`}>
+          <Link to="/home" className="flex items-center gap-4 group overflow-hidden">
+            <div className="w-8 h-8 shrink-0 rounded-full bg-white text-black flex items-center justify-center font-bold tracking-tighter text-sm transition-transform group-hover:scale-110">
               E
             </div>
-            <span className="font-bold tracking-widest uppercase text-[10px] text-white/70">Command Center</span>
+            {isSidebarOpen && <span className="font-bold tracking-widest uppercase text-[10px] text-white/70 whitespace-nowrap animate-in fade-in duration-300">Command Center</span>}
           </Link>
         </div>
 
@@ -305,13 +709,13 @@ const AdminDashboard: React.FC = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveSection(item.id)}
+                onClick={() => navigate(`/admin-dashboard/${item.id}`)}
                 className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors relative group ${
                   isActive ? 'text-white' : 'text-white/30 hover:text-white/70'
                 }`}
               >
                 {isActive && (
-                  <motion.div 
+                  <motion.div
                     layoutId="rail-indicator"
                     className="absolute inset-0 bg-white/10 rounded-lg"
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -320,60 +724,71 @@ const AdminDashboard: React.FC = () => {
                 <div className={`relative z-10 transition-colors ${isActive ? 'text-indigo-400' : ''}`}>
                   <item.icon />
                 </div>
-                <span className="relative z-10 pt-0.5">{item.label}</span>
+                {isSidebarOpen && <span className="relative z-10 pt-0.5 whitespace-nowrap animate-in fade-in duration-300">{item.label}</span>}
               </button>
-            )
+            );
           })}
         </nav>
 
-        <div className="p-8">
-          <div className="flex items-center gap-4 group cursor-pointer">
-            <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-sm font-bold text-white group-hover:bg-white/10 transition-colors">
-              AD
-            </div>
-            <div className="flex flex-col text-left">
-              <span className="text-[11px] font-bold text-white uppercase tracking-widest">Super Admin</span>
-              <span className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Sys Level 5</span>
-            </div>
+        {/* FIX BUG-06: Admin profile từ AuthContext */}
+        <div className={`p-8 ${isSidebarOpen ? '' : 'flex justify-center'}`}>
+          <div className="flex items-center gap-4 group cursor-pointer overflow-hidden">
+            {user?.avatar && user.avatar.startsWith('http') ? (
+              <img src={user.avatar} alt={user.name} className="w-10 h-10 shrink-0 rounded-full border border-white/10 object-cover" />
+            ) : (
+              <div className="w-10 h-10 shrink-0 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-sm font-bold text-indigo-300">
+                {adminInitials}
+              </div>
+            )}
+            {isSidebarOpen && (
+              <div className="flex flex-col text-left animate-in fade-in duration-300">
+                <span className="text-[11px] font-bold text-white uppercase tracking-widest truncate max-w-[140px]">
+                  {user?.name || 'Admin'}
+                </span>
+                <span className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">
+                  {user?.role === 'admin' ? 'Administrator' : user?.role || 'Admin'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </aside>
 
       {/* ── CONTINUOUS CANVAS WORKSPACE ── */}
       <main className="flex-1 h-full flex flex-col z-10 relative overflow-hidden">
-        
+
         {/* Transparent Header */}
         <header className="h-28 flex items-center justify-end px-12 shrink-0 relative z-20">
           <div className="flex items-center gap-8">
-             <div className="relative group">
-                <svg className="absolute left-0 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input 
-                  type="text" 
-                  placeholder="Search index... (⌘K)" 
-                  className="pl-7 py-2 text-xs font-bold tracking-widest uppercase bg-transparent border-b border-white/10 focus:border-white focus:outline-none transition-all w-48 focus:w-64 text-white placeholder:text-white/20"
-                />
-             </div>
-             <button className="text-white/30 hover:text-white transition-colors">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-             </button>
+            <button 
+              onClick={() => setIsCmdKOpen(true)}
+              className="relative group flex items-center"
+            >
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 group-hover:text-white transition-colors" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <div className="pl-9 pr-4 py-2 text-xs font-bold tracking-widest uppercase bg-white/5 border border-white/10 rounded-lg group-hover:border-white/30 group-hover:bg-white/10 transition-all w-64 text-left text-white/50 flex justify-between items-center">
+                <span>Search index...</span>
+                <span className="bg-white/10 px-1.5 py-0.5 rounded text-[10px]">⌘K</span>
+              </div>
+            </button>
           </div>
         </header>
 
         {/* Scrolling Canvas */}
         <div className="flex-1 overflow-y-auto px-12 lg:px-20 pb-24">
           <div className="max-w-[1400px] mx-auto">
-            {activeSection === 'pulse' && <PlatformPulse />}
-            {activeSection === 'users' && <UserIntelligence />}
-            {activeSection === 'content' && <CourseManagementTab />}
+            {activeSection === 'pulse'      && <PlatformPulse />}
+            {activeSection === 'users'      && <UserIntelligence />}
+            {activeSection === 'content'    && <CourseManagementTab />}
             {activeSection === 'categories' && <CategoryManagementTab />}
+            {activeSection === 'analytics'  && <AnalyticsTab />}
+            {activeSection === 'finance'    && <FinancialTab />}
+            {activeSection === 'engagement' && <EngagementCenter />}
+            {activeSection === 'config'     && <SystemConfig />}
             {activeSection === 'monitoring' && <SystemMonitoring />}
-            
-            {activeSection === 'analytics' && <EmptySection title="Business Intelligence" description="Deep dive into conversion rates, cohort analysis, and revenue streams." />}
-            {activeSection === 'finance' && <EmptySection title="Financial Center" description="Gateway configurations, invoice routing, and subscription engines." />}
-            {activeSection === 'engagement' && <EmptySection title="Engagement Center" description="Global communications, push systems, and community moderation." />}
-            {activeSection === 'config' && <EmptySection title="System Config" description="Root-level environment variables, brand kits, and API integrations." />}
           </div>
         </div>
+        {/* Command Palette */}
+        <CommandPalette isOpen={isCmdKOpen} onClose={() => setIsCmdKOpen(false)} navigate={navigate} />
       </main>
     </div>
   );

@@ -160,7 +160,7 @@ const Leaderboard: React.FC = () => {
                     
                     <div className="text-center truncate w-full px-2 mt-3 mb-2 z-10 transition-transform duration-500 group-hover:-translate-y-1">
                       <span className="font-bold text-sm sm:text-base text-slate-900 dark:text-white block truncate tracking-tight">{u.name}</span>
-                      <span className={`text-sm font-black tracking-wide ${medalColor}`}>{u.xp.toLocaleString()} XP</span>
+                      <span className={`text-sm font-black tracking-wide ${medalColor}`}>{u.xp.toLocaleString('vi-VN')} XP</span>
                     </div>
                     
                     <div className={`w-full ${heightClass} ${glassClass} border-t border-x rounded-t-[2rem] relative flex items-end justify-center pb-6 overflow-hidden transition-all duration-500 group-hover:h-[calc(100%+8px)]`}>
@@ -216,7 +216,7 @@ const Leaderboard: React.FC = () => {
                     </div>
                     
                     <div className="text-right z-10 pr-2">
-                      <div className="font-black text-lg text-primary-600 dark:text-primary-400 tracking-wide">{u.xp.toLocaleString()} XP</div>
+                      <div className="font-black text-lg text-primary-600 dark:text-primary-400 tracking-wide">{u.xp.toLocaleString('vi-VN')} XP</div>
                       <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1.5 justify-end mt-1 uppercase tracking-wider">
                         <span className="text-orange-500 text-sm">🔥</span>
                         {u.studyStreakDays} {t('leaderboard.streak')}
