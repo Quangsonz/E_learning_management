@@ -135,7 +135,7 @@ const TeacherDashboard: React.FC = () => {
             <Link to="/teacher-courses">
               <Button variant="pill">Manage courses</Button>
             </Link>
-            <Link to="/quiz">
+            <Link to="/teacher-courses">
               <Button variant="outline">Review quizzes</Button>
             </Link>
           </>
@@ -242,7 +242,14 @@ const TeacherDashboard: React.FC = () => {
                   </div>
                   <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-slate-600 dark:text-slate-300">
                     <span>{course.avgProgress?.toFixed(1) || 0}% completion</span>
-                    <span className="font-semibold text-primary-600">{Number(course.price || 0).toLocaleString('vi-VN')}đ</span>
+                    <div className="flex flex-col items-end">
+                      <span className="font-semibold text-primary-600">{Number(course.price || 0).toLocaleString('vi-VN')}đ</span>
+                      {course.discountPercentage && course.discountPercentage > 0 ? (
+                        <span className="text-[10px] text-slate-400 line-through">
+                          {Number(course.estimatedPrice || course.price).toLocaleString('vi-VN')}đ
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </MotionDiv>
               ))}

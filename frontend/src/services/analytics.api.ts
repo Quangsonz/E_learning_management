@@ -9,6 +9,10 @@ export const analyticsApi = {
     const response = await axiosInstance.get('/analytics/teacher');
     return response.data;
   },
+  getSystemHealth: async () => {
+    const response = await axiosInstance.get('/analytics/system-health');
+    return response.data;
+  },
   /**
    * Lấy danh sách orders và revenue summary (Admin only)
    * GET /api/analytics/orders

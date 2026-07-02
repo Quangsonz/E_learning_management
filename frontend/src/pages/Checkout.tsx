@@ -95,6 +95,8 @@ const Checkout = () => {
 
   const course = courseData.data?.course;
   const price = course?.price || 50;
+  const estimatedPrice = course?.estimatedPrice || price;
+  const discountAmount = estimatedPrice - price;
 
   const appearance = {
     theme: 'stripe' as const,
@@ -223,8 +225,14 @@ const Checkout = () => {
               <div className="pt-6 space-y-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Giá gốc</span>
-                  <span className="font-medium text-slate-900 dark:text-white">{price.toLocaleString('vi-VN')}đ</span>
+                  <span className={`font-medium ${discountAmount > 0 ? 'text-slate-400 line-through' : 'text-slate-900 dark:text-white'}`}>{estimatedPrice.toLocaleString('vi-VN')}đ</span>
                 </div>
+                {discountAmount > 0 ? (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Giảm giá ({course?.discountPercentage}%)</span>
+                    <span className="font-medium text-rose-500">-{discountAmount.toLocaleString('vi-VN')}đ</span>
+                  </div>
+                ) : null}
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Thuế & Phí</span>
                   <span className="font-medium text-emerald-500">Miễn phí</span>

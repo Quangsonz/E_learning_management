@@ -65,7 +65,11 @@ class ReviewService {
     const course = await courseRepository.findById(review.course);
     if (!course) throw new AppError('Course not found', 404);
 
-    if (user.role !== 'admin' && course.instructor.toString() !== user.id) {
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
+    if (user.role !== 'admin' && instructorId !== user.id) {
       throw new AppError('Only the course instructor can reply to reviews', 403);
     }
 

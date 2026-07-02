@@ -522,10 +522,16 @@ const CourseDetail: React.FC = () => {
 
                   <div className="flex items-end gap-3 mb-1">
                     <div className="text-4xl font-bold text-slate-900 dark:text-white">{Number(course?.price || 0).toLocaleString('vi-VN')}đ</div>
-                    <div className="text-xl font-medium text-slate-400 line-through mb-1">{course?.price ? Math.floor(course.price * 1.5).toLocaleString('vi-VN') : 0}đ</div>
-                    <div className="px-2.5 py-1 text-xs font-bold text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-500/20 rounded-full mb-1.5 ml-auto">
-                      Save 50%
-                    </div>
+                    {course?.discountPercentage && course.discountPercentage > 0 ? (
+                      <>
+                        <div className="text-xl font-medium text-slate-400 line-through mb-1">
+                          {Number(course?.estimatedPrice || 0).toLocaleString('vi-VN')}đ
+                        </div>
+                        <div className="px-2.5 py-1 text-xs font-bold text-rose-700 bg-rose-100 dark:text-rose-300 dark:bg-rose-500/20 rounded-full mb-1.5 ml-auto">
+                          -{course.discountPercentage}%
+                        </div>
+                      </>
+                    ) : null}
                   </div>
                   <div className="text-sm text-red-500 dark:text-red-400 font-medium mb-6 flex items-center gap-1.5">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -588,7 +594,11 @@ const CourseDetail: React.FC = () => {
           <div className="flex flex-col">
             <div className="flex items-end gap-2">
               <div className="text-xl font-bold text-slate-900 dark:text-white">{Number(course?.price || 0).toLocaleString('vi-VN')}đ</div>
-              <div className="text-sm font-medium text-slate-400 line-through mb-0.5">{course?.price ? Math.floor(course.price * 1.5).toLocaleString('vi-VN') : 0}đ</div>
+              {course?.discountPercentage && course.discountPercentage > 0 ? (
+                <div className="text-sm font-medium text-slate-400 line-through mb-0.5">
+                  {Number(course?.estimatedPrice || 0).toLocaleString('vi-VN')}đ
+                </div>
+              ) : null}
             </div>
             <div className="text-[10px] font-bold text-red-500 uppercase tracking-wider">Ends in 2 days</div>
           </div>

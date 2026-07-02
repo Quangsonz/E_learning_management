@@ -10,20 +10,45 @@ const routes = require('./routes');
 const swaggerSpec = require('./config/swagger');
 
 const app = express();
+app.use(helmet());
 
 const rateLimit = require('express-rate-limit');
-
-// 1. GLOBAL MIDDLEWARES
-// Set security HTTP headers
-app.use(helmet());
+const jwt = require('jsonwebtoken');
 
 // Limit requests from same API
 const limiter = rateLimit({
-  max: 100, // Limit each IP to 100 requests per `window` (here, per hour)
+  max: 100, // Limit each IP to 100 requests per hour for regular users
   windowMs: 60 * 60 * 1000,
   message: 'Too many requests from this IP, please try again in an hour!'
 });
-app.use('/api', limiter);
+
+const adminTeacherLimiter = rateLimit({
+  max: 1000, // Limit each IP to 1000 requests per hour for Admins & Teachers
+  windowMs: 60 * 60 * 1000,
+  message: 'Too many administrative requests from this IP, please try again in an hour!'
+});
+
+// Dynamic Rate Limiter based on Role decoded from token
+const dynamicLimiter = (req, res, next) => {
+  let isAdminOrTeacher = false;
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer')) {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.decode(token);
+      if (decoded && ['admin', 'teacher'].includes(decoded.role)) {
+        isAdminOrTeacher = true;
+      }
+    }
+  } catch (err) {}
+
+  if (isAdminOrTeacher) {
+    return adminTeacherLimiter(req, res, next);
+  }
+  return limiter(req, res, next);
+};
+
+app.use('/api', dynamicLimiter);
 
 // Development logging
 if (process.env.NODE_ENV === 'development') {

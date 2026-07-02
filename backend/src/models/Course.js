@@ -6,9 +6,12 @@ const courseSchema = new mongoose.Schema({
   slug: { type: String, unique: true },
   description: { type: String, required: true },
   price: { type: Number, required: true, min: [0, 'Giá không được âm'] },
+  estimatedPrice: { type: Number, default: 0, min: 0 },
+  discountPercentage: { type: Number, default: 0, min: 0, max: 100 },
   instructor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
-  status: { type: String, enum: ['draft', 'published'], default: 'draft' },
+  status: { type: String, enum: ['draft', 'pending_review', 'published'], default: 'draft' },
+  moderatorNotes: { type: String },
   thumbnailUrl: { type: String },
   averageRating: { type: Number, default: 0, min: 0, max: 5 }
 }, { timestamps: true });

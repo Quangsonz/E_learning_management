@@ -6,6 +6,8 @@ export interface CourseData {
   slug: string;
   description: string;
   price: number;
+  estimatedPrice?: number;
+  discountPercentage?: number;
   instructor: { _id: string; name: string; avatar?: string; role?: string };
   category: { _id: string; name: string; slug: string };
   status: 'draft' | 'published';
@@ -65,10 +67,11 @@ export const courseApi = {
   /**
    * Admin duyệt hoặc thu hồi khóa học - PATCH /api/courses/:id/approve
    * @param id - Course ID
-   * @param status - 'published' | 'draft'
+   * @param status - 'published' | 'draft' | 'pending_review'
+   * @param moderatorNotes - Optional feedback note from admin
    */
-  approveCourse: async (id: string, status: 'published' | 'draft'): Promise<any> => {
-    const response = await axiosInstance.patch(`/courses/${id}/approve`, { status });
+  approveCourse: async (id: string, status: 'published' | 'draft' | 'pending_review', moderatorNotes?: string): Promise<any> => {
+    const response = await axiosInstance.patch(`/courses/${id}/approve`, { status, moderatorNotes });
     return response.data;
   }
 };

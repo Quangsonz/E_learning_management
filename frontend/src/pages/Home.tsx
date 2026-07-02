@@ -132,7 +132,7 @@ const AnimatedStat = ({ value, suffix, label }: { value: number; suffix: string;
 
 const CourseCard = ({ course }: { course: CourseData }) => {
   const navigate = useNavigate();
-  const originalPrice = course.price ? (course.price * 2) : null;
+  const originalPrice = course.discountPercentage && course.discountPercentage > 0 && course.estimatedPrice ? course.estimatedPrice : null;
   return (
     <motion.div
       whileHover={{ y: -8 }}
@@ -150,9 +150,11 @@ const CourseCard = ({ course }: { course: CourseData }) => {
             </svg>
           </div>
         )}
-        {course.price === 0 && (
+        {course.price === 0 ? (
           <div className="absolute top-3 left-3 bg-emerald-500 text-white text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wide">Free</div>
-        )}
+        ) : course.discountPercentage && course.discountPercentage > 0 ? (
+          <div className="absolute top-3 left-3 bg-rose-500 text-white text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wide">-{course.discountPercentage}%</div>
+        ) : null}
       </div>
 
       {/* Content */}

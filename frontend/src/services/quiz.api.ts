@@ -68,5 +68,21 @@ export const quizApi = {
 
   submitSmartQuiz: (courseId: string, answers: QuizSubmission[]) => {
     return axiosInstance.post(`/quizzes/courses/${courseId}/smart-quiz/submit`, { answers });
+  },
+
+  updateQuiz: (quizId: string, quizData: any) => {
+    return axiosInstance.patch(`/quizzes/${quizId}`, quizData);
+  },
+
+  deleteQuiz: (quizId: string) => {
+    return axiosInstance.delete(`/quizzes/${quizId}`);
+  },
+
+  updateQuestion: (questionId: string, questionData: any) => {
+    return axiosInstance.patch(`/quizzes/questions/${questionId}`, questionData);
+  },
+
+  deleteQuestion: (questionId: string) => {
+    return axiosInstance.delete(`/quizzes/questions/${questionId}`);
   }
 };

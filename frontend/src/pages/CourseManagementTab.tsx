@@ -29,6 +29,8 @@ type Course = {
   categoryName: string;
   lessons: number;
   price: number;
+  estimatedPrice?: number;
+  discountPercentage?: number;
   students: number;
   status: CourseStatus;
   updatedAt: string;
@@ -41,6 +43,8 @@ type CourseFormState = {
   categoryId: string;
   instructorId: string;
   price: string;
+  estimatedPrice: string;
+  discountPercentage: string;
   status: CourseStatus;
 };
 
@@ -54,6 +58,8 @@ const emptyForm: CourseFormState = {
   categoryId: '',
   instructorId: '',
   price: '0',
+  estimatedPrice: '0',
+  discountPercentage: '0',
   status: 'draft'
 };
 
@@ -106,9 +112,11 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       title: course.title,
       categoryId: course.category?._id || '',
       categoryName: course.category?.name || 'Uncategorized',
-      lessons: 0,
+      lessons: course.lessonsCount || 0,
       price: Number(course.price) || 0,
-      students: 0,
+      estimatedPrice: Number(course.estimatedPrice || course.price) || 0,
+      discountPercentage: Number(course.discountPercentage) || 0,
+      students: course.studentsCount || 0,
       status: course.status,
       updatedAt: new Date(course.updatedAt).toLocaleDateString(),
       instructorId: course.instructor?._id
@@ -186,8 +194,6 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
     return { published, review, draft, revenue };
   }, [courses]);
 
-  const categoryNames = ['All', ...new Set(courses.map((course) => course.categoryName))];
-
   const metrics = [
     { label: 'Total Revenue', value: `${summary.revenue.toLocaleString('vi-VN')}đ`, delta: '+12.4%' },
     { label: 'Published', value: summary.published.toString(), delta: 'Live courses' },
@@ -201,13 +207,16 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
   };
 
   const openEdit = (course: Course) => {
+    const rawCourse = responseData?.data?.courses.find((c: any) => c._id === course.id);
     setEditingCourse(course);
     setForm({
       title: course.title,
-      description: '',
+      description: rawCourse?.description || '',
       categoryId: course.categoryId,
       instructorId: course.instructorId || '',
       price: course.price.toString(),
+      estimatedPrice: (rawCourse?.estimatedPrice !== undefined ? rawCourse.estimatedPrice : course.price).toString(),
+      discountPercentage: (rawCourse?.discountPercentage || 0).toString(),
       status: course.status
     });
     setEditOpen(true);
@@ -240,7 +249,6 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
     }
   });
 
-  // FIX BUG-02: Approve/Reject mutation
   const approveMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'published' | 'draft' }) =>
       courseApi.approveCourse(id, status),
@@ -270,16 +278,16 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       return;
     }
 
-    // FIX BUG-02: Bỏ hardcode description, gửi form.description thật
     const payload: Record<string, any> = {
       title: form.title,
       description: form.description,
       category: form.categoryId,
       price: Number(form.price),
+      estimatedPrice: Number(form.estimatedPrice || form.price),
+      discountPercentage: Number(form.discountPercentage || 0),
       status: form.status,
     };
 
-    // Chỉ admin mới set instructor từ dropdown
     if (!teacherMode && form.instructorId) {
       payload.instructor = form.instructorId;
     }
@@ -314,7 +322,6 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Course Management</h2>
            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Create, edit, publish and approve platform courses.</p>
          </div>
-         {/* FIX ISSUE-06: Xóa fake Sync button */}
          <div className="flex items-center gap-3">
             <Button onClick={openCreate}>Create course</Button>
          </div>
@@ -345,22 +352,21 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
           />
 
           <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:justify-end hide-scrollbar">
-            {categoryNames.map((category) => {
-              const isActive = selectedCategory === category;
+            {[{ _id: 'All', name: 'All' }, ...categoriesData].map((category) => {
+              const isActive = selectedCategory === category._id;
               return (
                 <button
-                  key={category}
+                  key={category._id}
                   type="button"
                   onClick={() => {
-                    const categoryId = categoriesData.find(c => c.name === category)?._id || 'All';
-                    setSelectedCategory(categoryId === 'All' ? 'All' : categoryId);
+                    setSelectedCategory(category._id);
                     setPage(1);
                   }}
                   className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition duration-sm focus:outline-none focus:ring-4 focus:ring-primary-500/10 ${
                     isActive ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/50'
                   }`}
                 >
-                  {category}
+                  {category.name}
                 </button>
               );
             })}
@@ -435,7 +441,23 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                             <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{course.categoryName}</div>
                           </td>
                           <td className="px-5 py-4">{course.lessons}</td>
-                          <td className="px-5 py-4">{Number(course.price || 0).toLocaleString('vi-VN')}đ</td>
+                          <td className="px-5 py-4">
+                             <div className="flex flex-col">
+                               <span className="font-semibold text-slate-900 dark:text-white">
+                                 {Number(course.price || 0).toLocaleString('vi-VN')}đ
+                               </span>
+                               {course.discountPercentage && course.discountPercentage > 0 ? (
+                                 <div className="flex items-center gap-1.5 mt-0.5">
+                                   <span className="text-[10px] text-slate-400 line-through">
+                                     {Number(course.estimatedPrice || 0).toLocaleString('vi-VN')}đ
+                                   </span>
+                                   <span className="text-[9px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-950/30 px-1 rounded">
+                                     -{course.discountPercentage}%
+                                   </span>
+                                 </div>
+                               ) : null}
+                             </div>
+                           </td>
                           <td className="px-5 py-4">{course.students.toLocaleString('vi-VN')}</td>
                           <td className="px-5 py-4">
                             <div className="flex flex-col items-start gap-1">
@@ -693,7 +715,15 @@ const CourseForm: React.FC<{
   teacherMode: boolean;
 }> = ({ form, setForm, categories, teachers, teacherMode }) => {
   const update = (field: keyof CourseFormState, value: string) => {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => {
+      const next = { ...current, [field]: value };
+      if (field === 'estimatedPrice' || field === 'discountPercentage') {
+        const orig = Number(next.estimatedPrice) || 0;
+        const pct = Number(next.discountPercentage) || 0;
+        next.price = Math.round(orig * (1 - pct / 100)).toString();
+      }
+      return next;
+    });
   };
 
   return (
@@ -731,7 +761,11 @@ const CourseForm: React.FC<{
         </select>
       </label>
 
-      <Field label="Price (đ)" value={form.price} onChange={(value) => update('price', value)} type="number" placeholder="0" />
+      <Field label="Original Price (đ) *" value={form.estimatedPrice} onChange={(value) => update('estimatedPrice', value)} type="number" placeholder="0" />
+
+      <Field label="Discount (%)" value={form.discountPercentage} onChange={(value) => update('discountPercentage', value)} type="number" placeholder="0" />
+
+      <Field label="Selling Price (đ)" value={form.price} onChange={(value) => update('price', value)} type="number" placeholder="0" className="bg-slate-50 dark:bg-slate-800/50 cursor-not-allowed opacity-80" disabled />
 
       {!teacherMode && (
         <label className="block space-y-2">
@@ -770,10 +804,12 @@ const Field: React.FC<{
   onChange: (value: string) => void;
   type?: string;
   placeholder?: string;
-}> = ({ label, value, onChange, type = 'text', placeholder }) => (
+  disabled?: boolean;
+  className?: string;
+}> = ({ label, value, onChange, type = 'text', placeholder, disabled, className }) => (
   <label className="block space-y-2">
     <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
-    <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+    <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} disabled={disabled} className={className} />
   </label>
 );
 

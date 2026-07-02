@@ -13,17 +13,21 @@ const analyticsRoutes = require('./analytics.routes');
 const dashboardRoutes = require('./dashboard.routes');
 const paymentRoutes = require('./payment.routes');
 const discussionRoutes = require('./discussion.routes');
+const adminRoutes = require('./admin.routes');
+const assignmentRoutes = require('./assignment.routes');
 
 const router = express.Router();
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
+router.use('/admin', adminRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/courses', courseRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/enrollments', enrollmentRoutes);
 router.use('/progress', progressRoutes);
 router.use('/quizzes', quizRoutes);
+router.use('/assignments', assignmentRoutes);
 router.use('/certificates', certificateRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/analytics', analyticsRoutes);

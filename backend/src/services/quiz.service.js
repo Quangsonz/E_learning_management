@@ -22,8 +22,16 @@ class QuizService {
     const quiz = await quizRepository.findById(quizId);
     if (!quiz) throw new AppError('Không tìm thấy Quiz', 404);
 
-    // Xác thực quyền (đáng ra nên gọi populate course để check instructor, vì lý do tối giản ta có thể check role teacher/admin)
-    // Thực tế: Cần check quiz.course.instructor == user.id
+    const course = await courseRepository.findById(quiz.course);
+    if (!course) throw new AppError('Không tìm thấy khóa học của Quiz này', 404);
+
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
+    if (user.role !== 'admin' && instructorId !== user.id) {
+      throw new AppError('Bạn không có quyền chỉnh sửa câu hỏi của Quiz này', 403);
+    }
 
     questionData.quiz = quizId;
     return await questionRepository.create(questionData);
@@ -128,6 +136,17 @@ class QuizService {
     const lesson = await require('../repositories/lesson.repository').findById(lessonId);
     if (!lesson) throw new AppError('Không tìm thấy bài giảng', 404);
 
+    const course = await courseRepository.findById(lesson.course);
+    if (!course) throw new AppError('Không tìm thấy khóa học của bài giảng này', 404);
+
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
+    if (user.role !== 'admin' && instructorId !== user.id) {
+      throw new AppError('Bạn không có quyền thêm câu hỏi cho bài giảng này', 403);
+    }
+
     questionData.lesson = lessonId;
     return await questionRepository.create(questionData);
   }
@@ -214,6 +233,107 @@ class QuizService {
       scorePercentage: Math.round(scorePercentage),
       isPassed
     };
+  }
+
+  async updateQuiz(quizId, updateData, user) {
+    const quiz = await quizRepository.findById(quizId);
+    if (!quiz) throw new AppError('Không tìm thấy Quiz', 404);
+
+    const course = await courseRepository.findById(quiz.course);
+    if (!course) throw new AppError('Không tìm thấy khóa học của Quiz này', 404);
+
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
+    if (user.role !== 'admin' && instructorId !== user.id) {
+      throw new AppError('Bạn không có quyền chỉnh sửa Quiz này', 403);
+    }
+
+    return await quizRepository.updateById(quizId, updateData);
+  }
+
+  async deleteQuiz(quizId, user) {
+    const quiz = await quizRepository.findById(quizId);
+    if (!quiz) throw new AppError('Không tìm thấy Quiz', 404);
+
+    const course = await courseRepository.findById(quiz.course);
+    if (!course) throw new AppError('Không tìm thấy khóa học của Quiz này', 404);
+
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
+    if (user.role !== 'admin' && instructorId !== user.id) {
+      throw new AppError('Bạn không có quyền xóa Quiz này', 403);
+    }
+
+    // Xóa câu hỏi của quiz này
+    await require('../models/Question').deleteMany({ quiz: quizId });
+
+    return await quizRepository.deleteById(quizId);
+  }
+
+  async updateQuestion(questionId, updateData, user) {
+    const question = await questionRepository.findById(questionId);
+    if (!question) throw new AppError('Không tìm thấy câu hỏi', 404);
+
+    let courseId;
+    if (question.quiz) {
+      const quiz = await quizRepository.findById(question.quiz);
+      if (!quiz) throw new AppError('Không tìm thấy Quiz liên quan', 404);
+      courseId = quiz.course;
+    } else if (question.lesson) {
+      const lesson = await require('../repositories/lesson.repository').findById(question.lesson);
+      if (!lesson) throw new AppError('Không tìm thấy bài giảng liên quan', 404);
+      courseId = lesson.course;
+    }
+
+    if (!courseId) throw new AppError('Không tìm thấy khóa học liên quan đến câu hỏi này', 404);
+
+    const course = await courseRepository.findById(courseId);
+    if (!course) throw new AppError('Không tìm thấy khóa học', 404);
+
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
+    if (user.role !== 'admin' && instructorId !== user.id) {
+      throw new AppError('Bạn không có quyền chỉnh sửa câu hỏi này', 403);
+    }
+
+    return await questionRepository.updateById(questionId, updateData);
+  }
+
+  async deleteQuestion(questionId, user) {
+    const question = await questionRepository.findById(questionId);
+    if (!question) throw new AppError('Không tìm thấy câu hỏi', 404);
+
+    let courseId;
+    if (question.quiz) {
+      const quiz = await quizRepository.findById(question.quiz);
+      if (!quiz) throw new AppError('Không tìm thấy Quiz liên quan', 404);
+      courseId = quiz.course;
+    } else if (question.lesson) {
+      const lesson = await require('../repositories/lesson.repository').findById(question.lesson);
+      if (!lesson) throw new AppError('Không tìm thấy bài giảng liên quan', 404);
+      courseId = lesson.course;
+    }
+
+    if (!courseId) throw new AppError('Không tìm thấy khóa học liên quan đến câu hỏi này', 404);
+
+    const course = await courseRepository.findById(courseId);
+    if (!course) throw new AppError('Không tìm thấy khóa học', 404);
+
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
+    if (user.role !== 'admin' && instructorId !== user.id) {
+      throw new AppError('Bạn không có quyền xóa câu hỏi này', 403);
+    }
+
+    return await questionRepository.deleteById(questionId);
   }
 }
 

@@ -87,6 +87,8 @@ router.use(authMiddleware.protect);
  */
 router.get('/admin', requireRole('admin'), requirePermission('view_statistics'), analyticsController.getAdminDashboard);
 router.get('/teacher', requireRole('admin', 'teacher'), analyticsController.getTeacherDashboard);
+router.get('/system-health', requireRole('admin'), analyticsController.getSystemHealth);
+router.get('/export-pdf', requireRole('admin'), analyticsController.exportFinancialReportPDF);
 
 /**
  * @swagger

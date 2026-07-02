@@ -104,6 +104,14 @@ router.post('/', permissionMiddleware.requirePermission('create_quiz'), quizCont
 router.post('/:quizId/questions', permissionMiddleware.requirePermission('create_quiz'), quizController.addQuestion);
 router.get('/:quizId/questions', quizController.getQuestionsForTeacher);
 
+router.route('/:id')
+  .patch(permissionMiddleware.requirePermission('create_quiz'), quizController.updateQuiz)
+  .delete(permissionMiddleware.requirePermission('create_quiz'), quizController.deleteQuiz);
+
+router.route('/questions/:id')
+  .patch(permissionMiddleware.requirePermission('create_quiz'), quizController.updateQuestion)
+  .delete(permissionMiddleware.requirePermission('create_quiz'), quizController.deleteQuestion);
+
 // Lesson Question routes
 router.get('/lessons/:lessonId/questions', quizController.getLessonQuestionsForTeacher);
 router.post('/lessons/:lessonId/questions', permissionMiddleware.requirePermission('create_quiz'), quizController.addLessonQuestion);

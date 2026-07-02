@@ -13,14 +13,27 @@ class CourseController {
   });
 
   getAllCourses = catchAsync(async (req, res, next) => {
-    // Truyền user object nếu đã đăng nhập để service phân tích quyền lấy Draft/Published
     const user = req.user || null;
-    
     let query = { ...req.query };
-    // Nếu client request route lấy khóa học của tôi (My Courses)
-    if (req.route.path === '/my-courses' && user) {
-      query.instructor = user.id;
-    }
+
+    const result = await courseService.getAllCourses(query, user);
+
+    res.status(200).json({
+      status: 'success',
+      results: result.courses.length,
+      data: {
+        courses: result.courses,
+        total: result.total,
+        page: result.page,
+        totalPages: result.totalPages
+      },
+    });
+  });
+
+  getMyCourses = catchAsync(async (req, res, next) => {
+    const user = req.user;
+    let query = { ...req.query };
+    query.instructor = user.id;
 
     const result = await courseService.getAllCourses(query, user);
 
@@ -81,20 +94,20 @@ class CourseController {
   /**
    * PATCH /api/courses/:id/approve
    * Admin duyệt hoặc reject khóa học (chuyển status)
-   * Body: { status: 'published' | 'draft' }
+   * Body: { status: 'published' | 'draft' | 'pending_review', moderatorNotes?: string }
    */
   approveCourse = catchAsync(async (req, res, next) => {
-    const { status } = req.body;
+    const { status, moderatorNotes } = req.body;
 
-    if (!['published', 'draft'].includes(status)) {
-      return next(new (require('../utils/appError'))('Status không hợp lệ. Chỉ chấp nhận published hoặc draft.', 400));
+    if (!['published', 'draft', 'pending_review'].includes(status)) {
+      return next(new (require('../utils/appError'))('Status không hợp lệ. Chỉ chấp nhận published, draft hoặc pending_review.', 400));
     }
 
-    const updatedCourse = await courseService.updateCourse(req.params.id, { status }, req.user);
+    const updatedCourse = await courseService.updateCourse(req.params.id, { status, moderatorNotes }, req.user);
 
     res.status(200).json({
       status: 'success',
-      message: status === 'published' ? 'Khóa học đã được duyệt và xuất bản.' : 'Khóa học đã bị thu hồi về draft.',
+      message: status === 'published' ? 'Khóa học đã được duyệt và xuất bản.' : 'Khóa học đã được lưu về trạng thái nháp.',
       data: { course: updatedCourse }
     });
   });

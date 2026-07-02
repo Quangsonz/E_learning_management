@@ -47,11 +47,9 @@ class AnalyticsService {
       User.countDocuments(),
       Course.countDocuments(),
       Enrollment.countDocuments(),
-      Enrollment.aggregate([
-        { $match: { paymentStatus: 'completed' } },
-        { $lookup: { from: 'courses', localField: 'course', foreignField: '_id', as: 'course' } },
-        { $unwind: '$course' },
-        { $group: { _id: null, total: { $sum: '$course.price' } } }
+      Order.aggregate([
+        { $match: { status: 'paid' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
       ])
     ]);
 
@@ -66,39 +64,44 @@ class AnalyticsService {
   async _getRevenueByMonth() {
     const currentYear = new Date().getFullYear();
 
-    return await Enrollment.aggregate([
-      {
-        $match: {
-          paymentStatus: 'completed',
-          createdAt: { $gte: new Date(`${currentYear}-01-01`) }
+    const [revenueData, enrollmentData] = await Promise.all([
+      Order.aggregate([
+        {
+          $match: {
+            status: 'paid',
+            createdAt: { $gte: new Date(`${currentYear}-01-01`) }
+          }
+        },
+        {
+          $group: {
+            _id: { month: { $month: '$createdAt' } },
+            revenue: { $sum: '$amount' }
+          }
         }
-      },
-      {
-        $lookup: {
-          from: 'courses',
-          localField: 'course',
-          foreignField: '_id',
-          as: 'course'
+      ]),
+      Enrollment.aggregate([
+        {
+          $match: {
+            paymentStatus: 'completed',
+            createdAt: { $gte: new Date(`${currentYear}-01-01`) }
+          }
+        },
+        {
+          $group: {
+            _id: { month: { $month: '$createdAt' } },
+            enrollments: { $sum: 1 }
+          }
         }
-      },
-      { $unwind: '$course' },
-      {
-        $group: {
-          _id: { month: { $month: '$createdAt' } },
-          revenue: { $sum: '$course.price' },
-          enrollments: { $sum: 1 }
-        }
-      },
-      { $sort: { '_id.month': 1 } },
-      {
-        $project: {
-          _id: 0,
-          month: '$_id.month',
-          revenue: 1,
-          enrollments: 1
-        }
-      }
+      ])
     ]);
+
+    const result = [];
+    for (let m = 1; m <= 12; m++) {
+      const rev = revenueData.find(r => r._id.month === m)?.revenue || 0;
+      const enr = enrollmentData.find(e => e._id.month === m)?.enrollments || 0;
+      result.push({ month: m, revenue: rev, enrollments: enr });
+    }
+    return result;
   }
 
   async _getTopCoursesByEnrollment(limit = 5) {
@@ -283,6 +286,8 @@ class AnalyticsService {
           title: 1,
           status: 1,
           price: 1,
+          estimatedPrice: 1,
+          discountPercentage: 1,
           thumbnail: 1,
           enrollmentCount: { $size: '$enrollments' },
           avgProgress: {
@@ -299,7 +304,7 @@ class AnalyticsService {
     const courseIds = courses.map(c => c._id);
     const currentYear = new Date().getFullYear();
 
-    return await Enrollment.aggregate([
+    const data = await Enrollment.aggregate([
       {
         $match: {
           course: { $in: courseIds },
@@ -321,6 +326,18 @@ class AnalyticsService {
         }
       }
     ]);
+
+    // Tạo mảng đầy đủ từ tháng 1 đến tháng 12
+    const filledData = Array.from({ length: 12 }, (_, i) => {
+      const monthNum = i + 1;
+      const found = data.find(item => item.month === monthNum);
+      return {
+        month: monthNum,
+        enrollments: found ? found.enrollments : 0
+      };
+    });
+
+    return filledData;
   }
 
   async _getTeacherQuizStats(teacherId) {
@@ -456,6 +473,39 @@ class AnalyticsService {
         totalPaidOrders: summary.totalOrders,
         avgOrderValue: Math.round(summary.avgOrderValue || 0)
       }
+    };
+  }
+
+  async getSystemHealth() {
+    const mongoose = require('mongoose');
+    const start = Date.now();
+    let dbStatus = 'disconnected';
+    let dbLatency = 0;
+    try {
+      if (mongoose.connection.readyState === 1) {
+        await mongoose.connection.db.admin().ping();
+        dbLatency = Date.now() - start;
+        dbStatus = 'optimal';
+      }
+    } catch (err) {
+      dbStatus = 'error';
+    }
+
+    const memoryUsage = process.memoryUsage();
+
+    return {
+      apiLatency: `${Date.now() - start}ms`,
+      dbConnection: {
+        status: dbStatus,
+        latency: `${dbLatency}ms`,
+        name: 'MongoDB Atlas'
+      },
+      memory: {
+        rss: `${Math.round(memoryUsage.rss / 1024 / 1024 * 100) / 100} MB`,
+        heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024 * 100) / 100} MB`,
+      },
+      uptime: `${Math.round(process.uptime())}s`,
+      environment: process.env.NODE_ENV || 'development'
     };
   }
 }

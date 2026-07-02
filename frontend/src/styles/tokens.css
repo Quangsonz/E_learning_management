@@ -55,7 +55,7 @@
   --color-text-default: #0F172A;
   --color-text-muted:   #475569;
   --color-muted-400:    #94A3B8;
-  --color-muted-500:    #64748B;
+  --color-muted-500:    #475569;
 
   /* ── Glass ──────────────────────────────────────────── */
   --glass-bg:           rgba(255,255,255,0.72);

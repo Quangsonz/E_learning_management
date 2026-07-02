@@ -86,7 +86,7 @@ router.get('/', authMiddleware.optionalProtect, courseController.getAllCourses);
  *       200:
  *         description: Thành công
  */
-router.get('/my-courses', authMiddleware.protect, requireRole('teacher', 'admin'), courseController.getAllCourses);
+router.get('/my-courses', authMiddleware.protect, requireRole('teacher', 'admin'), courseController.getMyCourses);
 
 router.get('/:id', authMiddleware.optionalProtect, courseController.getCourse);
 
@@ -194,6 +194,8 @@ router
  *       403:
  *         description: Không đủ quyền (chỉ admin)
  */
-router.patch('/:id/approve', requireRole('admin'), requirePermission('approve_courses'), courseController.approveCourse);
+const auditMiddleware = require('../middlewares/auditLog.middleware');
+
+router.patch('/:id/approve', requireRole('admin'), requirePermission('approve_courses'), auditMiddleware.logAdminAction('COURSE_APPROVE', 'Course'), courseController.approveCourse);
 
 module.exports = router;

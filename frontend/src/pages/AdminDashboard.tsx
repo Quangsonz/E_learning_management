@@ -4,6 +4,10 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { userApi } from '../services/user.api';
+import { analyticsApi } from '../services/analytics.api';
+import { adminApi } from '../services/admin.api';
+import { courseApi } from '../services/course.api';
+import { useToast } from '../contexts/ToastContext';
 import { useCountUp } from '../hooks/useCountUp';
 import CourseManagementTab from './CourseManagementTab';
 import CategoryManagementTab from './CategoryManagementTab';
@@ -20,7 +24,9 @@ const Icons = {
   Finance: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
   Engagement: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
   Config: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
-  Monitor: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+  Monitor: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
+  Moderation: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>,
+  Logs: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
 };
 
 const navigation = [
@@ -28,11 +34,13 @@ const navigation = [
   { id: 'users', label: 'User Management', icon: Icons.Users },
   { id: 'content', label: 'Learning Content', icon: Icons.Content },
   { id: 'categories', label: 'Category Taxonomy', icon: Icons.Content },
+  { id: 'moderation', label: 'Moderation Queue', icon: Icons.Moderation },
   { id: 'analytics', label: 'Analytics & Reports', icon: Icons.Analytics },
   { id: 'finance', label: 'Financial Center', icon: Icons.Finance },
   { id: 'engagement', label: 'Engagement Center', icon: Icons.Engagement },
   { id: 'config', label: 'System Configuration', icon: Icons.Config },
   { id: 'monitoring', label: 'System Monitoring', icon: Icons.Monitor },
+  { id: 'logs', label: 'System Logs', icon: Icons.Logs },
 ];
 
 /* ── COMMAND PALETTE ───────────────────────────────────────────────── */
@@ -473,11 +481,19 @@ const UserIntelligence = () => {
 
 /* ── SYSTEM MONITORING ─────────────────────────────────────────────── */
 const SystemMonitoring = () => {
+  const { data, isLoading } = useQuery({
+    queryKey: ['system-health'],
+    queryFn: analyticsApi.getSystemHealth,
+    refetchInterval: 10000 // Refetch every 10 seconds
+  });
+
+  const health = data?.data || {};
+
   const metrics = [
-    { label: 'API Latency', value: '~24ms', status: 'optimal', color: 'emerald' },
-    { label: 'DB Connection', value: 'Atlas', status: 'optimal', color: 'emerald' },
-    { label: 'Storage', value: 'Cloudinary', status: 'optimal', color: 'emerald' },
-    { label: 'Payment', value: 'Stripe', status: 'optimal', color: 'emerald' },
+    { label: 'API Response', value: isLoading ? '...' : health.apiLatency || 'N/A', status: 'optimal', color: 'emerald' },
+    { label: 'DB Connection', value: isLoading ? '...' : health.dbConnection?.latency || 'N/A', status: health.dbConnection?.status || 'optimal', color: health.dbConnection?.status === 'error' ? 'rose' : 'emerald' },
+    { label: 'Node RSS Memory', value: isLoading ? '...' : health.memory?.rss || 'N/A', status: 'optimal', color: 'emerald' },
+    { label: 'Server Uptime', value: isLoading ? '...' : health.uptime || 'N/A', status: 'optimal', color: 'emerald' },
   ];
 
   return (
@@ -489,7 +505,9 @@ const SystemMonitoring = () => {
         </div>
         <div className="flex items-center gap-3 mb-2 px-4 py-2 border border-emerald-500/20 rounded-full text-emerald-400">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs font-bold tracking-widest uppercase">All Systems Operational</span>
+          <span className="text-xs font-bold tracking-widest uppercase">
+            {health.dbConnection?.status === 'error' ? 'Degraded Performance' : 'All Systems Operational'}
+          </span>
         </div>
       </div>
 
@@ -511,7 +529,7 @@ const SystemMonitoring = () => {
         <h2 className="text-2xl font-light tracking-tight text-white/90">Stack Overview</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
-            { label: 'Backend', value: 'Node.js + Express v5', badge: 'CommonJS' },
+            { label: 'Backend', value: 'Node.js + Express v5', badge: health.environment || 'development' },
             { label: 'Database', value: 'MongoDB Atlas', badge: 'Mongoose ODM' },
             { label: 'Storage', value: 'Cloudinary', badge: 'CDN' },
             { label: 'Realtime', value: 'Socket.IO v4', badge: 'WebSocket' },
@@ -645,6 +663,323 @@ const SystemConfig = () => (
     <p className="text-xs text-white/20 italic">* Thay đổi cấu hình qua file .env và restart server.</p>
   </div>
 );
+
+/* ── MODERATION QUEUE ─────────────────────────────────────────────── */
+const ModerationQueue = () => {
+  const queryClient = useQueryClient();
+  const { success: successToast } = useToast();
+  const [subTab, setSubTab] = useState<'courses' | 'teachers'>('courses');
+  const [rejectCourse, setRejectCourse] = useState<any | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  // Queries
+  const { data: coursesData, isLoading: coursesLoading } = useQuery({
+    queryKey: ['admin-moderation-courses'],
+    queryFn: () => adminApi.getCoursesPendingReview(),
+    enabled: subTab === 'courses'
+  });
+
+  const { data: applicationsData, isLoading: appsLoading } = useQuery({
+    queryKey: ['admin-teacher-applications'],
+    queryFn: () => adminApi.getTeacherApplications({ status: 'pending' }),
+    enabled: subTab === 'teachers'
+  });
+
+  // Mutations
+  const approveCourseMutation = useMutation({
+    mutationFn: ({ id, status, notes }: { id: string; status: 'published' | 'draft'; notes?: string }) => 
+      courseApi.approveCourse(id, status, notes),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-moderation-courses'] });
+      successToast(vars.status === 'published' ? 'Đã phê duyệt xuất bản khóa học.' : 'Đã từ chối và trả khóa học về trạng thái nháp.');
+      setRejectCourse(null);
+      setRejectReason('');
+    }
+  });
+
+  const processAppMutation = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'approve' | 'reject' }) => 
+      adminApi.processTeacherApplication(id, { action }),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-teacher-applications'] });
+      successToast(vars.action === 'approve' ? 'Đã duyệt hồ sơ giảng viên.' : 'Đã từ chối hồ sơ giảng viên.');
+    }
+  });
+
+  const pendingCourses = coursesData?.data?.courses || [];
+  const pendingApps = applicationsData?.data?.applications || [];
+
+  return (
+    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20 mt-4">
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-semibold uppercase tracking-[0.25em] text-white/40 pl-1">Compliance</span>
+        <h1 className="text-4xl font-light tracking-tight text-white">Moderation Queue</h1>
+      </div>
+
+      <div className="flex gap-6 border-b border-white/10 pb-2">
+        <button
+          onClick={() => setSubTab('courses')}
+          className={`text-sm font-semibold tracking-wide pb-2 relative transition-colors ${subTab === 'courses' ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
+        >
+          Pending Courses ({pendingCourses.length})
+          {subTab === 'courses' && (
+            <motion.div layoutId="mod-tab" className="absolute -bottom-[3px] left-0 right-0 h-0.5 bg-white" />
+          )}
+        </button>
+        <button
+          onClick={() => setSubTab('teachers')}
+          className={`text-sm font-semibold tracking-wide pb-2 relative transition-colors ${subTab === 'teachers' ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
+        >
+          Teacher Applications ({pendingApps.length})
+          {subTab === 'teachers' && (
+            <motion.div layoutId="mod-tab" className="absolute -bottom-[3px] left-0 right-0 h-0.5 bg-white" />
+          )}
+        </button>
+      </div>
+
+      {subTab === 'courses' ? (
+        <div className="w-full overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-white/10 text-xs font-bold uppercase tracking-widest text-white/30">
+                <th className="pb-4">Course Info</th>
+                <th className="pb-4">Price</th>
+                <th className="pb-4">Submitted At</th>
+                <th className="pb-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {coursesLoading ? (
+                <tr><td colSpan={4} className="py-8 text-center text-white/40">Loading pending courses...</td></tr>
+              ) : pendingCourses.length === 0 ? (
+                <tr><td colSpan={4} className="py-8 text-center text-white/40">No courses pending moderation.</td></tr>
+              ) : (
+                pendingCourses.map((c: any) => (
+                  <tr key={c._id} className="border-b border-white/5 hover:bg-white/[0.01]">
+                    <td className="py-4">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-white">{c.title}</span>
+                        <span className="text-xs text-white/40">{c.category?.name || 'Uncategorized'}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 text-sm text-white/70">
+                      <div className="flex flex-col">
+                        <span>{c.price.toLocaleString('vi-VN')}đ</span>
+                        {c.discountPercentage && c.discountPercentage > 0 ? (
+                          <span className="text-[10px] text-white/40 line-through">
+                            {Number(c.estimatedPrice || c.price).toLocaleString('vi-VN')}đ
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td className="py-4 text-sm text-white/40">{new Date(c.updatedAt).toLocaleDateString()}</td>
+                    <td className="py-4 text-right flex justify-end gap-2">
+                      <button
+                        onClick={() => approveCourseMutation.mutate({ id: c._id, status: 'published' })}
+                        className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 rounded text-xs font-bold uppercase transition-colors"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => setRejectCourse(c)}
+                        className="px-3 py-1 bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 rounded text-xs font-bold uppercase transition-colors"
+                      >
+                        Reject
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="w-full overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-white/10 text-xs font-bold uppercase tracking-widest text-white/30">
+                <th className="pb-4">Applicant</th>
+                <th className="pb-4">Specialty</th>
+                <th className="pb-4">Bio Summary</th>
+                <th className="pb-4">Resume / CV</th>
+                <th className="pb-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {appsLoading ? (
+                <tr><td colSpan={5} className="py-8 text-center text-white/40">Loading applications...</td></tr>
+              ) : pendingApps.length === 0 ? (
+                <tr><td colSpan={5} className="py-8 text-center text-white/40">No applications pending.</td></tr>
+              ) : (
+                pendingApps.map((app: any) => (
+                  <tr key={app._id} className="border-b border-white/5 hover:bg-white/[0.01]">
+                    <td className="py-4">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-white">{app.student?.name}</span>
+                        <span className="text-xs text-white/40">{app.student?.email}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 text-sm text-white/75">{app.specialty}</td>
+                    <td className="py-4 text-sm text-white/50 max-w-xs truncate" title={app.bio}>{app.bio}</td>
+                    <td className="py-4">
+                      <a
+                        href={app.resumeUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-indigo-400 hover:underline"
+                      >
+                        View CV document
+                      </a>
+                    </td>
+                    <td className="py-4 text-right flex justify-end gap-2">
+                      <button
+                        onClick={() => processAppMutation.mutate({ id: app._id, action: 'approve' })}
+                        className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 rounded text-xs font-bold uppercase transition-colors"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => processAppMutation.mutate({ id: app._id, action: 'reject' })}
+                        className="px-3 py-1 bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 rounded text-xs font-bold uppercase transition-colors"
+                      >
+                        Reject
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Reject Course Modal */}
+      <AnimatePresence>
+        {rejectCourse && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+            <div onClick={() => setRejectCourse(null)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <div className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 shadow-2xl">
+              <h3 className="text-lg font-light text-white mb-2">Reject Course</h3>
+              <p className="text-xs text-white/40 mb-4">Provide reasons or feedback to the instructor for {rejectCourse.title}</p>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                placeholder="Write feedback..."
+                rows={4}
+                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-indigo-500 resize-none transition-colors"
+              />
+              <div className="flex justify-end gap-3 mt-6">
+                <button onClick={() => setRejectCourse(null)} className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-white/50 hover:text-white transition-colors">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => approveCourseMutation.mutate({ id: rejectCourse._id, status: 'draft', notes: rejectReason })}
+                  className="px-4 py-2 text-xs font-bold bg-rose-500 hover:bg-rose-400 text-white rounded-lg transition-colors"
+                >
+                  Confirm Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+/* ── SYSTEM AUDIT LOGS ──────────────────────────────────────────────── */
+const SystemLogs = () => {
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-audit-logs', page, search],
+    queryFn: () => adminApi.getAuditLogs({ page, limit: 15, search: search || undefined })
+  });
+
+  const logs = data?.data?.logs || [];
+  const totalPages = data?.data?.totalPages || 1;
+
+  return (
+    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20 mt-4">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-semibold uppercase tracking-[0.25em] text-white/40 pl-1">Compliance</span>
+          <h1 className="text-4xl font-light tracking-tight text-white">System Logs</h1>
+        </div>
+        <input
+          type="text"
+          placeholder="Filter by action..."
+          value={search}
+          onChange={e => { setSearch(e.target.value); setPage(1); }}
+          className="pl-4 pr-4 py-2 text-sm bg-white/5 border border-white/10 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors w-64 text-white placeholder:text-white/30"
+        />
+      </div>
+
+      <div className="w-full overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-white/10 text-xs font-bold uppercase tracking-widest text-white/30">
+              <th className="pb-4">Timestamp</th>
+              <th className="pb-4">Admin Actor</th>
+              <th className="pb-4">Operation</th>
+              <th className="pb-4">IP Address</th>
+              <th className="pb-4">API Endpoint</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr><td colSpan={5} className="py-8 text-center text-white/40">Loading operation trail logs...</td></tr>
+            ) : logs.length === 0 ? (
+              <tr><td colSpan={5} className="py-8 text-center text-white/40">No logs found in this query.</td></tr>
+            ) : (
+              logs.map((log: any) => (
+                <tr key={log._id} className="border-b border-white/5 hover:bg-white/[0.01]">
+                  <td className="py-4 text-xs text-white/40">{new Date(log.createdAt).toLocaleString()}</td>
+                  <td className="py-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-white">{log.actor?.name || 'System'}</span>
+                      <span className="text-xs text-white/40">{log.actor?.email || 'N/A'}</span>
+                    </div>
+                  </td>
+                  <td className="py-4">
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400">
+                      {log.action}
+                    </span>
+                  </td>
+                  <td className="py-4 text-xs text-white/50">{log.ipAddress || '127.0.0.1'}</td>
+                  <td className="py-4 text-xs font-mono text-white/30">{log.details?.method} {log.details?.url}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-white/30">Page {page} of {totalPages}</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(p - 1, 1))}
+              disabled={page === 1}
+              className="px-4 py-1.5 text-xs font-semibold bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+              disabled={page === totalPages}
+              className="px-4 py-1.5 text-xs font-semibold bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 /* ── Main Layout ───────────────────────────────────────────────────── */
 const AdminDashboard: React.FC = () => {
@@ -785,6 +1120,8 @@ const AdminDashboard: React.FC = () => {
             {activeSection === 'engagement' && <EngagementCenter />}
             {activeSection === 'config'     && <SystemConfig />}
             {activeSection === 'monitoring' && <SystemMonitoring />}
+            {activeSection === 'moderation' && <ModerationQueue />}
+            {activeSection === 'logs'       && <SystemLogs />}
           </div>
         </div>
         {/* Command Palette */}

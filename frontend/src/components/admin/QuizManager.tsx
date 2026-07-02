@@ -17,6 +17,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ courseId, courseTitle,
   const [title, setTitle] = useState('');
   const [passingScore, setPassingScore] = useState('80');
   const [timeLimit, setTimeLimit] = useState('30');
+  const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
   const [managingQuestionsQuiz, setManagingQuestionsQuiz] = useState<any | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -30,20 +31,46 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ courseId, courseTitle,
     mutationFn: (data: any) => quizApi.createQuiz({ ...data, course: courseId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quizzes', courseId] });
-      setFormOpen(false);
-      setTitle('');
-      setPassingScore('80');
-      setTimeLimit('30');
+      resetForm();
     }
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => quizApi.updateQuiz(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quizzes', courseId] });
+      resetForm();
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => quizApi.deleteQuiz(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quizzes', courseId] });
+    }
+  });
+
+  const resetForm = () => {
+    setFormOpen(false);
+    setEditingQuizId(null);
+    setTitle('');
+    setPassingScore('80');
+    setTimeLimit('30');
+  };
+
   const handleSave = () => {
     if (!title.trim() || !passingScore) return;
-    createMutation.mutate({ 
+    const payload = {
       title, 
       passingScore: Number(passingScore), 
       timeLimit: timeLimit ? Number(timeLimit) : undefined 
-    });
+    };
+
+    if (editingQuizId) {
+      updateMutation.mutate({ id: editingQuizId, data: payload });
+    } else {
+      createMutation.mutate(payload);
+    }
   };
 
   return (
@@ -62,7 +89,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ courseId, courseTitle,
             </div>
           ) : (
             <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl space-y-4 border border-slate-200 dark:border-slate-700">
-              <h3 className="font-semibold text-slate-800 dark:text-slate-200">New Quiz</h3>
+              <h3 className="font-semibold text-slate-800 dark:text-slate-200">
+                {editingQuizId ? 'Edit Quiz' : 'New Quiz'}
+              </h3>
               <div className="space-y-3">
                 <label className="block space-y-1">
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Title</span>
@@ -70,7 +99,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ courseId, courseTitle,
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block space-y-1">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Passing Score (%)</span>
+                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Passing Score (%)</span>
                     <Input type="number" value={passingScore} onChange={(e) => setPassingScore(e.target.value)} placeholder="80" />
                   </label>
                   <label className="block space-y-1">
@@ -80,8 +109,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ courseId, courseTitle,
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="ghost" size="sm" onClick={() => setFormOpen(false)}>Cancel</Button>
-                <Button size="sm" onClick={handleSave} disabled={createMutation.isPending || !title || !passingScore}>Save Quiz</Button>
+                <Button variant="ghost" size="sm" onClick={resetForm}>Cancel</Button>
+                <Button size="sm" onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending || !title || !passingScore}>
+                  {editingQuizId ? 'Save Changes' : 'Save Quiz'}
+                </Button>
               </div>
             </div>
           )}
@@ -103,6 +134,38 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ courseId, courseTitle,
                     <Button variant="outline" size="sm" className="!h-8 !px-3" onClick={() => setManagingQuestionsQuiz(quiz)}>
                       Questions
                     </Button>
+                    <button
+                      type="button"
+                      className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
+                      onClick={() => {
+                        setEditingQuizId(quiz._id);
+                        setTitle(quiz.title);
+                        setPassingScore(quiz.passingScore.toString());
+                        setTimeLimit(quiz.timeLimit ? quiz.timeLimit.toString() : '');
+                        setFormOpen(true);
+                      }}
+                      title="Edit Quiz"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
+                      onClick={() => {
+                        if (window.confirm('Bạn có chắc chắn muốn xóa Quiz này và các câu hỏi liên quan?')) {
+                          deleteMutation.mutate(quiz._id);
+                        }
+                      }}
+                      title="Delete Quiz"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                    </button>
                   </div>
                 </div>
               ))

@@ -41,8 +41,30 @@ class CourseService {
 
     const { total, data } = await courseRepository.findPaginated(filter, skip, limit, sort);
 
+    const Lesson = require('../models/Lesson');
+    const Enrollment = require('../models/Enrollment');
+
+    const enrichedCourses = await Promise.all(data.map(async (course) => {
+      const courseObj = course.toObject ? course.toObject() : course;
+      
+      // Đếm số bài giảng trong khóa học
+      const lessonCount = await Lesson.countDocuments({ course: course._id });
+      
+      // Đếm số học viên đăng ký hoàn tất thanh toán
+      const studentCount = await Enrollment.countDocuments({ 
+        course: course._id,
+        paymentStatus: 'completed'
+      });
+
+      return {
+        ...courseObj,
+        lessonsCount: lessonCount,
+        studentsCount: studentCount
+      };
+    }));
+
     return {
-      courses: data,
+      courses: enrichedCourses,
       total,
       page,
       totalPages: Math.ceil(total / limit)
@@ -74,6 +96,15 @@ class CourseService {
       courseData.instructor = user.id;
     }
 
+    // Tự động tính toán giá tiền sau khi áp dụng giảm giá
+    if (courseData.estimatedPrice !== undefined && courseData.discountPercentage !== undefined) {
+      const estimatedPrice = Number(courseData.estimatedPrice) || 0;
+      const discountPercentage = Number(courseData.discountPercentage) || 0;
+      courseData.price = Math.round(estimatedPrice * (1 - discountPercentage / 100));
+    } else if (courseData.estimatedPrice !== undefined && courseData.price === undefined) {
+      courseData.price = Number(courseData.estimatedPrice) || 0;
+    }
+
     return await courseRepository.create(courseData);
   }
 
@@ -99,6 +130,15 @@ class CourseService {
 
     if (updateData.title && !updateData.slug) {
       updateData.slug = slugify(updateData.title, { lower: true, strict: true });
+    }
+
+    // Tự động cập nhật lại giá tiền sau giảm giá khi cập nhật khóa học
+    const estPrice = updateData.estimatedPrice !== undefined ? updateData.estimatedPrice : course.estimatedPrice;
+    const discPct = updateData.discountPercentage !== undefined ? updateData.discountPercentage : course.discountPercentage;
+    if (updateData.estimatedPrice !== undefined || updateData.discountPercentage !== undefined) {
+      const estimatedPrice = Number(estPrice) || 0;
+      const discountPercentage = Number(discPct) || 0;
+      updateData.price = Math.round(estimatedPrice * (1 - discountPercentage / 100));
     }
 
     return await courseRepository.updateById(id, updateData);

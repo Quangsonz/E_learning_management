@@ -142,7 +142,9 @@ router.use(requirePermission('manage_users'));
  *       201:
  *         description: Tạo người dùng thành công
  */
-router.post('/', userController.createUser);
+const auditMiddleware = require('../middlewares/auditLog.middleware');
+
+router.post('/', auditMiddleware.logAdminAction('USER_CREATE', 'User'), userController.createUser);
 
 /**
  * @swagger
@@ -166,10 +168,10 @@ router.post('/', userController.createUser);
 router
   .route('/:id')
   .get(userController.getUser)
-  .patch(userController.updateUser)
-  .delete(userController.deleteUser);
+  .patch(auditMiddleware.logAdminAction('USER_UPDATE', 'User'), userController.updateUser)
+  .delete(auditMiddleware.logAdminAction('USER_DELETE', 'User'), userController.deleteUser);
 
 // Toggle suspend/activate user
-router.patch('/:id/toggle-active', userController.toggleUserActive);
+router.patch('/:id/toggle-active', auditMiddleware.logAdminAction('USER_TOGGLE_ACTIVE', 'User'), userController.toggleUserActive);
 
 module.exports = router;

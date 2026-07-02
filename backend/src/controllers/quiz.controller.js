@@ -3,8 +3,8 @@ const catchAsync = require('../utils/catchAsync');
 
 class QuizController {
   createQuiz = catchAsync(async (req, res, next) => {
-    // Nested route: /courses/:courseId/quizzes
-    const quiz = await quizService.createQuiz(req.params.courseId, req.body, req.user);
+    const courseId = req.params.courseId || req.body.course;
+    const quiz = await quizService.createQuiz(courseId, req.body, req.user);
     res.status(201).json({ status: 'success', data: { quiz } });
   });
 
@@ -63,6 +63,26 @@ class QuizController {
   getLessonQuestionsForTeacher = catchAsync(async (req, res, next) => {
     const questions = await require('../repositories/question.repository').findByLesson(req.params.lessonId);
     res.status(200).json({ status: 'success', data: { questions } });
+  });
+
+  updateQuiz = catchAsync(async (req, res, next) => {
+    const quiz = await quizService.updateQuiz(req.params.id, req.body, req.user);
+    res.status(200).json({ status: 'success', data: { quiz } });
+  });
+
+  deleteQuiz = catchAsync(async (req, res, next) => {
+    await quizService.deleteQuiz(req.params.id, req.user);
+    res.status(204).json({ status: 'success', data: null });
+  });
+
+  updateQuestion = catchAsync(async (req, res, next) => {
+    const question = await quizService.updateQuestion(req.params.id, req.body, req.user);
+    res.status(200).json({ status: 'success', data: { question } });
+  });
+
+  deleteQuestion = catchAsync(async (req, res, next) => {
+    await quizService.deleteQuestion(req.params.id, req.user);
+    res.status(204).json({ status: 'success', data: null });
   });
 }
 

@@ -14,9 +14,16 @@ class LessonService {
     let hasFullAccess = false;
     
     try {
-      if (user && (user.role === 'admin' || user.role === 'teacher')) {
+      const instructorId = course.instructor && course.instructor._id 
+        ? course.instructor._id.toString() 
+        : course.instructor ? course.instructor.toString() : '';
+      const isInstructor = user && instructorId && instructorId === user.id;
+
+      if (user && user.role === 'admin') {
         hasFullAccess = true;
-      } else if (user && user.role === 'student' && user.id) {
+      } else if (user && user.role === 'teacher' && isInstructor) {
+        hasFullAccess = true;
+      } else if (user && user.id) {
         const enrollment = await enrollmentRepository.findByStudentAndCourse(user.id, courseId);
         if (enrollment && enrollment.paymentStatus === 'completed') {
           hasFullAccess = true;
@@ -42,19 +49,35 @@ class LessonService {
   }
 
   async getLessonById(id, courseId, user) {
+    const course = await courseRepository.findById(courseId);
+    if (!course) {
+      throw new AppError('Không tìm thấy khóa học này', 404);
+    }
+
     const lesson = await lessonRepository.findOne({ _id: id, course: courseId });
     if (!lesson) {
       throw new AppError('Không tìm thấy bài giảng trong khóa học này', 404);
     }
 
     let hasFullAccess = false;
-    if (user && (user.role === 'admin' || user.role === 'teacher')) {
-      hasFullAccess = true;
-    } else if (user && user.role === 'student') {
-      const enrollment = await enrollmentRepository.findByStudentAndCourse(user.id, courseId);
-      if (enrollment && enrollment.paymentStatus === 'completed') {
+    try {
+      const instructorId = course.instructor && course.instructor._id 
+        ? course.instructor._id.toString() 
+        : course.instructor ? course.instructor.toString() : '';
+      const isInstructor = user && instructorId && instructorId === user.id;
+
+      if (user && user.role === 'admin') {
         hasFullAccess = true;
+      } else if (user && user.role === 'teacher' && isInstructor) {
+        hasFullAccess = true;
+      } else if (user && user.id) {
+        const enrollment = await enrollmentRepository.findByStudentAndCourse(user.id, courseId);
+        if (enrollment && enrollment.paymentStatus === 'completed') {
+          hasFullAccess = true;
+        }
       }
+    } catch (e) {
+      console.error('Lỗi khi kiểm tra phân quyền bài giảng chi tiết:', e);
     }
     
     if (!hasFullAccess) {
@@ -72,8 +95,12 @@ class LessonService {
       throw new AppError('Không tìm thấy khóa học', 404);
     }
 
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
     // Chỉ Admin hoặc Giảng viên tạo khóa học mới được thêm bài giảng
-    if (user.role !== 'admin' && (!course.instructor || course.instructor._id.toString() !== user.id)) {
+    if (user.role !== 'admin' && instructorId !== user.id) {
       throw new AppError('Bạn không có quyền thêm bài giảng vào khóa học của người khác', 403);
     }
 
@@ -92,7 +119,11 @@ class LessonService {
     const course = await courseRepository.findById(courseId);
     if (!course) throw new AppError('Không tìm thấy khóa học', 404);
 
-    if (user.role !== 'admin' && (!course.instructor || course.instructor._id.toString() !== user.id)) {
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
+    if (user.role !== 'admin' && instructorId !== user.id) {
       throw new AppError('Bạn không có quyền sửa bài giảng này', 403);
     }
 
@@ -106,7 +137,11 @@ class LessonService {
     const course = await courseRepository.findById(courseId);
     if (!course) throw new AppError('Không tìm thấy khóa học', 404);
 
-    if (user.role !== 'admin' && (!course.instructor || course.instructor._id.toString() !== user.id)) {
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
+    if (user.role !== 'admin' && instructorId !== user.id) {
       throw new AppError('Bạn không có quyền xóa bài giảng này', 403);
     }
 
@@ -120,7 +155,11 @@ class LessonService {
     const course = await courseRepository.findById(courseId);
     if (!course) throw new AppError('Không tìm thấy khóa học', 404);
 
-    if (user.role !== 'admin' && course.instructor._id.toString() !== user.id) {
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
+    if (user.role !== 'admin' && instructorId !== user.id) {
       throw new AppError('Bạn không có quyền sửa khóa học này', 403);
     }
 

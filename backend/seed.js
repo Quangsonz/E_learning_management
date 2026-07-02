@@ -9,6 +9,10 @@ const Enrollment = require('./src/models/Enrollment');
 const Progress = require('./src/models/Progress');
 const Review = require('./src/models/Review');
 const Notification = require('./src/models/Notification');
+const TeacherApplication = require('./src/models/TeacherApplication');
+const PayoutRequest = require('./src/models/PayoutRequest');
+const AuditLog = require('./src/models/AuditLog');
+const Order = require('./src/models/Order');
 
 async function seed() {
   try {
@@ -27,7 +31,11 @@ async function seed() {
       Enrollment.deleteMany(),
       Progress.deleteMany(),
       Review.deleteMany(),
-      Notification.deleteMany()
+      Notification.deleteMany(),
+      Order.deleteMany(),
+      TeacherApplication.deleteMany(),
+      PayoutRequest.deleteMany(),
+      AuditLog.deleteMany()
     ]);
 
     // 2. Tạo Users (Mật khẩu chung: password123)
@@ -241,7 +249,7 @@ async function seed() {
       price: 450000,
       instructor: teacherA._id,
       category: catBiz._id,
-      status: 'published',
+      status: 'pending_review',
       thumbnailUrl: 'https://images.unsplash.com/photo-1562577309-4932fdd64cd1?w=800&q=80',
       averageRating: 4.5
     });
@@ -252,7 +260,7 @@ async function seed() {
       price: 850000,
       instructor: teacherB._id,
       category: catBiz._id,
-      status: 'published',
+      status: 'pending_review',
       thumbnailUrl: 'https://images.unsplash.com/photo-1556761175-5973dc0f32b7?w=800&q=80',
       averageRating: 4.9
     });
@@ -385,6 +393,77 @@ async function seed() {
     // Thêm Wishlist cho Student 1
     student1.wishlist.push(coursePython._id);
     await student1.save({ validateBeforeSave: false });
+
+    // 10. Tạo Orders (Minh chứng doanh thu thực tế cho các Enrollment)
+    console.log('🌱 Seeding Orders...');
+    await Order.insertMany([
+      { user: student1._id, course: courseReact._id, amount: courseReact.price, status: 'paid' },
+      { user: student1._id, course: courseUIUX._id, amount: courseUIUX.price, status: 'paid' },
+      { user: student2._id, course: coursePython._id, amount: coursePython.price, status: 'paid' },
+      { user: student3._id, course: c1._id, amount: c1.price, status: 'paid' },
+      { user: student2._id, course: c2._id, amount: c2.price, status: 'paid' },
+      { user: student3._id, course: courseReact._id, amount: courseReact.price, status: 'pending' },
+      { user: student2._id, course: courseReact._id, amount: courseReact.price, status: 'failed' }
+    ]);
+
+    // 11. Tạo Đơn ứng tuyển làm giảng viên mẫu
+    console.log('🌱 Seeding Teacher Applications...');
+    await TeacherApplication.insertMany([
+      {
+        student: student3._id,
+        specialty: 'Machine Learning & Python',
+        bio: 'Đã tốt nghiệp thạc sĩ khoa học máy tính tại Pháp, có 2 năm làm việc tại Viện Nghiên Cứu và phát triển AI.',
+        resumeUrl: 'https://res.cloudinary.com/demo/image/upload/sample_cv.pdf',
+        status: 'pending'
+      },
+      {
+        student: student2._id,
+        specialty: 'UI/UX Product Design',
+        bio: 'Hơn 5 năm kinh nghiệm thiết kế sản phẩm số tại các công ty khởi nghiệp và tập đoàn tài chính.',
+        resumeUrl: 'https://res.cloudinary.com/demo/image/upload/sample_cv.pdf',
+        status: 'pending'
+      }
+    ]);
+
+    // 12. Tạo Yêu cầu rút tiền mẫu
+    console.log('🌱 Seeding Payout Requests...');
+    await PayoutRequest.insertMany([
+      {
+        instructor: teacherA._id,
+        amount: 250000,
+        status: 'pending',
+        bankInfo: { bankName: 'Vietcombank', accountNumber: '1023456789', accountName: 'SARAH JOHNSON' }
+      },
+      {
+        instructor: teacherB._id,
+        amount: 150000,
+        status: 'pending',
+        bankInfo: { bankName: 'Techcombank', accountNumber: '190345678912', accountName: 'MICHAEL CHEN' }
+      }
+    ]);
+
+    // 13. Tạo Nhật ký thao tác của Admin
+    console.log('🌱 Seeding Admin Audit Logs...');
+    await AuditLog.insertMany([
+      {
+        actor: admin._id,
+        action: 'USER_TOGGLE_ACTIVE',
+        targetId: student3._id,
+        targetModel: 'User',
+        details: { method: 'PATCH', url: `/api/users/${student3._id}/toggle-active`, body: {} },
+        ipAddress: '127.0.0.1',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      {
+        actor: admin._id,
+        action: 'COURSE_APPROVE',
+        targetId: courseReact._id,
+        targetModel: 'Course',
+        details: { method: 'PATCH', url: `/api/courses/${courseReact._id}/approve`, body: { status: 'published' } },
+        ipAddress: '127.0.0.1',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    ]);
 
     console.log('✅ THÀNH CÔNG: Toàn bộ dữ liệu mẫu đã được seed!');
     process.exit(0);
