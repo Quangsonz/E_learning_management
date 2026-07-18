@@ -68,8 +68,17 @@ const Checkout = () => {
   const [clientSecret, setClientSecret] = useState('');
   const [isMockLoading, setIsMockLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentStep, setPaymentStep] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const { refreshProfile } = useAuth();
+
+  const paymentSteps = [
+    { label: 'Khởi tạo cổng bảo mật SSL', desc: 'Thiết lập bảo mật chuẩn 256-bit...' },
+    { label: 'Xác thực tài khoản người dùng', desc: 'Kiểm tra thông tin thẻ và số dư...' },
+    { label: 'Gửi yêu cầu giao dịch đến ngân hàng', desc: 'Đang truyền thông tin thanh toán bảo mật...' },
+    { label: 'Đăng ký khóa học trên hệ thống', desc: 'Cấp quyền truy cập bài học...' },
+    { label: 'Giao dịch hoàn tất thành công', desc: 'Chào mừng bạn đến với khóa học!' }
+  ];
 
   const { success: successToast, error: errorToast } = useToast();
   const isMockMode = true; // Tạm thời bật thanh toán ảo. Sau này tích hợp Stripe thì đổi thành: !import.meta.env.VITE_STRIPE_PUBLIC_KEY
@@ -141,27 +150,51 @@ const Checkout = () => {
                     </div>
                   </div>
                   <Button 
-                    onClick={async () => {
+                    onClick={() => {
                       setIsMockLoading(true);
-                      try {
-                        await enrollmentApi.enrollCourse(courseId!);
-                        queryClient.invalidateQueries({ queryKey: ['enrollments'] });
-                        queryClient.invalidateQueries({ queryKey: ['my-enrollments'] });
-                        queryClient.invalidateQueries({ queryKey: ['course', courseId] });
-                        
-                        refreshProfile(); // Đồng bộ tài khoản
+                      setPaymentStep(1);
 
-                        successToast('Thanh toán thành công! Chào mừng bạn đến với khóa học.', 'Giao dịch thành công');
+                      // Step 1 -> 2
+                      setTimeout(() => {
+                        setPaymentStep(2);
+                        
+                        // Step 2 -> 3
                         setTimeout(() => {
-                          navigate(`/courses/${courseId}/learn`);
-                        }, 1000);
-                      } catch (err: any) {
-                        const msg = err.response?.data?.message || 'Mock enrollment failed';
-                        console.error('Enrollment error:', msg);
-                        setError(msg);
-                        errorToast(msg, 'Thanh toán thất bại');
-                        setIsMockLoading(false);
-                      }
+                          setPaymentStep(3);
+                          
+                          // Step 3 -> 4
+                          setTimeout(async () => {
+                            setPaymentStep(4);
+                            
+                            try {
+                              await enrollmentApi.enrollCourse(courseId!);
+                              queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+                              queryClient.invalidateQueries({ queryKey: ['my-enrollments'] });
+                              queryClient.invalidateQueries({ queryKey: ['course', courseId] });
+                              
+                              refreshProfile(); // Đồng bộ tài khoản
+                              
+                              // Step 4 -> 5
+                              setPaymentStep(5);
+                              successToast('Thanh toán thành công! Chào mừng bạn đến với khóa học.', 'Giao dịch thành công');
+                              
+                              setTimeout(() => {
+                                setPaymentStep(null);
+                                setIsMockLoading(false);
+                                navigate(`/courses/${courseId}/learn`);
+                              }, 1200);
+                              
+                            } catch (err: any) {
+                              const msg = err.response?.data?.message || 'Mock enrollment failed';
+                              console.error('Enrollment error:', msg);
+                              setError(msg);
+                              errorToast(msg, 'Thanh toán thất bại');
+                              setPaymentStep(null);
+                              setIsMockLoading(false);
+                            }
+                          }, 950);
+                        }, 950);
+                      }, 950);
                     }}
                     disabled={isMockLoading}
                     className="w-full h-14 text-base font-semibold shadow-lg shadow-indigo-500/25 transition-all hover:shadow-indigo-500/40"
@@ -279,6 +312,78 @@ const Checkout = () => {
           </div>
         </div>
       </div>
+
+      {/* Payment Tracking Progress Overlay */}
+      {paymentStep !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/85 backdrop-blur-md">
+          <div className="bg-white dark:bg-[#151515] p-8 rounded-3xl border border-slate-200 dark:border-white/10 w-full max-w-md mx-4 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 animate-pulse" />
+            <div className="space-y-6">
+              <div className="text-center">
+                <h3 className="text-xl font-black text-slate-900 dark:text-white">Đang xử lý giao dịch</h3>
+                <p className="text-xs text-slate-400 mt-1">Vui lòng không tắt hoặc tải lại trang</p>
+              </div>
+
+              {/* Progress steps */}
+              <div className="space-y-4 py-2">
+                {paymentSteps.map((step, idx) => {
+                  const stepNum = idx + 1;
+                  const isDone = paymentStep > stepNum;
+                  const isCurrent = paymentStep === stepNum;
+                  const isPending = paymentStep < stepNum;
+
+                  return (
+                    <div key={idx} className="flex gap-4 items-start">
+                      <div className="relative shrink-0">
+                        {isDone ? (
+                          <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          </div>
+                        ) : isCurrent ? (
+                          <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 flex items-center justify-center text-xs font-black">
+                            {stepNum}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-xs sm:text-sm font-semibold transition-colors ${isCurrent ? 'text-indigo-600 dark:text-indigo-400' : isDone ? 'text-slate-900 dark:text-white opacity-80' : 'text-slate-400'}`}>
+                          {step.label}
+                        </p>
+                        {isCurrent && (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 animate-pulse leading-snug">
+                            {step.desc}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Loader ring for step 1-4, success check for step 5 */}
+              <div className="flex justify-center pt-2">
+                {paymentStep < 5 ? (
+                  <div className="w-9 h-9 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-500 flex items-center justify-center animate-bounce">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                    <span className="text-sm font-bold text-emerald-500">Đăng ký thành công!</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </PageShell>
   );
 };

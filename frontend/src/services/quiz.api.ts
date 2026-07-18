@@ -62,8 +62,10 @@ export const quizApi = {
     return axiosInstance.post(`/quizzes/lessons/${lessonId}/questions`, questionData);
   },
 
-  generateSmartQuiz: (courseId: string) => {
-    return axiosInstance.get(`/quizzes/courses/${courseId}/smart-quiz/generate`);
+  generateSmartQuiz: (courseId: string, limit?: number) => {
+    return axiosInstance.get(`/quizzes/courses/${courseId}/smart-quiz/generate`, {
+      params: { limit }
+    });
   },
 
   submitSmartQuiz: (courseId: string, answers: QuizSubmission[]) => {

@@ -1,11 +1,11 @@
-import axiosClient from './axios';
+import axiosInstance from './axios';
 
 export const uploadApi = {
   uploadImage: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
     
-    return axiosClient.post('/upload/image', formData, {
+    return axiosInstance.post('/upload/image', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -16,10 +16,23 @@ export const uploadApi = {
     const formData = new FormData();
     formData.append('file', file);
     
-    return axiosClient.post('/upload/video', formData, {
+    return axiosInstance.post('/upload/video', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
+  },
+
+  uploadDocument: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await axiosInstance.post('/upload/document', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
   }
 };
+

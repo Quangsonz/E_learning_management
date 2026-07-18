@@ -151,21 +151,35 @@ class QuizService {
     return await questionRepository.create(questionData);
   }
 
-  async generateSmartQuiz(courseId, user) {
-    const progress = await require('../repositories/progress.repository').findByStudentAndCourse(user.id, courseId);
-    if (!progress || !progress.completedLessons || progress.completedLessons.length === 0) {
-      throw new AppError('Bạn cần hoàn thành ít nhất 1 bài giảng để tạo bài tập ôn tập', 400);
-    }
+  async generateSmartQuiz(courseId, user, limit = 10) {
+    const Quiz = require('../models/Quiz');
+    const Lesson = require('../models/Lesson');
+    const Question = require('../models/Question');
 
-    // Lấy tất cả câu hỏi thuộc các bài giảng đã học
-    const questions = await questionRepository.findInLessons(progress.completedLessons);
+    // 1. Tìm tất cả quizzes và lessons của khóa học này
+    const [quizzes, lessons] = await Promise.all([
+      Quiz.find({ course: courseId }),
+      Lesson.find({ course: courseId })
+    ]);
+
+    const quizIds = quizzes.map(q => q._id);
+    const lessonIds = lessons.map(l => l._id);
+
+    // 2. Lấy tất cả câu hỏi thuộc các quizzes hoặc lessons này
+    const questions = await Question.find({
+      $or: [
+        { quiz: { $in: quizIds } },
+        { lesson: { $in: lessonIds } }
+      ]
+    });
+
     if (questions.length === 0) {
-      throw new AppError('Các bài giảng đã học chưa có câu hỏi ôn tập nào', 404);
+      throw new AppError('Khoá học này chưa có câu hỏi trắc nghiệm nào từ giảng viên', 404);
     }
 
-    // Chọn ngẫu nhiên tối đa 10 câu
+    // 3. Chọn ngẫu nhiên số lượng câu hỏi theo limit
     const shuffled = questions.sort(() => 0.5 - Math.random());
-    const selectedQuestions = shuffled.slice(0, 10);
+    const selectedQuestions = shuffled.slice(0, Number(limit) || 10);
 
     // Ẩn đáp án đúng
     const sanitizedQuestions = selectedQuestions.map(q => {
@@ -184,8 +198,8 @@ class QuizService {
     return {
       quiz: {
         _id: 'smart',
-        title: 'Smart Review Quiz',
-        timeLimit: 15,
+        title: `Random Practice Quiz (${selectedQuestions.length} Questions)`,
+        timeLimit: Math.ceil(selectedQuestions.length * 1.5), // 1.5 phút mỗi câu
         passingScore: 80
       },
       questions: sanitizedQuestions
@@ -193,12 +207,24 @@ class QuizService {
   }
 
   async submitSmartQuiz(courseId, studentAnswers, user) {
-    // Smart quiz chấm điểm tương tự bình thường nhưng không lưu kết quả vào Result model (hoặc lưu dưới dạng đặc biệt)
-    // Để đơn giản, ta chỉ chấm và trả về kết quả
-    const progress = await require('../repositories/progress.repository').findByStudentAndCourse(user.id, courseId);
-    if (!progress) throw new AppError('Không tìm thấy tiến trình học tập', 404);
+    const Quiz = require('../models/Quiz');
+    const Lesson = require('../models/Lesson');
+    const Question = require('../models/Question');
 
-    const questions = await questionRepository.findInLessons(progress.completedLessons);
+    const [quizzes, lessons] = await Promise.all([
+      Quiz.find({ course: courseId }),
+      Lesson.find({ course: courseId })
+    ]);
+
+    const quizIds = quizzes.map(q => q._id);
+    const lessonIds = lessons.map(l => l._id);
+
+    const questions = await Question.find({
+      $or: [
+        { quiz: { $in: quizIds } },
+        { lesson: { $in: lessonIds } }
+      ]
+    });
 
     let totalScore = 0;
     let maxScore = 0;
@@ -214,18 +240,12 @@ class QuizService {
       }
     });
 
-    // Nếu người dùng không gửi đủ câu trả lời, maxScore vẫn phải tính dựa trên toàn bộ câu hỏi?
-    // Trong trường hợp này smart quiz sinh ngẫu nhiên, ta chấm dựa trên những câu học viên GỬI LÊN.
-    // Thực tế để chính xác, frontend gửi danh sách questionId đã được tạo, ta tính maxScore dựa trên đó.
-    // Để đơn giản, maxScore tính theo studentAnswers.
-    // Hoặc ta query lại bằng $in: studentAnswers.map(ans => ans.questionId)
     const submittedQuestionIds = studentAnswers.map(ans => ans.questionId);
     const submittedQuestions = questions.filter(q => submittedQuestionIds.includes(q._id.toString()));
-    
     maxScore = submittedQuestions.reduce((acc, cur) => acc + cur.points, 0);
 
     const scorePercentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
-    const isPassed = scorePercentage >= 80; // Giả định passingScore là 80
+    const isPassed = scorePercentage >= 80;
 
     return {
       score: totalScore,

@@ -238,18 +238,9 @@ class AnalyticsService {
     ] = await Promise.all([
       Course.countDocuments({ instructor: teacherId }),
       Enrollment.countDocuments({ course: { $in: courseIds } }),
-      Enrollment.aggregate([
-        { $match: { course: { $in: courseIds }, paymentStatus: 'completed' } },
-        {
-          $lookup: {
-            from: 'courses',
-            localField: 'course',
-            foreignField: '_id',
-            as: 'course'
-          }
-        },
-        { $unwind: '$course' },
-        { $group: { _id: null, total: { $sum: '$course.price' } } }
+      Order.aggregate([
+        { $match: { course: { $in: courseIds }, status: 'paid' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
       ]),
       Progress.countDocuments({ course: { $in: courseIds }, isCompleted: true })
     ]);

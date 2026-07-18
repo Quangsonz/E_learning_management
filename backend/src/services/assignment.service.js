@@ -163,6 +163,10 @@ class AssignmentService {
     await submission.save();
     return submission;
   }
+
+  async getStudentSubmission(assignmentId, user) {
+    return await submissionRepository.findByStudentAndAssignment(user.id, assignmentId);
+  }
 }
 
 module.exports = new AssignmentService();

@@ -48,7 +48,7 @@ class XPService {
       });
     }
 
-    await user.save();
+    await user.save({ validateBeforeSave: false });
     return { xp: user.xp, level: user.level, leveledUp: newLevel > oldLevel };
   }
 
@@ -77,7 +77,7 @@ class XPService {
       link: '/profile'
     });
 
-    await user.save();
+    await user.save({ validateBeforeSave: false });
     return badgeInfo;
   }
 }

@@ -80,6 +80,18 @@ class AssignmentController {
       data: { submission }
     });
   });
+
+  getMySubmission = catchAsync(async (req, res, next) => {
+    const submission = await assignmentService.getStudentSubmission(
+      req.params.assignmentId,
+      req.user
+    );
+
+    res.status(200).json({
+      status: 'success',
+      data: { submission }
+    });
+  });
 }
 
 module.exports = new AssignmentController();

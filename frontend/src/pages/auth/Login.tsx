@@ -21,6 +21,18 @@ const Login: React.FC = () => {
   // Redirect về trang trước khi bị chuyển về login (nếu có)
   const from = (location.state as any)?.from?.pathname || '/home';
 
+  React.useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('expired') === 'true') {
+      // Đợi component mount hoàn toàn rồi hiển thị thông báo
+      setTimeout(() => {
+        error('Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại.', 'Phiên hết hạn');
+      }, 100);
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location, error, navigate]);
+
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {

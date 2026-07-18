@@ -42,7 +42,7 @@ class QuizController {
   });
 
   generateSmartQuiz = catchAsync(async (req, res, next) => {
-    const data = await quizService.generateSmartQuiz(req.params.courseId, req.user);
+    const data = await quizService.generateSmartQuiz(req.params.courseId, req.user, req.query.limit);
     res.status(200).json({ status: 'success', data });
   });
 

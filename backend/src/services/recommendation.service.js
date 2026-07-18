@@ -15,14 +15,19 @@ class RecommendationService {
       { $match: { 'course.status': 'published' } },
       { $lookup: { from: 'users', localField: 'course.instructor', foreignField: '_id', as: 'instructor' } },
       { $unwind: '$instructor' },
+      { $lookup: { from: 'categories', localField: 'course.category', foreignField: '_id', as: 'category' } },
+      { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
       {
         $project: {
           _id: '$course._id',
           title: '$course.title',
-          thumbnail: '$course.thumbnailUrl',
+          thumbnailUrl: '$course.thumbnailUrl',
           price: '$course.price',
+          estimatedPrice: '$course.estimatedPrice',
+          discountPercentage: '$course.discountPercentage',
           averageRating: '$course.averageRating',
-          instructor: { _id: '$instructor._id', name: '$instructor.name' }
+          category: { _id: '$category._id', name: '$category.name', slug: '$category.slug' },
+          instructor: { _id: '$instructor._id', name: '$instructor.name', avatar: '$instructor.avatar' }
         }
       }
     ]);
@@ -31,23 +36,28 @@ class RecommendationService {
     const highestRated = await Course.find({ status: 'published' })
       .sort({ averageRating: -1 })
       .limit(4)
-      .populate('instructor', 'name avatar');
+      .populate('instructor', 'name avatar')
+      .populate('category', 'name slug');
 
     // 3. Recommended for you (For MVP: we just return random published courses)
-    // A real engine would use user.preferences or collaborative filtering
     const recommended = await Course.aggregate([
       { $match: { status: 'published' } },
       { $sample: { size: 4 } },
       { $lookup: { from: 'users', localField: 'instructor', foreignField: '_id', as: 'instructorInfo' } },
       { $unwind: '$instructorInfo' },
+      { $lookup: { from: 'categories', localField: 'category', foreignField: '_id', as: 'categoryInfo' } },
+      { $unwind: { path: '$categoryInfo', preserveNullAndEmptyArrays: true } },
       {
         $project: {
           _id: 1,
           title: 1,
           thumbnailUrl: 1,
           price: 1,
+          estimatedPrice: 1,
+          discountPercentage: 1,
           averageRating: 1,
-          instructor: { _id: '$instructorInfo._id', name: '$instructorInfo.name' }
+          category: { _id: '$categoryInfo._id', name: '$categoryInfo.name', slug: '$categoryInfo.slug' },
+          instructor: { _id: '$instructorInfo._id', name: '$instructorInfo.name', avatar: '$instructorInfo.avatar' }
         }
       }
     ]);

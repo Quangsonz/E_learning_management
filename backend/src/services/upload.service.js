@@ -40,6 +40,12 @@ class UploadService {
       duration: result.duration, // Lấy được độ dài của video
     };
   }
+
+  async uploadRawFile(fileBuffer) {
+    const result = await this.uploadStream(fileBuffer, 'auto', 'elearning/documents');
+    return result.secure_url;
+  }
 }
+
 
 module.exports = new UploadService();

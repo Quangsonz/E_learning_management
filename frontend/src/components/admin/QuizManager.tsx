@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { quizApi } from '../../services/quiz.api';
-import { Button, Modal, EmptyState } from '../ui';
+import { Button, Modal, EmptyState, ConfirmModal } from '../ui';
 import { Input } from '../ui/Input';
 import { QuestionManager } from './QuestionManager';
 
@@ -19,6 +19,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ courseId, courseTitle,
   const [timeLimit, setTimeLimit] = useState('30');
   const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
   const [managingQuestionsQuiz, setManagingQuestionsQuiz] = useState<any | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['quizzes', courseId],
@@ -155,9 +156,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ courseId, courseTitle,
                       type="button"
                       className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
                       onClick={() => {
-                        if (window.confirm('Bạn có chắc chắn muốn xóa Quiz này và các câu hỏi liên quan?')) {
-                          deleteMutation.mutate(quiz._id);
-                        }
+                        setDeleteTarget({ id: quiz._id, title: quiz.title });
                       }}
                       title="Delete Quiz"
                     >
@@ -187,6 +186,19 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ courseId, courseTitle,
           onClose={() => setManagingQuestionsQuiz(null)} 
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        title="Xóa bài kiểm tra?"
+        message={`Bạn có chắc chắn muốn xóa Quiz "${deleteTarget?.title}" và các câu hỏi liên quan?`}
+        confirmLabel="Xóa"
+        confirmVariant="danger"
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </>
   );
 };

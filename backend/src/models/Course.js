@@ -39,4 +39,60 @@ courseSchema.pre(/^find/, function() {
   });
 });
 
+// Cascading delete middleware khi xóa khóa học
+courseSchema.pre('findOneAndDelete', async function(next) {
+  const doc = await this.model.findOne(this.getQuery());
+  if (doc) {
+    const courseId = doc._id;
+    const Lesson = mongoose.model('Lesson');
+    const Progress = mongoose.model('Progress');
+    const Quiz = mongoose.model('Quiz');
+    const Review = mongoose.model('Review');
+    const Discussion = mongoose.model('Discussion');
+    const Enrollment = mongoose.model('Enrollment');
+    const Certificate = mongoose.model('Certificate');
+    const Question = mongoose.model('Question');
+    const Result = mongoose.model('Result');
+
+    // Tìm và xóa quizzes cùng kết quả + câu hỏi của nó
+    const quizzes = await Quiz.find({ course: courseId });
+    const quizIds = quizzes.map(q => q._id);
+    if (quizIds.length > 0) {
+      await Result.deleteMany({ quiz: { $in: quizIds } });
+      await Question.deleteMany({ quiz: { $in: quizIds } });
+    }
+    await Quiz.deleteMany({ course: courseId });
+
+    // Tìm và xóa bài học cùng câu hỏi luyện tập (nếu có)
+    const lessons = await Lesson.find({ course: courseId });
+    const lessonIds = lessons.map(l => l._id);
+    if (lessonIds.length > 0) {
+      await Question.deleteMany({ lesson: { $in: lessonIds } });
+    }
+    await Lesson.deleteMany({ course: courseId });
+
+    // Xóa tiến độ học tập
+    await Progress.deleteMany({ course: courseId });
+
+    // Xóa đánh giá khóa học
+    await Review.deleteMany({ course: courseId });
+
+    // Xóa thảo luận bài học & bình luận lồng nhau
+    const discussions = await Discussion.find({ course: courseId });
+    const discussionIds = discussions.map(d => d._id);
+    if (discussionIds.length > 0) {
+      await mongoose.model('Comment').deleteMany({ discussion: { $in: discussionIds } });
+    }
+    await Discussion.deleteMany({ course: courseId });
+
+    // Xóa enrollments
+    await Enrollment.deleteMany({ course: courseId });
+
+    // Xóa certificates
+    await Certificate.deleteMany({ course: courseId });
+  }
+  next();
+});
+
 module.exports = mongoose.model('Course', courseSchema);
+

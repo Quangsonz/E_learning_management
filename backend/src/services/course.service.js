@@ -1,23 +1,20 @@
 const courseRepository = require('../repositories/course.repository');
 const AppError = require('../utils/appError');
 const slugify = require('slugify');
+const mongoose = require('mongoose');
 
 class CourseService {
   async getAllCourses(query, user) {
     let filter = {};
 
-    // Search theo từ khóa
     if (query.search) {
       filter.$text = { $search: query.search };
     }
 
-    // Lọc theo danh mục
     if (query.category && query.category !== 'All') {
-      // Có thể là ID hoặc slug, nhưng trên frontend ta truyền ID sẽ tốt hơn. Nếu truyền string thì filter.
       filter.category = query.category;
     }
 
-    // Lọc theo người tạo (giáo viên xem khóa học của mình)
     if (query.instructor) {
       filter.instructor = query.instructor;
     }
@@ -26,45 +23,19 @@ class CourseService {
       filter.status = query.status;
     }
 
-    // Nếu không đăng nhập hoặc là học viên, chỉ xem được các khóa học đã published
     if (!user || user.role === 'student') {
       filter.status = 'published';
     }
 
-    // Pagination
     const page = parseInt(query.page, 10) || 1;
     const limit = parseInt(query.limit, 10) || 10;
     const skip = (page - 1) * limit;
-    
-    // Sort
     const sort = query.sort || '-createdAt';
 
-    const { total, data } = await courseRepository.findPaginated(filter, skip, limit, sort);
-
-    const Lesson = require('../models/Lesson');
-    const Enrollment = require('../models/Enrollment');
-
-    const enrichedCourses = await Promise.all(data.map(async (course) => {
-      const courseObj = course.toObject ? course.toObject() : course;
-      
-      // Đếm số bài giảng trong khóa học
-      const lessonCount = await Lesson.countDocuments({ course: course._id });
-      
-      // Đếm số học viên đăng ký hoàn tất thanh toán
-      const studentCount = await Enrollment.countDocuments({ 
-        course: course._id,
-        paymentStatus: 'completed'
-      });
-
-      return {
-        ...courseObj,
-        lessonsCount: lessonCount,
-        studentsCount: studentCount
-      };
-    }));
+    const { total, data } = await courseRepository.findPaginatedWithStats(filter, skip, limit, sort);
 
     return {
-      courses: enrichedCourses,
+      courses: data,
       total,
       page,
       totalPages: Math.ceil(total / limit)
@@ -80,6 +51,10 @@ class CourseService {
   }
 
   async createCourse(courseData, user) {
+    if (courseData.category && !mongoose.Types.ObjectId.isValid(courseData.category)) {
+      throw new AppError('Danh mục không hợp lệ', 400);
+    }
+
     if (!courseData.slug) {
       courseData.slug = slugify(courseData.title, { lower: true, strict: true });
     }
@@ -89,14 +64,12 @@ class CourseService {
       throw new AppError('Tiêu đề khóa học này đã tồn tại, vui lòng chọn tiêu đề khác', 400);
     }
 
-    // Gắn ID của người tạo vào làm Instructor nếu không phải là admin truyền ID khác
     if (user.role === 'admin' && courseData.instructor) {
       // Do nothing, keep courseData.instructor as provided
     } else {
       courseData.instructor = user.id;
     }
 
-    // Tự động tính toán giá tiền sau khi áp dụng giảm giá
     if (courseData.estimatedPrice !== undefined && courseData.discountPercentage !== undefined) {
       const estimatedPrice = Number(courseData.estimatedPrice) || 0;
       const discountPercentage = Number(courseData.discountPercentage) || 0;
@@ -109,20 +82,22 @@ class CourseService {
   }
 
   async updateCourse(id, updateData, user) {
+    if (updateData.category && !mongoose.Types.ObjectId.isValid(updateData.category)) {
+      throw new AppError('Danh mục không hợp lệ', 400);
+    }
+
     const course = await courseRepository.findById(id);
     if (!course) {
       throw new AppError('Không tìm thấy khóa học này', 404);
     }
 
-    // Kiểm tra quyền: Chỉ Admin (manage_all) hoặc chính Teacher tạo ra khóa học mới được sửa
     if (user.role !== 'admin' && course.instructor._id.toString() !== user.id) {
       throw new AppError('Bạn không có quyền chỉnh sửa khóa học của người khác', 403);
     }
 
     if (user.role !== 'admin') {
-      delete updateData.instructor; // Non-admins cannot change the instructor
+      delete updateData.instructor; 
       
-      // Prevent teachers from directly publishing courses (Admin moderation required)
       if (updateData.status === 'published' && course.status !== 'published') {
         throw new AppError('Chỉ Admin mới có quyền duyệt và xuất bản khóa học.', 403);
       }
@@ -132,7 +107,6 @@ class CourseService {
       updateData.slug = slugify(updateData.title, { lower: true, strict: true });
     }
 
-    // Tự động cập nhật lại giá tiền sau giảm giá khi cập nhật khóa học
     const estPrice = updateData.estimatedPrice !== undefined ? updateData.estimatedPrice : course.estimatedPrice;
     const discPct = updateData.discountPercentage !== undefined ? updateData.discountPercentage : course.discountPercentage;
     if (updateData.estimatedPrice !== undefined || updateData.discountPercentage !== undefined) {
@@ -150,7 +124,6 @@ class CourseService {
       throw new AppError('Không tìm thấy khóa học này', 404);
     }
 
-    // Kiểm tra quyền: Chỉ Admin hoặc chính Teacher tạo ra khóa học mới được xóa
     if (user.role !== 'admin' && course.instructor._id.toString() !== user.id) {
       throw new AppError('Bạn không có quyền xóa khóa học của người khác', 403);
     }

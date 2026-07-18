@@ -53,7 +53,7 @@ class ReviewService {
   async updateCourseAverageRating(courseId) {
     const courseObjId = mongoose.Types.ObjectId.isValid(courseId) ? new mongoose.Types.ObjectId(courseId) : courseId;
     const stats = await reviewRepository.getAverageRating(courseObjId);
-    await courseRepository.update(courseId, { 
+    await courseRepository.updateById(courseId, { 
       averageRating: stats.averageRating 
     });
   }
@@ -77,6 +77,38 @@ class ReviewService {
     await review.save();
     return review;
   }
+
+  async updateReview(reviewId, studentId, data) {
+    const review = await reviewRepository.findById(reviewId);
+    if (!review) throw new AppError('Không tìm thấy đánh giá', 404);
+
+    // Ràng buộc quyền sở hữu
+    if (review.student.toString() !== studentId.toString()) {
+      throw new AppError('Bạn không có quyền chỉnh sửa đánh giá này', 403);
+    }
+
+    if (data.rating) review.rating = data.rating;
+    if (data.reviewText) review.reviewText = data.reviewText;
+
+    await review.save();
+    await this.updateCourseAverageRating(review.course);
+
+    return review;
+  }
+
+  async deleteReview(reviewId, studentId) {
+    const review = await reviewRepository.findById(reviewId);
+    if (!review) throw new AppError('Không tìm thấy đánh giá', 404);
+
+    // Ràng buộc quyền sở hữu
+    if (review.student.toString() !== studentId.toString()) {
+      throw new AppError('Bạn không có quyền xóa đánh giá này', 403);
+    }
+
+    await reviewRepository.deleteById(reviewId);
+    await this.updateCourseAverageRating(review.course);
+  }
 }
 
 module.exports = new ReviewService();
+

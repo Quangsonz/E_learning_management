@@ -70,7 +70,7 @@ class PaymentController {
       if (order && userId && courseId) {
         // Auto enroll user
         try {
-          await enrollmentService.enrollCourse(courseId, { _id: userId });
+          await enrollmentService.enrollCourse(courseId, { id: userId, _id: userId });
         } catch (err) {
           console.error('Failed to enroll after payment:', err);
         }

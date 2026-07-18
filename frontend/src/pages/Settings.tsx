@@ -317,8 +317,9 @@ const SecurityCenter: React.FC = () => {
       setErrorMsg(t('settings.security.errorMismatch'));
       return;
     }
-    changePasswordMutation.mutate({ currentPassword, newPassword });
+    changePasswordMutation.mutate({ currentPassword, newPassword, confirmPassword });
   };
+
 
   return (
     <section>

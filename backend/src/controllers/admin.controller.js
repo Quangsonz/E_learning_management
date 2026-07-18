@@ -43,6 +43,21 @@ class AdminController {
   });
 
   /**
+   * GET /api/admin/teacher-applications/my-status
+   * Học viên lấy trạng thái hồ sơ ứng tuyển mới nhất của mình
+   */
+  getMyApplicationStatus = catchAsync(async (req, res, next) => {
+    const application = await TeacherApplication.findOne({ student: req.user.id })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      status: 'success',
+      data: { application }
+    });
+  });
+
+
+  /**
    * GET /api/admin/teacher-applications
    * Lấy danh sách các đơn ứng tuyển giảng viên (Admin only)
    */

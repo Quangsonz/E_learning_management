@@ -21,6 +21,7 @@ router.route('/:id')
 router.route('/:assignmentId/submissions')
   .get(requireRole('admin', 'teacher'), assignmentController.getSubmissions);
 
+router.get('/:assignmentId/my-submission', requireRole('student'), assignmentController.getMySubmission);
 router.post('/:assignmentId/submit', requireRole('student'), assignmentController.submitAssignment);
 
 // Chấm điểm bài tập đã nộp

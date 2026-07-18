@@ -8,6 +8,7 @@ import clsx from 'clsx';
 import { useQuery } from '@tanstack/react-query';
 import { userApi } from '../../services/user.api';
 import { CommandPalette } from '../ui/CommandPalette';
+import { WishlistDrawer } from './WishlistDrawer';
 
 import { useTranslation } from 'react-i18next';
 
@@ -80,6 +81,7 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [wishlistOpen, setWishlistOpen] = useState(false);
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { notifications, unreadCount, setUnreadCount } = useSocket();
@@ -146,8 +148,8 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </nav>
 
         <div className="pl-3 pr-2 border-l border-slate-200 dark:border-white/10 flex items-center gap-2">
-          <Link
-            to="/wishlist"
+          <button
+            onClick={() => setWishlistOpen(true)}
             className="relative w-10 h-10 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
             aria-label="Wishlist"
           >
@@ -161,7 +163,7 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {wishlistCount}
               </span>
             )}
-          </Link>
+          </button>
 
           <div className="relative">
             <button
@@ -276,7 +278,10 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           E
         </Link>
         <div className="flex items-center gap-3">
-          <Link to="/wishlist" className="relative w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300">
+          <button
+            onClick={() => setWishlistOpen(true)}
+            className="relative w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300"
+          >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="9" cy="21" r="1"></circle>
               <circle cx="20" cy="21" r="1"></circle>
@@ -287,7 +292,7 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {wishlistCount}
               </span>
             )}
-          </Link>
+          </button>
           <button onClick={toggleTheme} className="w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300">
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>
@@ -432,6 +437,8 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
         </div>
       </footer>
+
+      <WishlistDrawer isOpen={wishlistOpen} onClose={() => setWishlistOpen(false)} />
     </div>
   );
 };

@@ -88,4 +88,13 @@ export const adminApi = {
     const response = await axiosInstance.post('/admin/payouts/request', payload);
     return response.data;
   },
+
+  /**
+   * Học viên lấy trạng thái hồ sơ ứng tuyển giảng viên gần nhất - GET /api/admin/teacher-applications/my-status
+   */
+  getMyApplicationStatus: async (): Promise<any> => {
+    const response = await axiosInstance.get('/admin/teacher-applications/my-status');
+    return response.data;
+  },
 };
+

@@ -33,6 +33,23 @@ class UploadController {
       },
     });
   });
+
+  uploadDocument = catchAsync(async (req, res, next) => {
+    if (!req.file) {
+      return next(new AppError('Vui lòng chọn 1 file tài liệu', 400));
+    }
+
+    const fileUrl = await uploadService.uploadRawFile(req.file.buffer);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        url: fileUrl,
+        filename: req.file.originalname,
+      },
+    });
+  });
 }
+
 
 module.exports = new UploadController();

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { motion, MotionProps } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { Link, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   PageShell,
   SectionLead,
@@ -11,7 +11,7 @@ import {
 import { userApi } from '../services/user.api';
 
 type Course = {
-  id: string | number;
+  id: string;
   title: string;
   teacher: string;
   role: string;
@@ -23,6 +23,9 @@ type Course = {
   lessons: string;
   accent: string;
   image: string;
+  price: number;
+  estimatedPrice: number;
+  discountPercentage: number;
 };
 
 const MotionDiv = motion.div as unknown as React.FC<React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>>;
@@ -48,23 +51,6 @@ function makeThumbnail(label: string) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-function makeAvatar(seed: string) {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-      <defs>
-        <linearGradient id="a" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#0ea5e9"/>
-          <stop offset="100%" stop-color="#6366f1"/>
-        </linearGradient>
-      </defs>
-      <rect width="128" height="128" rx="64" fill="url(#a)"/>
-      <circle cx="64" cy="52" r="24" fill="rgba(255,255,255,0.92)"/>
-      <path d="M28 110c8-20 24-30 36-30s28 10 36 30" fill="rgba(255,255,255,0.92)"/>
-      <text x="64" y="74" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#0f172a">${seed}</text>
-    </svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
-
 const categoryAccent: Record<string, string> = {
   Design:      'from-violet-500 to-fuchsia-500',
   Frontend:    'from-sky-500 to-cyan-400',
@@ -75,20 +61,20 @@ const categoryAccent: Record<string, string> = {
 };
 const DEFAULT_ACCENT = 'from-indigo-500 to-violet-400';
 
-const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
+const CourseCard: React.FC<{ course: Course; onRemove: (id: string) => void }> = ({ course, onRemove }) => {
   const [thumbLoaded, setThumbLoaded] = useState(false);
-  const [avatarLoaded, setAvatarLoaded] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <MotionDiv
-      className="group relative flex flex-col gap-5 transition duration-300"
+      className="group relative flex flex-col justify-between bg-white dark:bg-[#111111] border border-slate-200 dark:border-white/5 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 h-[380px]"
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
     >
-      <div className={`absolute -inset-4 z-0 rounded-[3rem] bg-gradient-to-br ${course.accent} opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-[0.18] pointer-events-none`} />
-      <div className="relative z-10 overflow-hidden rounded-[2rem] aspect-[4/3] bg-slate-100 dark:bg-slate-900 shadow-sm transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_24px_48px_rgba(15,23,42,0.12)] dark:group-hover:shadow-[0_24px_48px_rgba(0,0,0,0.5)]">
-        {!thumbLoaded ? <div className="absolute inset-0 skeleton skeleton-card" /> : null}
+      {/* Thumbnail Container */}
+      <div className="relative aspect-video overflow-hidden bg-slate-800 shrink-0">
+        {!thumbLoaded ? <div className="absolute inset-0 skeleton skeleton-card animate-pulse" /> : null}
         <Link to={`/courses/${course.id}`} className="block h-full w-full">
           <img
             src={course.image}
@@ -98,41 +84,70 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
             className={`h-full w-full object-cover transition duration-700 group-hover:scale-[1.03] ${thumbLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
         </Link>
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/0 to-transparent opacity-80 pointer-events-none" />
-        <div className="absolute left-5 top-5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white pointer-events-none">
-          <span className={`h-2 w-2 rounded-full bg-gradient-to-r ${course.accent} shadow-[0_0_12px_rgba(255,255,255,0.8)]`} />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 to-transparent pointer-events-none" />
+        
+        {/* Category tag */}
+        <div className="absolute left-4 top-4 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-white bg-slate-950/50 backdrop-blur-md px-2.5 py-1.5 rounded-full pointer-events-none">
+          <span className={`h-1.5 w-1.5 rounded-full bg-gradient-to-r ${course.accent}`} />
           {course.category}
         </div>
-        <div className="absolute bottom-5 left-5 right-5 flex items-end justify-between gap-3 text-white pointer-events-none">
-          <div className="space-y-1 text-xs font-semibold text-white/90">
-            <p>{course.lessons}</p>
-            <p>{course.duration}</p>
+
+        {/* Remove button */}
+        <button
+          type="button"
+          onClick={() => onRemove(course.id)}
+          className="absolute right-4 top-4 w-8 h-8 rounded-full bg-slate-950/50 backdrop-blur-md text-white/80 hover:text-rose-500 flex items-center justify-center transition-colors shadow-lg z-20"
+          title="Remove from wishlist"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+
+        {/* Discount badge */}
+        {course.discountPercentage > 0 ? (
+          <div className="absolute left-4 bottom-4 bg-rose-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wide">
+            -{course.discountPercentage}%
           </div>
-          <p className="text-xl font-bold tabular-nums tracking-tight">
-            {course.rating.toFixed(1)} <span className="text-xs font-medium text-white/70">({course.ratingCount})</span>
-          </p>
-        </div>
+        ) : null}
       </div>
 
-      <div className="relative z-10 flex flex-col gap-3 px-1">
-        <Link to={`/courses/${course.id}`} className="group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
-          <h3 className="line-clamp-2 text-xl font-bold tracking-tight text-slate-950 dark:text-white leading-[1.3]">{course.title}</h3>
-        </Link>
-        <div className="flex items-center gap-3 mt-1">
-          <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-            {!avatarLoaded ? <div className="absolute inset-0 skeleton skeleton-circle" /> : null}
-            <img
-              src={makeAvatar(course.teacher[0] || 'U')}
-              alt={course.teacher}
-              loading="lazy"
-              onLoad={() => setAvatarLoaded(true)}
-              className={`h-full w-full object-cover ${avatarLoaded ? 'opacity-100' : 'opacity-0'}`}
-            />
+      {/* Card Content */}
+      <div className="flex flex-col flex-grow p-5 gap-3 justify-between">
+        <div>
+          <Link to={`/courses/${course.id}`} className="group-hover:text-primary-600 dark:group-hover:text-indigo-400 transition-colors">
+            <h3 className="line-clamp-2 text-sm font-bold tracking-tight text-slate-950 dark:text-white leading-snug">{course.title}</h3>
+          </Link>
+          
+          {/* Instructor */}
+          <div className="flex items-center gap-2 mt-2">
+            <div className="w-5.5 h-5.5 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[9px] font-black text-white shrink-0">
+              {course.teacher[0] || 'T'}
+            </div>
+            <span className="text-xs text-slate-500 truncate">{course.teacher}</span>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{course.teacher}</p>
-            <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">{course.role}</p>
+        </div>
+
+        {/* Price & Action button */}
+        <div className="flex items-center justify-between border-t border-slate-100 dark:border-white/5 pt-3 mt-1 shrink-0">
+          <div className="flex flex-col">
+            <span className="text-base font-black text-slate-900 dark:text-white">
+              {course.price === 0 ? 'Free' : `${Number(course.price || 0).toLocaleString('vi-VN')}đ`}
+            </span>
+            {course.discountPercentage > 0 ? (
+              <span className="text-xs text-slate-400 line-through">
+                {Number(course.estimatedPrice || 0).toLocaleString('vi-VN')}đ
+              </span>
+            ) : null}
           </div>
+
+          <button
+            onClick={() => navigate(`/checkout/${course.id}`)}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 shrink-0"
+          >
+            Đăng ký học
+          </button>
         </div>
       </div>
     </MotionDiv>
@@ -140,10 +155,23 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
 };
 
 const Wishlist: React.FC = () => {
+  const queryClient = useQueryClient();
+  
   const { data: wishlistData, isLoading } = useQuery({
     queryKey: ['wishlist'],
     queryFn: () => userApi.getWishlist()
   });
+
+  const removeMutation = useMutation({
+    mutationFn: (id: string) => userApi.toggleWishlist(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
+    }
+  });
+
+  const handleRemove = (id: string) => {
+    removeMutation.mutate(id);
+  };
 
   const transformCourse = (course: any): Course => ({
     id: course._id,
@@ -157,7 +185,10 @@ const Wishlist: React.FC = () => {
     progress: 0,
     lessons: '10 lessons',
     accent: categoryAccent[course.category?.name || 'General'] || DEFAULT_ACCENT,
-    image: course.thumbnailUrl || makeThumbnail(course.category?.name || 'Course')
+    image: course.thumbnailUrl || makeThumbnail(course.category?.name || 'Course'),
+    price: Number(course.price) || 0,
+    estimatedPrice: Number(course.estimatedPrice || course.price) || 0,
+    discountPercentage: Number(course.discountPercentage) || 0
   });
 
   const courses: Course[] = useMemo(() => {
@@ -168,9 +199,9 @@ const Wishlist: React.FC = () => {
   return (
     <PageShell wide>
       <div className="mb-12">
-        <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-slate-900 dark:text-white mb-4">My Wishlist</h1>
-        <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl">
-          Here are all the courses you have saved. Ready to enroll and start learning?
+        <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-slate-900 dark:text-white mb-3">My Wishlist</h1>
+        <p className="text-base text-slate-500 dark:text-slate-400 max-w-2xl">
+          Quản lý danh sách các khóa học yêu thích của bạn. Đăng ký ngay hôm nay để bắt đầu hành trình học tập.
         </p>
       </div>
 
@@ -180,16 +211,16 @@ const Wishlist: React.FC = () => {
         {isLoading ? (
           <SkeletonGrid count={3} />
         ) : courses.length > 0 ? (
-          <div className="grid gap-12 md:gap-x-10 md:gap-y-16 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-8 md:gap-x-6 md:gap-y-10 md:grid-cols-2 xl:grid-cols-3">
             {courses.map((course) => (
-              <CourseCard key={course.id} course={course} />
+              <CourseCard key={course.id} course={course} onRemove={handleRemove} />
             ))}
           </div>
         ) : (
           <EmptyState
             title="Your wishlist is empty"
-            message="You haven't added any courses to your wishlist yet. Browse the catalog to find something interesting."
-            action={<Link to="/courses" className="btn btn-primary">Browse Courses</Link>}
+            message="Bạn chưa lưu khóa học nào vào danh sách yêu thích. Khám phá các khóa học nổi bật của chúng tôi để bắt đầu."
+            action={<Link to="/" className="btn btn-primary">Browse Courses</Link>}
           />
         )}
       </section>

@@ -32,3 +32,5 @@ export {
   SuccessState
 } from './StateViews';
 export * from './ActionDropdown';
+export { ConfirmModal } from './ConfirmModal';
+export type { ConfirmModalProps } from './ConfirmModal';

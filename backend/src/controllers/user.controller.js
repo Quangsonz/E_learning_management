@@ -124,15 +124,15 @@ class UserController {
     });
   });
 
-  /**
-   * PATCH /api/users/changePassword
-   * Thay đổi mật khẩu (yêu cầu cung cấp mật khẩu cũ)
-   */
   changePassword = catchAsync(async (req, res, next) => {
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
       return next(new AppError('Vui lòng cung cấp mật khẩu hiện tại và mật khẩu mới!', 400));
+    }
+
+    if (confirmPassword && newPassword !== confirmPassword) {
+      return next(new AppError('Mật khẩu xác nhận không khớp!', 400));
     }
 
     if (newPassword.length < 6) {
@@ -146,6 +146,8 @@ class UserController {
       message: 'Mật khẩu đã được thay đổi thành công! Vui lòng đăng nhập lại.',
     });
   });
+
+
 
   /**
    * GET /api/users

@@ -6,13 +6,33 @@ import { MemoryRouter } from 'react-router-dom';
 import { configureStore } from '@reduxjs/toolkit';
 import Login from './Login';
 import authReducer from '../../store/slices/authSlice';
-import { authApi } from '../../services/auth.api';
 
-// Mock the API
-vi.mock('../../services/auth.api', () => ({
-  authApi: {
-    login: vi.fn(),
-  },
+// Mock useAuth hook directly — Login.tsx calls useAuth().login(), not authApi directly
+const mockLogin = vi.fn();
+vi.mock('../../contexts/AuthContext', () => ({
+  useAuth: () => ({
+    login: mockLogin,
+    user: null,
+    isAuthenticated: false,
+    isAdmin: false,
+    isTeacher: false,
+    accessToken: null,
+    logout: vi.fn(),
+    register: vi.fn(),
+    refreshProfile: vi.fn(),
+    updateProfile: vi.fn(),
+  }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+// Mock useToast hook directly
+vi.mock('../../contexts/ToastContext', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    showToast: vi.fn(),
+  }),
+  ToastProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 // Setup a mock store
@@ -20,7 +40,7 @@ const createMockStore = () => configureStore({
   reducer: { auth: authReducer },
 });
 
-// Helper function to render component with wrappers
+// Helper function to render component with all required wrappers
 const renderWithProviders = (ui: React.ReactElement) => {
   const store = createMockStore();
   return render(
@@ -46,7 +66,8 @@ describe('Login Component Tests', () => {
   });
 
   it('shows error message on failed login', async () => {
-    (authApi.login as any).mockRejectedValueOnce({
+    // Simulate authApi rejecting with an error response
+    mockLogin.mockRejectedValueOnce({
       response: { data: { message: 'Invalid credentials' } }
     });
 
@@ -56,18 +77,14 @@ describe('Login Component Tests', () => {
     fireEvent.change(screen.getByLabelText(/^password/i), { target: { value: 'wrongpass' } });
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-    await waitFor(() => {
-      expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument();
-    });
+    // Wait for async error state to be set and rendered
+    const errorEl = await screen.findByText(/invalid credentials/i, {}, { timeout: 3000 });
+    expect(errorEl).toBeInTheDocument();
   });
 
-  it('calls authApi and navigates on successful login', async () => {
-    const mockResponse = {
-      status: 'success',
-      token: 'fake-token',
-      data: { user: { id: '123', name: 'User' } }
-    };
-    (authApi.login as any).mockResolvedValueOnce(mockResponse);
+  it('calls login and navigates on successful login', async () => {
+    // Simulate successful login (resolves without throwing)
+    mockLogin.mockResolvedValueOnce(undefined);
 
     renderWithProviders(<Login />);
     
@@ -76,12 +93,11 @@ describe('Login Component Tests', () => {
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
-      expect(authApi.login).toHaveBeenCalledWith({
+      expect(mockLogin).toHaveBeenCalledWith({
         email: 'test@example.com',
         password: 'correctpass'
       });
     });
-    // Note: To test navigation, we would usually mock useNavigate, but MemoryRouter handles it silently.
-    // In a real app we might inspect the router's current location.
+    // Navigation is handled silently by MemoryRouter in the test environment.
   });
 });

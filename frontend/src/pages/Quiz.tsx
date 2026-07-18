@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion, MotionProps } from 'framer-motion';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../contexts/AuthContext';
 import { quizApi } from '../services/quiz.api';
 import {
   Button,
@@ -25,10 +26,16 @@ const MotionDiv = motion.div as unknown as React.FC<React.PropsWithChildren<Reac
 const Quiz: React.FC = () => {
   const { courseId, quizId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const { refreshProfile } = useAuth();
+
+  const limitParam = searchParams.get('limit');
+  const limit = limitParam ? parseInt(limitParam, 10) : 10;
   
-  const { data, isLoading } = useQuery({
-    queryKey: ['quiz', courseId, quizId],
-    queryFn: () => quizId === 'smart' ? quizApi.generateSmartQuiz(courseId!) : quizApi.getQuizForTake(quizId!),
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['quiz', courseId, quizId, limit],
+    queryFn: () => quizId === 'smart' ? quizApi.generateSmartQuiz(courseId!, limit) : quizApi.getQuizForTake(quizId!),
     refetchOnWindowFocus: false
   });
   
@@ -36,8 +43,8 @@ const Quiz: React.FC = () => {
     mutationFn: (answers: any) => quizId === 'smart' ? quizApi.submitSmartQuiz(courseId!, answers) : quizApi.submitQuiz(quizId!, answers)
   });
 
-  const quiz = quizId === 'smart' ? data?.data?.quiz : data?.data?.data?.quiz;
-  const questions: Question[] = quizId === 'smart' ? data?.data?.questions || [] : data?.data?.data?.questions || [];
+  const quiz = data?.data?.data?.quiz;
+  const questions: Question[] = data?.data?.data?.questions || [];
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -59,6 +66,7 @@ const Quiz: React.FC = () => {
 
     const timer = window.setInterval(() => {
       setTimeLeft((current) => {
+        if (current === null) return null;
         if (current <= 1) {
           window.clearInterval(timer);
           finishQuiz();
@@ -97,6 +105,11 @@ const Quiz: React.FC = () => {
     
     submitMutation.mutate(answersPayload, {
       onSuccess: (response) => {
+        queryClient.invalidateQueries({ queryKey: ['course-progress'] });
+        queryClient.invalidateQueries({ queryKey: ['my-stats'] });
+        queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+        refreshProfile();
+
         setResultData(response.data.data.result);
         setCelebrate(true);
         window.setTimeout(() => {
@@ -133,6 +146,33 @@ const Quiz: React.FC = () => {
     return (
       <PageShell wide>
         <LoadingScreen title="Loading quiz" message="Preparing questions, timer, and assessment interface..." />
+      </PageShell>
+    );
+  }
+
+  if (isError) {
+    const errorMsg = (error as any)?.response?.data?.message || 'Có lỗi xảy ra khi tải bài trắc nghiệm';
+    return (
+      <PageShell wide>
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl max-w-lg mx-auto my-12 gap-4">
+          <span className="text-4xl">⚠️</span>
+          <h3 className="text-xl font-bold">Không thể tải bài trắc nghiệm</h3>
+          <p className="text-slate-500 text-sm max-w-sm leading-relaxed">{errorMsg}</p>
+          <Button onClick={() => navigate(`/courses/${courseId}/learn`)}>Back to Course</Button>
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (!quiz || !questions || questions.length === 0) {
+    return (
+      <PageShell wide>
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl max-w-lg mx-auto my-12 gap-4">
+          <span className="text-4xl">📝</span>
+          <h3 className="text-xl font-bold">Bài trắc nghiệm trống</h3>
+          <p className="text-slate-500 text-sm max-w-sm leading-relaxed">Không có câu hỏi nào được tìm thấy trong bài trắc nghiệm này.</p>
+          <Button onClick={() => navigate(`/courses/${courseId}/learn`)}>Back to Course</Button>
+        </div>
       </PageShell>
     );
   }
@@ -190,7 +230,7 @@ const Quiz: React.FC = () => {
           <section className="relative">
             <AnimatePresence mode="wait">
               <MotionDiv
-                key={currentQuestion.id}
+                key={currentQuestion._id}
                 initial={{ opacity: 0, x: 24 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -24 }}

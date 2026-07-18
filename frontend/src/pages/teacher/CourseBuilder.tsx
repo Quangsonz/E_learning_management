@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PageShell, SectionHeader, Input, Button, Card, Toast } from '../../components/ui';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { PageShell, SectionHeader, Input, Button, Card, Toast, InlineLoader } from '../../components/ui';
 import { courseApi } from '../../services/course.api';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { categoryApi, Category } from '../../services/category.api';
 
 const CourseBuilder = () => {
   const navigate = useNavigate();
@@ -13,8 +14,17 @@ const CourseBuilder = () => {
     title: '',
     description: '',
     price: '',
-    category: '', // Would normally be a dropdown of fetched categories
+    category: '', // Stores the category _id selected from dropdown
   });
+
+  // Fetch danh sách categories từ API để điền vào dropdown
+  const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => categoryApi.getAllCategories(),
+    staleTime: 5 * 60 * 1000, // Cache 5 phút
+  });
+
+  const categories: Category[] = categoriesData?.data?.categories || [];
 
   const createCourseMutation = useMutation({
     mutationFn: (data: any) => courseApi.createCourse(data),
@@ -22,28 +32,34 @@ const CourseBuilder = () => {
       queryClient.invalidateQueries({ queryKey: ['teacher-courses'] });
       queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
-      setToast({ message: 'Course created successfully!', type: 'success' });
-      // Redirect to the detailed curriculum editor
+      setToast({ message: 'Khóa học đã được tạo thành công!', type: 'success' });
+      // Redirect sang curriculum editor
       const newCourseId = res?.data?.course?._id;
       setTimeout(() => navigate(newCourseId ? `/teacher/courses/${newCourseId}/curriculum` : '/teacher-courses'), 1500);
     },
     onError: (error: any) => {
-      setToast({ message: error.response?.data?.message || 'Failed to create course.', type: 'error' });
+      setToast({ message: error.response?.data?.message || 'Tạo khóa học thất bại.', type: 'error' });
     }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.category) {
+      setToast({ message: 'Vui lòng chọn danh mục cho khóa học.', type: 'error' });
+      return;
+    }
+
     createCourseMutation.mutate({
       title: formData.title,
       description: formData.description,
       price: Number(formData.price),
-      category: formData.category || 'Development', // hardcoded default for MVP
-      level: 'Beginner', // default for MVP
+      category: formData.category, // gửi _id đã chọn từ dropdown
+      level: 'Beginner',
     });
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -99,10 +115,10 @@ const CourseBuilder = () => {
                   name="price"
                   type="number"
                   min="0"
-                  step="0.01"
+                  step="1000"
                   value={formData.price}
                   onChange={handleChange}
-                  placeholder="49.99"
+                  placeholder="500000"
                   required
                   className="w-full"
                 />
@@ -110,21 +126,35 @@ const CourseBuilder = () => {
 
               <div className="space-y-2">
                 <label htmlFor="category" className="block text-sm font-bold text-slate-700 dark:text-slate-300">
-                  Category
+                  Category <span className="text-red-500">*</span>
                 </label>
-                <Input
-                  id="category"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  placeholder="e.g. Development"
-                  className="w-full"
-                />
+                {categoriesLoading ? (
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-white/10 px-4 py-3 min-h-[46px]">
+                    <InlineLoader />
+                    <span className="text-sm text-slate-400">Loading categories...</span>
+                  </div>
+                ) : (
+                  <select
+                    id="category"
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    required
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-white/10 dark:bg-slate-800 dark:text-white appearance-none cursor-pointer min-h-[46px]"
+                  >
+                    <option value="" disabled>Select a category...</option>
+                    {categories.map((cat) => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 
             <div className="pt-6 flex justify-end border-t border-slate-100 dark:border-white/5">
-              <Button type="submit" disabled={createCourseMutation.isLoading}>
+              <Button type="submit" disabled={createCourseMutation.isLoading || categoriesLoading}>
                 {createCourseMutation.isLoading ? 'Creating...' : 'Create Course Draft'}
               </Button>
             </div>

@@ -34,3 +34,21 @@ exports.uploadVideo = multer({
   // Tạm để giới hạn lớn hơn cho Video (vd: 500MB)
   limits: { fileSize: 500 * 1024 * 1024 } 
 });
+
+// Bộ lọc cho Tài liệu / Assignment (PDF, ZIP, RAR, Word, Image)
+const documentFilter = (req, file, cb) => {
+  const allowedExtensions = ['.pdf', '.zip', '.rar', '.doc', '.docx', '.png', '.jpg', '.jpeg'];
+  const ext = require('path').extname(file.originalname).toLowerCase();
+  if (allowedExtensions.includes(ext) || file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new AppError('Chỉ chấp nhận các định dạng file: PDF, ZIP, RAR, DOC, DOCX, PNG, JPG', 400), false);
+  }
+};
+
+exports.uploadDocument = multer({
+  storage: storage,
+  fileFilter: documentFilter,
+  limits: { fileSize: 20 * 1024 * 1024 } // Giới hạn 20MB cho tài liệu
+});
+

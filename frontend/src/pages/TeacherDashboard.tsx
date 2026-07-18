@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { analyticsApi } from '../services/analytics.api';
+import { adminApi } from '../services/admin.api';
+import { assignmentApi } from '../services/assignment.api';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
 } from 'recharts';
@@ -22,45 +24,9 @@ import { floatY } from '../animations/motionVariants';
 
 type SeriesPoint = { label: string; value: number };
 
-type CourseMetric = {
-  title: string;
-  students: string;
-  completion: string;
-  revenue: string;
-};
-
 const MotionDiv = motion.div as unknown as React.FC<
   React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>
 >;
-
-const revenueSeries: SeriesPoint[] = [
-  { label: 'Mon', value: 28 },
-  { label: 'Tue', value: 34 },
-  { label: 'Wed', value: 31 },
-  { label: 'Thu', value: 42 },
-  { label: 'Fri', value: 55 },
-  { label: 'Sat', value: 49 },
-  { label: 'Sun', value: 61 }
-];
-
-const studentSeries: SeriesPoint[] = [
-  { label: 'Week 1', value: 22 },
-  { label: 'Week 2', value: 30 },
-  { label: 'Week 3', value: 37 },
-  { label: 'Week 4', value: 52 }
-];
-
-const courseMetrics: CourseMetric[] = [
-  { title: 'Product Design Masterclass', students: '1.240 students', completion: '84% completion', revenue: '300.000.000đ' },
-  { title: 'React System Architecture', students: '980 students', completion: '78% completion', revenue: '280.000.000đ' },
-  { title: 'Learning Analytics Strategy', students: '710 students', completion: '91% completion', revenue: '230.000.000đ' }
-];
-
-const quizPerformance = [
-  { label: 'Easy', value: 94 },
-  { label: 'Medium', value: 89 },
-  { label: 'Hard', value: 76 }
-];
 
 const useCountUp = (target: number, duration = 1200) => {
   const [value, setValue] = useState(0);
@@ -86,6 +52,59 @@ const useCountUp = (target: number, duration = 1200) => {
 
 const TeacherDashboard: React.FC = () => {
   const [showPulse, setShowPulse] = useState(true);
+
+  // Payout states
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutAmount, setPayoutAmount] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [payoutSuccessMessage, setPayoutSuccessMessage] = useState('');
+
+  // Assignment states
+  const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
+  const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null);
+  const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null);
+  const [gradeInput, setGradeInput] = useState('');
+  const [feedbackInput, setFeedbackInput] = useState('');
+
+  const { mutate: requestPayout, isPending: isPayoutPending } = useMutation({
+    mutationFn: (data: { amount: number, bankInfo: any }) => adminApi.requestPayout({ amount: data.amount, bankInfo: data.bankInfo }),
+    onSuccess: () => {
+      setPayoutSuccessMessage('Yêu cầu rút tiền đã được gửi thành công!');
+      setTimeout(() => {
+        setShowPayoutModal(false);
+        setPayoutSuccessMessage('');
+        setPayoutAmount('');
+        setBankName('');
+        setAccountNumber('');
+        setAccountName('');
+      }, 2000);
+    }
+  });
+
+  const { data: teacherAssignments } = useQuery({
+    queryKey: ['teacher-assignments', activeCourseId],
+    queryFn: () => assignmentApi.getAssignments(activeCourseId!),
+    enabled: !!activeCourseId
+  });
+
+  const { data: teacherSubmissions, refetch: refetchTeacherSubmissions } = useQuery({
+    queryKey: ['teacher-submissions', activeAssignmentId],
+    queryFn: () => assignmentApi.getSubmissions(activeAssignmentId!),
+    enabled: !!activeAssignmentId
+  });
+
+  const gradeSubmissionMutation = useMutation({
+    mutationFn: ({ subId, grade, feedback }: { subId: string, grade: number, feedback: string }) => 
+      assignmentApi.gradeSubmission(subId, { grade, feedback }),
+    onSuccess: () => {
+      refetchTeacherSubmissions();
+      setActiveSubmissionId(null);
+      setGradeInput('');
+      setFeedbackInput('');
+    }
+  });
 
   const { data: analyticsResponse, isLoading } = useQuery({
     queryKey: ['teacher-analytics'],
@@ -256,6 +275,134 @@ const TeacherDashboard: React.FC = () => {
               {courseStats.length === 0 && <p className="text-sm text-slate-500">No courses published yet.</p>}
             </div>
           </div>
+
+          {/* Assignment Management Panel */}
+          <div className="mt-12 bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+            <SectionLead label="Review submissions" title="Student Assignments" size="md" />
+            
+            <div className="mt-6 grid md:grid-cols-3 gap-6">
+              {/* Course Selection */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">Select Course</label>
+                <select 
+                  onChange={(e) => { setActiveCourseId(e.target.value || null); setActiveAssignmentId(null); setActiveSubmissionId(null); }}
+                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                >
+                  <option value="">-- Choose Course --</option>
+                  {courseStats.map((c: any) => (
+                    <option key={c._id} value={c._id}>{c.title}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Assignment Selection */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">Select Assignment</label>
+                <select 
+                  disabled={!activeCourseId}
+                  onChange={(e) => { setActiveAssignmentId(e.target.value || null); setActiveSubmissionId(null); }}
+                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all disabled:opacity-50"
+                >
+                  <option value="">-- Choose Assignment --</option>
+                  {teacherAssignments?.map((a: any) => (
+                    <option key={a._id} value={a._id}>{a.title}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Submissions List */}
+            {activeAssignmentId && (
+              <div className="mt-8 border-t border-slate-100 dark:border-white/5 pt-6">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">Student Submissions</h4>
+                {teacherSubmissions && teacherSubmissions.length > 0 ? (
+                  <div className="space-y-4">
+                    {teacherSubmissions.map((sub: any) => (
+                      <div key={sub._id} className="flex flex-col md:flex-row md:items-center md:justify-between p-4 bg-slate-50 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 rounded-xl gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-900 dark:text-white">{sub.student?.name}</span>
+                            <span className="text-xs text-slate-500">({sub.student?.email})</span>
+                          </div>
+                          <p className="text-xs text-slate-400">Submitted: {new Date(sub.createdAt).toLocaleString()}</p>
+                          {sub.studentNotes && <p className="text-sm text-slate-600 dark:text-slate-400 italic">Notes: "{sub.studentNotes}"</p>}
+                          <div className="flex gap-2 mt-2">
+                            {sub.submittedFiles?.map((file: any, fIdx: number) => (
+                              <a key={fIdx} href={file.url} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-500 hover:underline flex items-center gap-1">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                                {file.name}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          {sub.status === 'graded' ? (
+                            <div className="text-right">
+                              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full uppercase text-[10px] tracking-wider">Graded</span>
+                              <p className="text-sm font-mono font-bold mt-1 text-slate-900 dark:text-white">{sub.grade} pts</p>
+                            </div>
+                          ) : (
+                            <Button size="sm" onClick={() => { setActiveSubmissionId(sub._id); setGradeInput(''); setFeedbackInput(''); }}>Grade Work</Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500 italic">No submissions for this assignment yet.</p>
+                )}
+              </div>
+            )}
+
+            {/* Grading Modal */}
+            {activeSubmissionId && (
+              <div className="fixed inset-0 z-55 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 w-full max-w-md rounded-2xl p-6 shadow-xl space-y-6">
+                  <div>
+                    <h3 className="text-lg font-bold">Grade Student Submission</h3>
+                    <p className="text-sm text-slate-500 mt-1">Provide points and constructive feedback.</p>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Score</label>
+                      <input 
+                        type="number"
+                        value={gradeInput}
+                        onChange={(e) => setGradeInput(e.target.value)}
+                        placeholder="Enter points (e.g. 90)"
+                        className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Feedback</label>
+                      <textarea 
+                        value={feedbackInput}
+                        onChange={(e) => setFeedbackInput(e.target.value)}
+                        placeholder="Good job! Keep it up..."
+                        className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none min-h-[100px]"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <Button variant="outline" onClick={() => setActiveSubmissionId(null)}>Cancel</Button>
+                    <Button 
+                      onClick={() => {
+                        gradeSubmissionMutation.mutate({
+                          subId: activeSubmissionId,
+                          grade: Number(gradeInput),
+                          feedback: feedbackInput
+                        });
+                      }}
+                      disabled={gradeSubmissionMutation.isPending || !gradeInput}
+                    >
+                      {gradeSubmissionMutation.isPending ? 'Saving...' : 'Submit Grade'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <aside className="space-y-8 xl:pt-1">
@@ -275,12 +422,98 @@ const TeacherDashboard: React.FC = () => {
             </div>
           </GlassPanel>
 
+          <GlassPanel padding="lg" className="border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1A1A1A]">
+            <p className="section-label">Financials</p>
+            <h3 className="mt-2 text-xl font-semibold tracking-tight">Withdraw Funds</h3>
+            <p className="text-xs text-slate-500 mt-1">Request payouts from your course earnings directly to your bank account.</p>
+            <div className="mt-5">
+              <Button className="w-full" onClick={() => setShowPayoutModal(true)}>Request Payout</Button>
+            </div>
+          </GlassPanel>
+
           <InsightCallout
             title="Revenue momentum"
             description="Smooth chart motion helps the dashboard feel alive while keeping the signal clear and readable."
           />
         </aside>
       </section>
+
+      {showPayoutModal && (
+        <div className="fixed inset-0 z-55 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 w-full max-w-md rounded-2xl p-6 shadow-xl space-y-6">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Request Payout</h3>
+              <p className="text-sm text-slate-500 mt-1">Submit bank transfer details.</p>
+            </div>
+
+            {payoutSuccessMessage ? (
+              <div className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-400 p-4 rounded-xl text-sm text-center font-medium">
+                {payoutSuccessMessage}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Withdrawal Amount (VND)</label>
+                  <input 
+                    type="number"
+                    value={payoutAmount}
+                    onChange={(e) => setPayoutAmount(e.target.value)}
+                    placeholder="Min 50,000đ"
+                    className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Bank Name</label>
+                  <input 
+                    type="text"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    placeholder="e.g. Vietcombank"
+                    className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Account Number</label>
+                    <input 
+                      type="text"
+                      value={accountNumber}
+                      onChange={(e) => setAccountNumber(e.target.value)}
+                      placeholder="Account number"
+                      className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Account Name</label>
+                    <input 
+                      type="text"
+                      value={accountName}
+                      onChange={(e) => setAccountName(e.target.value)}
+                      placeholder="Account holder name"
+                      className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button variant="outline" onClick={() => setShowPayoutModal(false)}>Cancel</Button>
+                  <Button 
+                    onClick={() => {
+                      requestPayout({
+                        amount: Number(payoutAmount),
+                        bankInfo: { bankName, accountNumber, accountName }
+                      });
+                    }}
+                    disabled={isPayoutPending || Number(payoutAmount) < 50000 || !bankName || !accountNumber || !accountName}
+                  >
+                    {isPayoutPending ? 'Submitting...' : 'Confirm Request'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </PageShell>
   );
 };

@@ -12,6 +12,8 @@ router.use(authMiddleware.protect);
 
 // Học viên đăng ký ứng tuyển giảng viên
 router.post('/teacher-applications/apply', requireRole('student'), adminController.applyToTeach);
+router.get('/teacher-applications/my-status', requireRole('student'), adminController.getMyApplicationStatus);
+
 
 // Giảng viên gửi yêu cầu rút tiền
 router.post('/payouts/request', requireRole('teacher'), adminController.requestPayout);

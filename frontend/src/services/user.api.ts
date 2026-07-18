@@ -13,7 +13,9 @@ export interface UpdateProfilePayload {
 export interface ChangePasswordPayload {
   currentPassword: string;
   newPassword: string;
+  confirmPassword?: string;
 }
+
 
 export interface UsersListResponse {
   status: string;

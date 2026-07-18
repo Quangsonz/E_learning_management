@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { quizApi } from '../../services/quiz.api';
-import { Button, Modal, EmptyState } from '../ui';
+import { Button, Modal, EmptyState, ConfirmModal } from '../ui';
 import { Input } from '../ui/Input';
 
 type QuestionManagerProps = {
@@ -28,6 +28,7 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({ quizId, quizTi
 
   const questions = data?.data?.data?.questions || [];
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; text: string } | null>(null);
 
   const createMutation = useMutation({
     mutationFn: (data: any) => quizApi.addQuestion(quizId, data),
@@ -220,21 +221,19 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({ quizId, quizTi
                               <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
                           </button>
-                          <button
-                            type="button"
-                            className="p-1 text-slate-400 hover:text-rose-500 transition-colors"
-                            onClick={() => {
-                              if (window.confirm('Bạn có chắc chắn muốn xóa câu hỏi này?')) {
-                                deleteMutation.mutate(question._id);
-                              }
-                            }}
-                            title="Delete Question"
-                          >
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6"></polyline>
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                          </button>
+                           <button
+                             type="button"
+                             className="p-1 text-slate-400 hover:text-rose-500 transition-colors"
+                             onClick={() => {
+                               setDeleteTarget({ id: question._id, text: question.text });
+                             }}
+                             title="Delete Question"
+                           >
+                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                               <polyline points="3 6 5 6 21 6"></polyline>
+                               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                             </svg>
+                           </button>
                         </div>
                       </div>
                       <div className="grid gap-1.5">
@@ -259,6 +258,20 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({ quizId, quizTi
           <Button variant="outline" onClick={onClose}>Done</Button>
         </div>
       </div>
+      {deleteTarget && (
+        <ConfirmModal
+          isOpen={!!deleteTarget}
+          title="Xóa câu hỏi?"
+          message={`Bạn có chắc chắn muốn xóa câu hỏi này?`}
+          confirmLabel="Xóa"
+          confirmVariant="danger"
+          onConfirm={() => {
+            if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+            setDeleteTarget(null);
+          }}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
     </Modal>
   );
 };

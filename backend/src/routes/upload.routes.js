@@ -14,4 +14,8 @@ router.post('/image', uploadMiddleware.uploadImage.single('file'), uploadControl
 // Endpoint tải video lên
 router.post('/video', uploadMiddleware.uploadVideo.single('file'), uploadController.uploadVideo);
 
+// Endpoint tải tài liệu/bài nộp lên
+router.post('/document', uploadMiddleware.uploadDocument.single('file'), uploadController.uploadDocument);
+
 module.exports = router;
+
