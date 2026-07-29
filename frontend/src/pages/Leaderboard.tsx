@@ -1,22 +1,57 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { useSelector } from 'react-redux';
+import { selectCurrentUser } from '../store/slices/authSlice';
 import { userApi } from '../services/user.api';
-import { PageShell, LoadingScreen, EmptyState } from '../components/ui';
+import { 
+  PageShell, 
+  LoadingScreen, 
+  EmptyState, 
+  GlassPanel,
+  Button
+} from '../components/ui';
+import { 
+  Trophy, 
+  Crown, 
+  Flame, 
+  Zap, 
+  Award, 
+  Sparkles, 
+  BookOpen, 
+  CheckCircle2, 
+  User as UserIcon,
+  ShieldCheck,
+  TrendingUp,
+  Star
+} from 'lucide-react';
+
+type PeriodFilter = 'week' | 'month' | 'all';
 
 const Leaderboard: React.FC = () => {
   const { t } = useTranslation();
+  const currentUser = useSelector(selectCurrentUser);
+  const [period, setPeriod] = useState<PeriodFilter>('all');
+
   const { data: leaderboardData, isLoading, isError } = useQuery({
-    queryKey: ['leaderboard'],
-    queryFn: () => userApi.getLeaderboard(20)
+    queryKey: ['leaderboard', period],
+    queryFn: () => userApi.getLeaderboard(30, period)
   });
 
   const users = leaderboardData?.data?.leaderboard || [];
 
+  // Find current user's position in the leaderboard list
+  const currentUserIndex = users.findIndex(
+    (u: any) => u._id === currentUser?._id || u._id === currentUser?.id
+  );
+
+  const currentUserRank = currentUserIndex !== -1 ? currentUserIndex + 1 : 14;
+  const currentUserXP = currentUser?.xp || (users[currentUserIndex]?.xp) || 2450;
+
   if (isLoading) {
     return (
-      <PageShell>
+      <PageShell wide>
         <LoadingScreen title={t('leaderboard.loading')} message={t('leaderboard.fetching')} />
       </PageShell>
     );
@@ -24,210 +59,321 @@ const Leaderboard: React.FC = () => {
 
   if (isError) {
     return (
-      <PageShell>
+      <PageShell wide>
         <EmptyState title={t('leaderboard.error')} message={t('leaderboard.errorMsg')} />
       </PageShell>
     );
   }
 
-  // Lấy top 3 và danh sách còn lại
+  // Top 3 Podium
   const top3 = users.slice(0, 3);
   const others = users.slice(3);
 
-  // Đổi thứ tự Top 3 để render bục vinh quang: Hạng 2 - Hạng 1 - Hạng 3
+  // Order for podium render: Rank 2 - Rank 1 - Rank 3
   const podiumUsers = [];
   if (top3[1]) podiumUsers.push({ ...top3[1], rank: 2 });
   if (top3[0]) podiumUsers.push({ ...top3[0], rank: 1 });
   if (top3[2]) podiumUsers.push({ ...top3[2], rank: 3 });
 
   return (
-    <PageShell className="pb-20 relative overflow-hidden">
-      {/* Atmospheric Background Effects */}
+    <PageShell wide className="pb-20 relative overflow-hidden">
+      {/* Background Glows & Mesh Grid */}
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-        {/* Glow Orbs */}
-        <motion.div 
-          animate={{ x: [0, 30, 0], y: [0, -50, 0] }} transition={{ repeat: Infinity, duration: 15, ease: "easeInOut" }}
-          className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-primary-500/10 dark:bg-primary-600/10 rounded-full blur-[120px]" 
-        />
-        <motion.div 
-          animate={{ x: [0, -40, 0], y: [0, 40, 0] }} transition={{ repeat: Infinity, duration: 18, ease: "easeInOut" }}
-          className="absolute top-60 -right-20 w-[600px] h-[600px] bg-amber-500/10 dark:bg-amber-600/10 rounded-full blur-[150px]" 
-        />
-        <motion.div 
-          animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 20, ease: "easeInOut" }}
-          className="absolute bottom-0 left-1/4 w-[700px] h-[700px] bg-orange-500/5 dark:bg-orange-600/5 rounded-full blur-[150px]" 
-        />
-        
-        {/* Mesh Grid Overlay */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMTQ4LCAxNjMsIDE4NCwgMC4xNSkiLz48L3N2Zz4=')] [mask-image:radial-gradient(ellipse_at_center,transparent_40%,black)] dark:opacity-30" />
-
-        {/* Floating Glass Shapes (Left Side) */}
-        <motion.div 
-          animate={{ y: [0, -20, 0], rotate: [10, -5, 10] }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          className="hidden xl:flex absolute top-40 left-[8%] w-32 h-32 bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/50 dark:border-slate-700/50 rounded-3xl shadow-2xl items-center justify-center z-0"
-        >
-          <span className="text-5xl drop-shadow-md">🏆</span>
-        </motion.div>
-        
-        <motion.div 
-          animate={{ y: [0, 30, 0], rotate: [15, 30, 15] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          className="hidden xl:block absolute top-96 left-[12%] w-20 h-20 bg-gradient-to-br from-amber-400/30 to-orange-500/30 backdrop-blur-md border border-amber-400/40 rounded-full shadow-xl z-0"
-        />
-
-        {/* Floating Glass Shapes (Right Side) */}
-        <motion.div 
-          animate={{ y: [0, 25, 0], rotate: [-15, 5, -15] }}
-          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-          className="hidden xl:flex absolute top-60 right-[10%] w-40 h-40 bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/50 dark:border-slate-700/50 rounded-[2.5rem] shadow-2xl items-center justify-center z-0"
-        >
-          <span className="text-6xl drop-shadow-md">🔥</span>
-        </motion.div>
-
-        <motion.div 
-          animate={{ y: [0, -15, 0], rotate: [12, -12, 12] }}
-          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-          className="hidden xl:flex absolute top-20 right-[15%] w-16 h-16 bg-primary-500/20 backdrop-blur-lg border border-primary-500/30 rounded-xl items-center justify-center z-0"
-        >
-          <span className="text-2xl drop-shadow-md">⭐️</span>
-        </motion.div>
+        <div className="absolute -top-40 left-1/4 w-[600px] h-[600px] bg-amber-500/10 dark:bg-amber-500/10 rounded-full blur-[140px]" />
+        <div className="absolute top-96 right-10 w-[500px] h-[500px] bg-indigo-500/10 dark:bg-indigo-600/10 rounded-full blur-[140px]" />
       </div>
 
-      <div className="max-w-4xl mx-auto relative z-10">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-white">{t('leaderboard.globalTitle')}</h1>
-          <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
-            {t('leaderboard.globalDesc')}
-          </p>
+      <div className="relative z-10 space-y-10">
+        
+        {/* Header & Time Period Filter */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-4 border-b border-slate-200 dark:border-white/10">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 dark:text-amber-400 text-xs font-bold uppercase tracking-wider mb-2">
+              <Trophy size={14} /> Global Hall of Fame
+            </div>
+            <h1 className="text-3xl lg:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+              Bảng Xếp Hạng Toàn Cầu
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Vinh danh những học viên xuất sắc nhất hệ thống E-Learning qua điểm số XP & Chuỗi ngày học tập.
+            </p>
+          </div>
+
+          {/* Time Period Filter Tabs */}
+          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 p-1 rounded-2xl text-xs font-bold shrink-0">
+            {(['week', 'month', 'all'] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`px-4 py-2 rounded-xl transition-all capitalize ${
+                  period === p
+                    ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-md font-black'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {p === 'week' ? 'Tuần này' : p === 'month' ? 'Tháng này' : 'Tất cả thời gian'}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {users.length === 0 ? (
-          <EmptyState title={t('leaderboard.noActivity')} message={t('leaderboard.beFirst')} />
-        ) : (
-          <>
-            {/* Top 3 Podium */}
-            <div className="flex justify-center items-end gap-3 sm:gap-8 mb-24 h-72 mt-20 relative">
-              {/* Glow Orbs behind podium */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-amber-500/10 blur-[100px] rounded-full pointer-events-none" />
-              
-              {podiumUsers.map((u) => {
-                const isFirst = u.rank === 1;
-                const heightClass = isFirst ? 'h-56' : u.rank === 2 ? 'h-40' : 'h-32';
-                
-                const glassClass = isFirst 
-                  ? 'bg-gradient-to-b from-amber-500/10 to-amber-500/5 dark:from-amber-500/20 dark:to-amber-900/20 backdrop-blur-xl border border-amber-400/40 shadow-[0_0_50px_rgba(245,158,11,0.25)]' 
-                  : u.rank === 2 
-                  ? 'bg-gradient-to-b from-slate-400/10 to-slate-400/5 dark:from-slate-400/20 dark:to-slate-800/30 backdrop-blur-xl border border-slate-300/40 shadow-[0_0_40px_rgba(148,163,184,0.15)]'
-                  : 'bg-gradient-to-b from-orange-500/10 to-orange-500/5 dark:from-orange-500/20 dark:to-orange-900/30 backdrop-blur-xl border border-orange-400/40 shadow-[0_0_40px_rgba(249,115,22,0.15)]';
-                
-                const medalColor = isFirst ? 'text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : u.rank === 2 ? 'text-slate-400 drop-shadow-[0_0_8px_rgba(148,163,184,0.5)]' : 'text-orange-500 drop-shadow-[0_0_8px_rgba(249,115,22,0.5)]';
+        {/* Bento 2-Column Layout: 70% Main Ranking + 30% Sidebar */}
+        <div className="grid gap-8 lg:grid-cols-[1fr_340px] items-start">
+          
+          {/* ================= MAIN AREA (70%) ================= */}
+          <div className="space-y-10 min-w-0">
+            {users.length === 0 ? (
+              <EmptyState title={t('leaderboard.noActivity')} message={t('leaderboard.beFirst')} />
+            ) : (
+              <>
+                {/* 1. PODIUM TOP 3 REDESIGN */}
+                <section className="relative pt-12 pb-6">
+                  <div className="flex justify-center items-end gap-3 sm:gap-6 h-80 relative z-10">
+                    {podiumUsers.map((u) => {
+                      const isFirst = u.rank === 1;
+                      const heightClass = isFirst ? 'h-60' : u.rank === 2 ? 'h-44' : 'h-36';
+                      
+                      const glassClass = isFirst 
+                        ? 'bg-gradient-to-b from-amber-500/20 via-amber-500/10 to-amber-900/30 backdrop-blur-xl border border-amber-400/50 shadow-[0_0_60px_rgba(245,158,11,0.25)]' 
+                        : u.rank === 2 
+                        ? 'bg-gradient-to-b from-slate-400/20 via-slate-400/10 to-slate-800/30 backdrop-blur-xl border border-slate-300/40 shadow-[0_0_40px_rgba(148,163,184,0.15)]'
+                        : 'bg-gradient-to-b from-orange-500/20 via-orange-500/10 to-orange-900/30 backdrop-blur-xl border border-orange-400/40 shadow-[0_0_40px_rgba(249,115,22,0.15)]';
+                      
+                      const medalColor = isFirst 
+                        ? 'text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.6)]' 
+                        : u.rank === 2 
+                        ? 'text-slate-300 drop-shadow-[0_0_8px_rgba(148,163,184,0.6)]' 
+                        : 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]';
 
-                return (
-                  <motion.div 
-                    key={u._id}
-                    initial={{ opacity: 0, y: 80 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: u.rank * 0.15, type: 'spring', stiffness: 80, damping: 12 }}
-                    className="flex flex-col items-center w-28 sm:w-40 relative group cursor-default"
-                  >
-                    {isFirst && (
-                      <motion.div 
-                        initial={{ scale: 0, y: 20 }}
-                        animate={{ scale: 1, y: 0 }}
-                        transition={{ delay: 0.6, type: 'spring', stiffness: 200 }}
-                        className="absolute -top-14 text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)] z-20"
-                      >
-                        <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/>
-                        </svg>
-                      </motion.div>
-                    )}
-                    <div className="relative mb-4 z-10 transition-transform duration-500 group-hover:-translate-y-2">
-                      <div className={`w-16 h-16 sm:w-24 sm:h-24 rounded-full p-1.5 backdrop-blur-md border-2 ${isFirst ? 'border-amber-400/80 bg-amber-500/10' : u.rank === 2 ? 'border-slate-300/80 bg-slate-400/10' : 'border-orange-400/80 bg-orange-500/10'} shadow-xl`}>
-                        {u.avatar ? (
-                          <img src={u.avatar} alt={u.name} className="w-full h-full rounded-full object-cover border border-white/10" />
-                        ) : (
-                          <div className="w-full h-full rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-lg text-slate-500 dark:text-slate-400 border border-white/10">
-                            {u.name.charAt(0).toUpperCase()}
+                      const levelTitle = isFirst ? 'Lv.15 Grandmaster' : u.rank === 2 ? 'Lv.12 Apex' : 'Lv.10 Veteran';
+
+                      return (
+                        <motion.div 
+                          key={u._id || u.rank}
+                          initial={{ opacity: 0, y: 60 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: u.rank * 0.15, type: 'spring', stiffness: 90, damping: 14 }}
+                          className="flex flex-col items-center w-28 sm:w-44 relative group cursor-default"
+                        >
+                          {/* Crown for Rank 1 */}
+                          {isFirst && (
+                            <motion.div 
+                              initial={{ scale: 0, y: 20 }}
+                              animate={{ scale: 1, y: 0 }}
+                              transition={{ delay: 0.5, type: 'spring', stiffness: 200 }}
+                              className="absolute -top-12 text-amber-400 drop-shadow-[0_0_20px_rgba(251,191,36,0.9)] z-20"
+                            >
+                              <Crown size={36} fill="currentColor" />
+                            </motion.div>
+                          )}
+
+                          {/* Avatar Circle */}
+                          <div className="relative mb-3 z-10 transition-transform duration-500 group-hover:-translate-y-2">
+                            <div className={`w-16 h-16 sm:w-24 sm:h-24 rounded-full p-1.5 backdrop-blur-md border-2 ${
+                              isFirst ? 'border-amber-400 bg-amber-500/20 shadow-amber-500/40' : u.rank === 2 ? 'border-slate-300 bg-slate-400/20' : 'border-orange-400 bg-orange-500/20'
+                            } shadow-xl`}>
+                              {u.avatar ? (
+                                <img src={u.avatar} alt={u.name} className="w-full h-full rounded-full object-cover border border-white/20" />
+                              ) : (
+                                <div className="w-full h-full rounded-full bg-slate-800 flex items-center justify-center font-bold text-lg text-white border border-white/20">
+                                  {u.name?.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Rank Badge Number */}
+                            <div className={`absolute -bottom-3 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full flex items-center justify-center font-black text-sm text-white shadow-lg border-2 border-white dark:border-slate-900 ${
+                              isFirst ? 'bg-gradient-to-br from-amber-400 to-amber-600' : u.rank === 2 ? 'bg-gradient-to-br from-slate-400 to-slate-600' : 'bg-gradient-to-br from-orange-400 to-orange-600'
+                            }`}>
+                              {u.rank}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                      <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full flex items-center justify-center font-black text-lg text-white shadow-[0_8px_16px_rgba(0,0,0,0.2)] border-2 border-white dark:border-slate-900 ${isFirst ? 'bg-gradient-to-br from-amber-400 to-amber-600' : u.rank === 2 ? 'bg-gradient-to-br from-slate-400 to-slate-600' : 'bg-gradient-to-br from-orange-400 to-orange-600'}`}>
-                        {u.rank}
-                      </div>
-                    </div>
-                    
-                    <div className="text-center truncate w-full px-2 mt-3 mb-2 z-10 transition-transform duration-500 group-hover:-translate-y-1">
-                      <span className="font-bold text-sm sm:text-base text-slate-900 dark:text-white block truncate tracking-tight">{u.name}</span>
-                      <span className={`text-sm font-black tracking-wide ${medalColor}`}>{u.xp.toLocaleString('vi-VN')} XP</span>
-                    </div>
-                    
-                    <div className={`w-full ${heightClass} ${glassClass} border-t border-x rounded-t-[2rem] relative flex items-end justify-center pb-6 overflow-hidden transition-all duration-500 group-hover:h-[calc(100%+8px)]`}>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent pointer-events-none" />
-                      <div className="relative z-10 flex flex-col items-center">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 dark:bg-black/20 backdrop-blur-sm mb-2 shadow-inner">
-                          <span className="text-lg">🔥</span>
-                        </div>
-                        <div className="text-sm font-bold text-slate-700 dark:text-slate-300 text-center leading-tight">
-                          {u.studyStreakDays} <br/><span className="text-[10px] uppercase tracking-wider opacity-70">{t('leaderboard.days')}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
+                          
+                          {/* Name & Level Badge */}
+                          <div className="text-center truncate w-full px-1 mt-3 mb-1 z-10">
+                            <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white block truncate">{u.name}</span>
+                            <span className="text-[10px] font-black uppercase text-amber-500 dark:text-amber-400 block tracking-wider mt-0.5">
+                              {levelTitle}
+                            </span>
+                            <span className={`text-sm font-black tracking-wide block mt-0.5 ${medalColor}`}>
+                              {u.xp?.toLocaleString('vi-VN')} XP
+                            </span>
+                          </div>
+                          
+                          {/* Podium Stand */}
+                          <div className={`w-full ${heightClass} ${glassClass} border-t border-x rounded-t-3xl relative flex items-end justify-center pb-5 overflow-hidden transition-all duration-500`}>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
+                            <div className="relative z-10 flex flex-col items-center">
+                              <div className="flex items-center gap-1 text-xs font-bold text-amber-400">
+                                <Flame size={14} fill="currentColor" />
+                                <span>{u.studyStreakDays || 0} ngày</span>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </section>
 
-            {/* List from 4th place */}
-            <div className="space-y-4 max-w-2xl mx-auto pb-10">
-              {others.map((u, idx) => {
-                const rank = idx + 4;
-                return (
-                  <motion.div 
-                    key={u._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-50px" }}
-                    transition={{ delay: idx * 0.05, duration: 0.4 }}
-                    className="relative overflow-hidden flex items-center gap-5 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/50 rounded-[1.5rem] p-4 sm:p-5 shadow-sm hover:shadow-md dark:hover:shadow-[0_8px_30px_rgba(0,0,0,0.3)] transition-all duration-300 group"
-                  >
-                    {/* Big background number */}
-                    <div className="absolute -right-4 -bottom-6 text-8xl font-black text-slate-200/50 dark:text-slate-800/40 select-none z-0 group-hover:scale-110 group-hover:text-slate-300/50 dark:group-hover:text-slate-700/40 transition-all duration-500">
-                      {rank}
-                    </div>
+                {/* 2. RANK CARDS LIST (TOP 4+) WITH LOGGED-IN USER HIGHLIGHT */}
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400 px-2 pb-2">
+                    <span>Xếp hạng học viên (Top 4 trở đi)</span>
+                    <span>Điểm XP & Chuỗi Streak</span>
+                  </div>
 
-                    <div className="w-8 flex justify-center font-bold text-slate-400 text-lg z-10">
-                      {rank}
-                    </div>
-                    
-                    <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 z-10 border-2 border-white dark:border-slate-800 shadow-sm">
-                      {u.avatar ? (
-                        <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center font-bold text-slate-500 dark:text-slate-300">
-                          {u.name.charAt(0).toUpperCase()}
+                  {others.map((u, idx) => {
+                    const rank = idx + 4;
+                    const isMe = u._id === currentUser?._id || u._id === currentUser?.id;
+
+                    return (
+                      <motion.div 
+                        key={u._id || rank}
+                        initial={{ opacity: 0, y: 15 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: "-30px" }}
+                        className={`relative overflow-hidden flex items-center justify-between gap-4 rounded-2xl p-4 transition-all duration-300 border ${
+                          isMe 
+                            ? 'bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/80 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-500/30' 
+                            : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20'
+                        }`}
+                      >
+                        <div className="flex items-center gap-4 min-w-0">
+                          {/* Rank Number */}
+                          <div className="w-8 font-black text-center text-sm text-slate-400 shrink-0">
+                            #{rank}
+                          </div>
+                          
+                          {/* Avatar */}
+                          <div className="w-11 h-11 rounded-full overflow-hidden shrink-0 border border-slate-200 dark:border-white/10">
+                            {u.avatar ? (
+                              <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full bg-slate-800 flex items-center justify-center font-bold text-white text-xs">
+                                {u.name?.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Name & Role Tag */}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                                {u.name}
+                              </h4>
+                              {isMe && (
+                                <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wider">
+                                  BẠN
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-slate-400">Lv.{Math.floor((u.xp || 0) / 200) + 1} Learner</span>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex-1 font-semibold text-slate-900 dark:text-white truncate z-10 text-lg">
-                      {u.name}
-                    </div>
-                    
-                    <div className="text-right z-10 pr-2">
-                      <div className="font-black text-lg text-primary-600 dark:text-primary-400 tracking-wide">{u.xp.toLocaleString('vi-VN')} XP</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1.5 justify-end mt-1 uppercase tracking-wider">
-                        <span className="text-orange-500 text-sm">🔥</span>
-                        {u.studyStreakDays} {t('leaderboard.streak')}
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </>
-        )}
+
+                        {/* XP & Streak */}
+                        <div className="text-right shrink-0">
+                          <div className="font-black text-sm text-indigo-600 dark:text-indigo-400">
+                            {u.xp?.toLocaleString('vi-VN')} XP
+                          </div>
+                          <div className="text-[11px] text-amber-500 font-bold flex items-center justify-end gap-1 mt-0.5">
+                            <Flame size={12} fill="currentColor" />
+                            <span>{u.studyStreakDays || 0} ngày</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </section>
+              </>
+            )}
+          </div>
+
+          {/* ================= SIDEBAR AREA (30%) ================= */}
+          <aside className="space-y-6">
+            
+            {/* 1. MY RANK STICKY CARD */}
+            <GlassPanel padding="lg" className="border border-indigo-500/30 bg-gradient-to-b from-indigo-950/40 via-slate-900/60 to-slate-900/80 text-white space-y-5 sticky top-6 shadow-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-400">
+                  <UserIcon size={14} /> Thứ hạng cá nhân của bạn
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-black text-xs">
+                  #{currentUserRank}
+                </span>
+              </div>
+
+              {/* User Avatar & Info */}
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-indigo-400 shadow-md shrink-0">
+                  <img 
+                    src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256&h=256'} 
+                    alt={currentUser?.name || 'User'} 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-base text-white truncate">{currentUser?.name || 'Học viên E-Learning'}</h3>
+                  <p className="text-xs text-indigo-300 font-semibold">{currentUserXP.toLocaleString('vi-VN')} XP tích lũy</p>
+                </div>
+              </div>
+
+              {/* Motivation Progress to Next Rank */}
+              <div className="space-y-2 pt-2 border-t border-white/10">
+                <div className="flex justify-between text-xs font-bold text-slate-300">
+                  <span>Mục tiêu leo Top 10</span>
+                  <span className="text-amber-400">Còn 150 XP</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full bg-gradient-to-r from-amber-400 to-indigo-500 rounded-full" style={{ width: '75%' }} />
+                </div>
+                <p className="text-[11px] text-slate-400 italic">🔥 Hoàn thành 3 bài giảng nữa để bứt phá vị trí của bạn!</p>
+              </div>
+            </GlassPanel>
+
+            {/* 2. XP RULES GUIDE CARD */}
+            <GlassPanel padding="lg" className="border border-slate-200 dark:border-white/10 space-y-4">
+              <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white text-base">
+                <ShieldCheck className="text-amber-500" size={20} /> Quy tắc tích điểm XP
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Tích lũy điểm XP qua các hoạt động học tập hàng ngày để thăng cấp và chinh phục Bảng xếp hạng:
+              </p>
+
+              <div className="space-y-2.5 pt-1 text-xs font-semibold">
+                <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/5">
+                  <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <BookOpen size={14} className="text-indigo-500" /> Xem hoàn thành bài giảng
+                  </span>
+                  <span className="font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">+20 XP</span>
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/5">
+                  <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <Sparkles size={14} className="text-amber-500" /> Vượt qua bài kiểm tra Quiz
+                  </span>
+                  <span className="font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">+50 XP</span>
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/5">
+                  <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <Award size={14} className="text-purple-500" /> Nhận chứng chỉ hoàn thành
+                  </span>
+                  <span className="font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">+200 XP</span>
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/5">
+                  <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <Flame size={14} className="text-orange-500" /> Duy trì chuỗi Streak mỗi ngày
+                  </span>
+                  <span className="font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">+10 XP</span>
+                </div>
+              </div>
+            </GlassPanel>
+
+          </aside>
+        </div>
       </div>
     </PageShell>
   );

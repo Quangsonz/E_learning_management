@@ -18,6 +18,7 @@ export interface AuthUser {
   xp?: number;
   level?: number;
   badges?: { name: string; icon: string; description: string; awardedAt: string }[];
+  bio?: string;
   createdAt?: string;
 }
 

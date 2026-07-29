@@ -167,6 +167,44 @@ class AssignmentService {
   async getStudentSubmission(assignmentId, user) {
     return await submissionRepository.findByStudentAndAssignment(user.id, assignmentId);
   }
+
+  async updateAssignment(assignmentId, updateData, user) {
+    const assignment = await assignmentRepository.findById(assignmentId);
+    if (!assignment) {
+      throw new AppError('Không tìm thấy bài tập này', 404);
+    }
+
+    const course = await courseRepository.findById(assignment.course);
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
+    if (user.role !== 'admin' && instructorId !== user.id) {
+      throw new AppError('Bạn không có quyền chỉnh sửa bài tập này', 403);
+    }
+
+    return await assignmentRepository.update(assignmentId, updateData);
+  }
+
+  async deleteAssignment(assignmentId, user) {
+    const assignment = await assignmentRepository.findById(assignmentId);
+    if (!assignment) {
+      throw new AppError('Không tìm thấy bài tập này', 404);
+    }
+
+    const course = await courseRepository.findById(assignment.course);
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
+    if (user.role !== 'admin' && instructorId !== user.id) {
+      throw new AppError('Bạn không có quyền xóa bài tập này', 403);
+    }
+
+    await submissionRepository.deleteMany({ assignment: assignmentId });
+    await assignmentRepository.delete(assignmentId);
+    return true;
+  }
 }
 
 module.exports = new AssignmentService();

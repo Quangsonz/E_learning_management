@@ -5,30 +5,32 @@ import SiteLayout from './components/layout/SiteLayout';
 import AppErrorBoundary from './components/layout/AppErrorBoundary';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { LoadingScreen } from './components/ui/StateViews';
-import Home from './pages/Home';
-import Profile from './pages/Profile';
-import Wishlist from './pages/Wishlist';
-import CourseList from './pages/CourseList';
-import CourseDetail from './pages/CourseDetail';
-import Checkout from './pages/Checkout';
-import Learning from './pages/Learning';
-import MyLearning from './pages/MyLearning';
-import Quiz from './pages/Quiz';
-import TeacherDashboard from './pages/TeacherDashboard';
-import TeacherCourses from './pages/TeacherCourses';
-import CourseBuilder from './pages/teacher/CourseBuilder';
-import CurriculumEditor from './pages/teacher/CurriculumEditor';
-import AdminDashboard from './pages/AdminDashboard';
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
-import ForgotPassword from './pages/auth/ForgotPassword';
-import ResetPassword from './pages/auth/ResetPassword';
-import Splash from './pages/Splash';
-import Settings from './pages/Settings';
-import Leaderboard from './pages/Leaderboard';
-import CertificateVerify from './pages/CertificateVerify';
 
-// Các routes không cần SiteLayout (không có header/sidebar)
+// Route-Based Code Splitting via React.lazy for ultra-fast initial bundle loading
+const Home = React.lazy(() => import('./pages/Home'));
+const Profile = React.lazy(() => import('./pages/Profile'));
+const Wishlist = React.lazy(() => import('./pages/Wishlist'));
+const CourseList = React.lazy(() => import('./pages/CourseList'));
+const CourseDetail = React.lazy(() => import('./pages/CourseDetail'));
+const Checkout = React.lazy(() => import('./pages/Checkout'));
+const Learning = React.lazy(() => import('./pages/Learning'));
+const MyLearning = React.lazy(() => import('./pages/MyLearning'));
+const Quiz = React.lazy(() => import('./pages/Quiz'));
+const TeacherDashboard = React.lazy(() => import('./pages/TeacherDashboard'));
+const TeacherCourses = React.lazy(() => import('./pages/TeacherCourses'));
+const CourseBuilder = React.lazy(() => import('./pages/teacher/CourseBuilder'));
+const CurriculumEditor = React.lazy(() => import('./pages/teacher/CurriculumEditor'));
+const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
+const Login = React.lazy(() => import('./pages/auth/Login'));
+const Register = React.lazy(() => import('./pages/auth/Register'));
+const ForgotPassword = React.lazy(() => import('./pages/auth/ForgotPassword'));
+const ResetPassword = React.lazy(() => import('./pages/auth/ResetPassword'));
+const Splash = React.lazy(() => import('./pages/Splash'));
+const Settings = React.lazy(() => import('./pages/Settings'));
+const Leaderboard = React.lazy(() => import('./pages/Leaderboard'));
+const CertificateVerify = React.lazy(() => import('./pages/CertificateVerify'));
+
+// Routes that do not render the default SiteLayout header/sidebar
 const noLayoutPaths = [
   '/login',
   '/register',
@@ -40,7 +42,7 @@ const noLayoutPaths = [
   '/certificates/verify',
 ];
 
-// Trang hiển thị khi không có quyền truy cập
+// 403 Unauthorized Fallback Component
 const UnauthorizedPage: React.FC = () => {
   const { t } = useTranslation();
   return (
@@ -72,7 +74,7 @@ const AppRoutes: React.FC = () => (
     <Route path="/certificates/verify/:certificateId" element={<CertificateVerify />} />
 
     {/* ==========================================
-        PROTECTED ROUTES - Yêu cầu đăng nhập
+        PROTECTED ROUTES - Authentication Required
     ========================================== */}
     <Route path="/home" element={
       <ProtectedRoute>
@@ -149,7 +151,7 @@ const AppRoutes: React.FC = () => (
         ROLE-BASED PROTECTED ROUTES
     ========================================== */}
     <Route path="/teacher-dashboard" element={
-      <ProtectedRoute allowedRoles={['teacher']}>
+      <ProtectedRoute allowedRoles={['teacher', 'admin']}>
         <TeacherDashboard />
       </ProtectedRoute>
     } />

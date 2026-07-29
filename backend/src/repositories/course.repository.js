@@ -8,12 +8,12 @@ class CourseRepository extends BaseRepository {
   }
 
   async findBySlug(slug) {
-    return await this.model.findOne({ slug });
+    return await this.model.findOne({ slug }).lean();
   }
 
   // Override hàm find để tự động populate category và instructor nếu cần
   async find(query = {}) {
-    return await this.model.find(query).populate('category', 'name slug').populate('instructor', 'name avatar');
+    return await this.model.find(query).populate('category', 'name slug').populate('instructor', 'name avatar').lean();
   }
 
   async findPaginated(query = {}, skip = 0, limit = 10, sortStr = '-createdAt') {
@@ -23,7 +23,8 @@ class CourseRepository extends BaseRepository {
       .populate('instructor', 'name avatar')
       .skip(skip)
       .limit(limit)
-      .sort(sortStr);
+      .sort(sortStr)
+      .lean();
     return { total, data };
   }
 
@@ -109,7 +110,7 @@ class CourseRepository extends BaseRepository {
   }
 
   async findById(id) {
-    return await this.model.findById(id).populate('category', 'name slug').populate('instructor', 'name avatar');
+    return await this.model.findById(id).populate('category', 'name slug').populate('instructor', 'name avatar').lean();
   }
 }
 

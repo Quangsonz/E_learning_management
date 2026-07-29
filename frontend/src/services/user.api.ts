@@ -8,6 +8,7 @@ import { AuthUser } from '../store/slices/authSlice';
 export interface UpdateProfilePayload {
   name?: string;
   avatar?: string;
+  bio?: string;
 }
 
 export interface ChangePasswordPayload {
@@ -95,8 +96,8 @@ export const userApi = {
   /**
    * Lấy danh sách Leaderboard - GET /api/users/leaderboard
    */
-  getLeaderboard: async (limit: number = 20): Promise<LeaderboardResponse> => {
-    const response = await axiosInstance.get('/users/leaderboard', { params: { limit } });
+  getLeaderboard: async (limit: number = 20, period?: string): Promise<LeaderboardResponse> => {
+    const response = await axiosInstance.get('/users/leaderboard', { params: { limit, period } });
     return response.data;
   },
 

@@ -65,6 +65,15 @@ export const assignmentApi = {
   getMySubmission: async (assignmentId: string): Promise<AssignmentSubmission | null> => {
     const response = await axiosInstance.get(`/assignments/${assignmentId}/my-submission`);
     return response.data.data.submission;
+  },
+
+  updateAssignment: async (id: string, data: Partial<Assignment>): Promise<Assignment> => {
+    const response = await axiosInstance.patch(`/assignments/${id}`, data);
+    return response.data.data.assignment;
+  },
+
+  deleteAssignment: async (id: string): Promise<void> => {
+    await axiosInstance.delete(`/assignments/${id}`);
   }
 };
 export default assignmentApi;

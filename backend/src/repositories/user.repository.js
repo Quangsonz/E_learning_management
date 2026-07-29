@@ -31,7 +31,8 @@ class UserRepository extends BaseRepository {
       .find({ role: 'student', xp: { $gt: 0 } })
       .sort({ xp: -1 })
       .limit(limit)
-      .select('name avatar xp studyStreakDays');
+      .select('name avatar xp studyStreakDays')
+      .lean();
   }
 }
 

@@ -1,0 +1,1 @@
+import{k as e}from"./index-CHXPOFZF.js";const s={getMyCertificates:async()=>(await e.get("/certificates/my-certificates")).data.data.certificates,claimCertificate:async t=>(await e.post(`/certificates/claim/${t}`)).data.data.certificate,verifyCertificate:async t=>(await e.get(`/certificates/verify/${t}`)).data.data};export{s as c};

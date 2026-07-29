@@ -13,9 +13,11 @@ router.route('/course/:courseId')
   .post(requireRole('admin', 'teacher'), assignmentController.createAssignment)
   .get(assignmentController.getAssignments);
 
-// Lấy chi tiết bài tập cụ thể
+// Lấy chi tiết, cập nhật hoặc xóa bài tập cụ thể
 router.route('/:id')
-  .get(assignmentController.getAssignmentById);
+  .get(assignmentController.getAssignmentById)
+  .patch(requireRole('admin', 'teacher'), assignmentController.updateAssignment)
+  .delete(requireRole('admin', 'teacher'), assignmentController.deleteAssignment);
 
 // Nộp bài tập (Dành cho học viên) hoặc xem danh sách bài đã nộp (Dành cho giáo viên/admin)
 router.route('/:assignmentId/submissions')

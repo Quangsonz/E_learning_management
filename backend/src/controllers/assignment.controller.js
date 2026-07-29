@@ -92,6 +92,31 @@ class AssignmentController {
       data: { submission }
     });
   });
+
+  updateAssignment = catchAsync(async (req, res, next) => {
+    const assignment = await assignmentService.updateAssignment(
+      req.params.id,
+      req.body,
+      req.user
+    );
+
+    res.status(200).json({
+      status: 'success',
+      data: { assignment }
+    });
+  });
+
+  deleteAssignment = catchAsync(async (req, res, next) => {
+    await assignmentService.deleteAssignment(
+      req.params.id,
+      req.user
+    );
+
+    res.status(204).json({
+      status: 'success',
+      data: null
+    });
+  });
 }
 
 module.exports = new AssignmentController();

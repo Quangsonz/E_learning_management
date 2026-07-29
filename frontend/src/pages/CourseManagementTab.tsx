@@ -523,11 +523,54 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
               </div>
 
               {sortedCourses.length === 0 ? (
-                <div className="px-5 py-10">
-                  <EmptyState
-                    title="No courses match your filters"
-                    message="Try changing the search term or category filter. This state keeps the admin workflow clear without changing any data."
-                  />
+                <div className="px-5 py-12">
+                  {teacherMode ? (
+                    <div className="flex flex-col items-center justify-center text-center space-y-6 max-w-xl mx-auto py-6">
+                      <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-500 dark:text-indigo-400 text-3xl shadow-lg">
+                        🚀
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">Bạn chưa tạo khóa học nào</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          Hãy bắt đầu hành trình giảng dạy của bạn qua 3 bước đơn giản bên dưới:
+                        </p>
+                      </div>
+
+                      <div className="grid sm:grid-cols-3 gap-4 w-full text-left pt-2">
+                        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 space-y-2">
+                          <span className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center">1</span>
+                          <h4 className="font-bold text-xs text-slate-900 dark:text-white">Tạo thông tin cơ bản</h4>
+                          <p className="text-[11px] text-slate-500">Nhập tiêu đề, mô tả, chọn danh mục và thiết lập giá bán.</p>
+                        </div>
+
+                        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 space-y-2">
+                          <span className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center">2</span>
+                          <h4 className="font-bold text-xs text-slate-900 dark:text-white">Tải bài giảng & Quiz</h4>
+                          <p className="text-[11px] text-slate-500">Đăng tải video bài giảng, soạn bộ câu hỏi Quiz & Bài tập.</p>
+                        </div>
+
+                        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 space-y-2">
+                          <span className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center">3</span>
+                          <h4 className="font-bold text-xs text-slate-900 dark:text-white">Xuất bản ra cộng đồng</h4>
+                          <p className="text-[11px] text-slate-500">Phê duyệt và xuất bản khóa học để chào đón những học viên đầu tiên.</p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <button
+                          onClick={() => navigate('/teacher/courses/new')}
+                          className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all active:scale-95"
+                        >
+                          + Tạo khóa học đầu tiên ngay
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <EmptyState
+                      title="No courses match your filters"
+                      message="Try changing the search term or category filter. This state keeps the admin workflow clear without changing any data."
+                    />
+                  )}
                 </div>
               ) : null}
 

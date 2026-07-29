@@ -174,7 +174,18 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
 const CourseList: React.FC = () => {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [query]);
+
   const [activeCategoryId, setActiveCategoryId] = useState('');
+  const [priceType, setPriceType] = useState<'all' | 'free' | 'paid'>('all');
+  const [minRating, setMinRating] = useState<number>(0);
   const [popPage, setPopPage] = useState(1);
   const [trendPage, setTrendPage] = useState(1);
   const [page, setPage] = useState(1);
@@ -186,19 +197,27 @@ const CourseList: React.FC = () => {
   });
   const categories = [{ _id: '', name: t('home.categories.all') }, ...(categoryData?.data?.categories || [])];
 
+  const filterParams = {
+    search: debouncedQuery || undefined,
+    category: activeCategoryId || undefined,
+    priceType: priceType !== 'all' ? priceType : undefined,
+    minRating: minRating > 0 ? minRating : undefined,
+    status: 'published'
+  };
+
   const { data: popData, isLoading: popLoading } = useQuery({
-    queryKey: ['courses-popular', query, activeCategoryId, popPage],
-    queryFn: () => courseApi.getAllCourses({ search: query || undefined, category: activeCategoryId || undefined, page: popPage, limit: 3, sort: '-averageRating', status: 'published' })
+    queryKey: ['courses-popular', debouncedQuery, activeCategoryId, priceType, minRating, popPage],
+    queryFn: () => courseApi.getAllCourses({ ...filterParams, page: popPage, limit: 3, sort: '-averageRating' })
   });
 
   const { data: trendData, isLoading: trendLoading } = useQuery({
-    queryKey: ['courses-trending', query, activeCategoryId, trendPage],
-    queryFn: () => courseApi.getAllCourses({ search: query || undefined, category: activeCategoryId || undefined, page: trendPage, limit: 3, sort: '-createdAt', status: 'published' })
+    queryKey: ['courses-trending', debouncedQuery, activeCategoryId, priceType, minRating, trendPage],
+    queryFn: () => courseApi.getAllCourses({ ...filterParams, page: trendPage, limit: 3, sort: '-createdAt' })
   });
 
   const { data: responseData, isLoading } = useQuery({
-    queryKey: ['courses-all', query, activeCategoryId, page],
-    queryFn: () => courseApi.getAllCourses({ search: query || undefined, category: activeCategoryId || undefined, page, limit: 6, status: 'published' })
+    queryKey: ['courses-all', debouncedQuery, activeCategoryId, priceType, minRating, page],
+    queryFn: () => courseApi.getAllCourses({ ...filterParams, page, limit: 6 })
   });
   
   const totalPages = responseData?.data?.totalPages || 1;
@@ -286,43 +305,85 @@ const CourseList: React.FC = () => {
       <MetricsSurface metrics={catalogMetrics} />
 
       <FilterBar>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <Input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('courses.filter.search')}
-            icon={
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            }
-            onClear={() => { setQuery(''); setPage(1); setPopPage(1); setTrendPage(1); }}
-            className="flex-1"
-          />
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <Input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t('courses.filter.search')}
+              icon={
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              }
+              onClear={() => { setQuery(''); setPage(1); setPopPage(1); setTrendPage(1); }}
+              className="flex-1"
+            />
 
-          <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:justify-end hide-scrollbar">
-            {categories.map((category) => {
-              const isActive = activeCategoryId === category._id;
-              return (
-                <Button
-                  key={category._id || 'all'}
-                  type="button"
-                  variant={isActive ? 'pill' : 'outline'}
-                  size="sm"
-                  onClick={() => { setActiveCategoryId(category._id); setPage(1); setPopPage(1); setTrendPage(1); }}
-                  className="whitespace-nowrap"
+            <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:justify-end hide-scrollbar">
+              {categories.map((category) => {
+                const isActive = activeCategoryId === category._id;
+                return (
+                  <Button
+                    key={category._id || 'all'}
+                    type="button"
+                    variant={isActive ? 'pill' : 'outline'}
+                    size="sm"
+                    onClick={() => { setActiveCategoryId(category._id); setPage(1); setPopPage(1); setTrendPage(1); }}
+                    className="whitespace-nowrap"
+                  >
+                    {category.name}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-slate-200/50 dark:border-white/5 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-500 dark:text-slate-400">Price:</span>
+              {(['all', 'free', 'paid'] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => { setPriceType(p); setPage(1); setPopPage(1); setTrendPage(1); }}
+                  className={`px-3 py-1 rounded-full font-medium transition-colors capitalize ${
+                    priceType === p 
+                      ? 'bg-indigo-600 text-white font-bold' 
+                      : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
                 >
-                  {category.name}
-                </Button>
-              );
-            })}
+                  {p === 'all' ? 'All Prices' : p}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-500 dark:text-slate-400">Rating:</span>
+              {[
+                { label: 'All Ratings', value: 0 },
+                { label: '★ 4.0 & up', value: 4 },
+                { label: '★ 3.0 & up', value: 3 }
+              ].map((r) => (
+                <button
+                  key={r.value}
+                  onClick={() => { setMinRating(r.value); setPage(1); setPopPage(1); setTrendPage(1); }}
+                  className={`px-3 py-1 rounded-full font-medium transition-colors ${
+                    minRating === r.value 
+                      ? 'bg-amber-500 text-white font-bold' 
+                      : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </FilterBar>

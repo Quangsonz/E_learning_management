@@ -23,6 +23,16 @@ class CourseService {
       filter.status = query.status;
     }
 
+    if (query.priceType === 'free') {
+      filter.price = 0;
+    } else if (query.priceType === 'paid') {
+      filter.price = { $gt: 0 };
+    }
+
+    if (query.minRating) {
+      filter.averageRating = { $gte: Number(query.minRating) };
+    }
+
     if (!user || user.role === 'student') {
       filter.status = 'published';
     }

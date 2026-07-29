@@ -9,23 +9,28 @@ const globalErrorHandler = require('./middlewares/error.middleware');
 const routes = require('./routes');
 const swaggerSpec = require('./config/swagger');
 
+const compression = require('compression');
+
 const app = express();
 app.use(helmet());
+app.use(compression());
 
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 
+const isDev = process.env.NODE_ENV === 'development';
+
 // Limit requests from same API
 const limiter = rateLimit({
-  max: 100, // Limit each IP to 100 requests per hour for regular users
-  windowMs: 60 * 60 * 1000,
-  message: 'Too many requests from this IP, please try again in an hour!'
+  max: isDev ? 10000 : 1000, // Limit each IP per 15 mins (much higher in dev)
+  windowMs: 15 * 60 * 1000,
+  message: 'Too many requests from this IP, please try again in 15 minutes!'
 });
 
 const adminTeacherLimiter = rateLimit({
-  max: 1000, // Limit each IP to 1000 requests per hour for Admins & Teachers
-  windowMs: 60 * 60 * 1000,
-  message: 'Too many administrative requests from this IP, please try again in an hour!'
+  max: isDev ? 50000 : 5000, // Limit each IP per 15 mins for Admins & Teachers
+  windowMs: 15 * 60 * 1000,
+  message: 'Too many administrative requests from this IP, please try again in 15 minutes!'
 });
 
 // Dynamic Rate Limiter based on Role decoded from token
