@@ -9,5 +9,7 @@ const enrollmentSchema = new mongoose.Schema({
 
 // Unique Index chặn tình trạng một học viên mua cùng 1 khóa học nhiều lần
 enrollmentSchema.index({ student: 1, course: 1 }, { unique: true });
+enrollmentSchema.index({ course: 1, paymentStatus: 1 });
+enrollmentSchema.index({ student: 1, paymentStatus: 1 });
 
 module.exports = mongoose.model('Enrollment', enrollmentSchema);

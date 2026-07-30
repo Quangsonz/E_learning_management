@@ -184,6 +184,18 @@ const AppRoutes: React.FC = () => (
 
 const App: React.FC = () => {
   const location = useLocation();
+
+  React.useEffect(() => {
+    // Preload key page bundles immediately on mount for instant 0ms route switching
+    Promise.all([
+      import('./pages/CourseList'),
+      import('./pages/CourseDetail'),
+      import('./pages/Home'),
+      import('./pages/MyLearning'),
+      import('./pages/Leaderboard')
+    ]).catch(() => {});
+  }, []);
+
   const isNoLayoutRoute =
     noLayoutPaths.some((path) => location.pathname.startsWith(path)) ||
     location.pathname === '/';

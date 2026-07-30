@@ -47,7 +47,11 @@ const useCatalogMetrics = () => {
 
 const MotionDiv = motion.div as unknown as React.FC<React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>>;
 
+const svgThumbCache = new Map<string, string>();
+const svgAvatarCache = new Map<string, string>();
+
 function makeThumbnail(label: string) {
+  if (svgThumbCache.has(label)) return svgThumbCache.get(label)!;
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520">
       <defs>
@@ -66,10 +70,13 @@ function makeThumbnail(label: string) {
       <text x="76" y="372" font-family="Arial, sans-serif" font-size="28" fill="rgba(255,255,255,0.82)">Curated course experience</text>
     </svg>`;
 
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  const result = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  svgThumbCache.set(label, result);
+  return result;
 }
 
 function makeAvatar(seed: string) {
+  if (svgAvatarCache.has(seed)) return svgAvatarCache.get(seed)!;
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
       <defs>
@@ -84,7 +91,9 @@ function makeAvatar(seed: string) {
       <text x="64" y="74" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#0f172a">${seed}</text>
     </svg>`;
 
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  const result = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  svgAvatarCache.set(seed, result);
+  return result;
 }
 
 const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
@@ -94,9 +103,9 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
   return (
     <MotionDiv
       className="group relative flex flex-col gap-5 transition duration-300"
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-50px' }}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.15 }}
     >
       {/* Glow background behind image */}
       <div className={`absolute -inset-4 z-0 rounded-[3rem] bg-gradient-to-br ${course.accent} opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-[0.18] pointer-events-none`} />
@@ -162,7 +171,7 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
               className={`h-full bg-gradient-to-r ${course.accent}`}
               initial={{ width: 0 }}
               animate={{ width: `${course.progress}%` }}
-              transition={{ duration: 1.05, ease: [0.4, 0, 0.2, 1] }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
             />
           </div>
         </div>
@@ -193,7 +202,8 @@ const CourseList: React.FC = () => {
 
   const { data: categoryData } = useQuery({
     queryKey: ['categories'],
-    queryFn: () => categoryApi.getAllCategories()
+    queryFn: () => categoryApi.getAllCategories(),
+    staleTime: 1000 * 60 * 30
   });
   const categories = [{ _id: '', name: t('home.categories.all') }, ...(categoryData?.data?.categories || [])];
 
@@ -207,17 +217,23 @@ const CourseList: React.FC = () => {
 
   const { data: popData, isLoading: popLoading } = useQuery({
     queryKey: ['courses-popular', debouncedQuery, activeCategoryId, priceType, minRating, popPage],
-    queryFn: () => courseApi.getAllCourses({ ...filterParams, page: popPage, limit: 3, sort: '-averageRating' })
+    queryFn: () => courseApi.getAllCourses({ ...filterParams, page: popPage, limit: 3, sort: '-averageRating' }),
+    staleTime: 1000 * 60 * 10,
+    keepPreviousData: true
   });
 
   const { data: trendData, isLoading: trendLoading } = useQuery({
     queryKey: ['courses-trending', debouncedQuery, activeCategoryId, priceType, minRating, trendPage],
-    queryFn: () => courseApi.getAllCourses({ ...filterParams, page: trendPage, limit: 3, sort: '-createdAt' })
+    queryFn: () => courseApi.getAllCourses({ ...filterParams, page: trendPage, limit: 3, sort: '-createdAt' }),
+    staleTime: 1000 * 60 * 10,
+    keepPreviousData: true
   });
 
   const { data: responseData, isLoading } = useQuery({
     queryKey: ['courses-all', debouncedQuery, activeCategoryId, priceType, minRating, page],
-    queryFn: () => courseApi.getAllCourses({ ...filterParams, page, limit: 6 })
+    queryFn: () => courseApi.getAllCourses({ ...filterParams, page, limit: 6 }),
+    staleTime: 1000 * 60 * 5,
+    keepPreviousData: true
   });
   
   const totalPages = responseData?.data?.totalPages || 1;
@@ -234,20 +250,26 @@ const CourseList: React.FC = () => {
   };
   const DEFAULT_ACCENT = 'from-indigo-500 to-violet-400';
 
-  const transformCourse = (course: any): Course => ({
-    id: course._id,
-    title: course.title,
-    teacher: course.instructor?.name || 'Unknown Instructor',
-    role: course.instructor?.role || 'Instructor',
-    category: course.category?.name || 'General',
-    rating: course.averageRating || 5.0,
-    ratingCount: '0',
-    duration: '5h 30m',
-    progress: Math.floor(Math.random() * 100),
-    lessons: '10 lessons',
-    accent: categoryAccent[course.category?.name || 'General'] || DEFAULT_ACCENT,
-    image: course.thumbnailUrl || makeThumbnail(course.category?.name || 'Course')
-  });
+  const transformCourse = (course: any): Course => {
+    // Deterministic progress based on course ID so React renders are stable without re-triggering progress animations
+    const charCodeSum = (course._id || '').split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+    const stableProgress = (charCodeSum * 13) % 80 + 15;
+
+    return {
+      id: course._id,
+      title: course.title,
+      teacher: course.instructor?.name || 'Unknown Instructor',
+      role: course.instructor?.role || 'Instructor',
+      category: course.category?.name || 'General',
+      rating: course.averageRating || 5.0,
+      ratingCount: course.reviewCount ? String(course.reviewCount) : '12',
+      duration: `${course.duration ? Math.round(course.duration / 60) : 15} bài`,
+      progress: stableProgress,
+      lessons: `${course.lessonsCount || 10} bài học`,
+      accent: categoryAccent[course.category?.name || 'General'] || DEFAULT_ACCENT,
+      image: course.thumbnailUrl || makeThumbnail(course.category?.name || 'Course')
+    };
+  };
 
   const allCourses: Course[] = useMemo(() => {
     if (!responseData?.data?.courses) return [];

@@ -31,7 +31,7 @@ export const useSocket = () => {
       setSocket(newSocket);
 
       newSocket.on('connect', () => {
-        console.log('Connected to socket server');
+        // Socket connection established
       });
 
       newSocket.on('new_notification', (data: Notification) => {

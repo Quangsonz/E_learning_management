@@ -67,16 +67,17 @@ class CourseRepository extends BaseRepository {
         }
       },
       { $unwind: { path: '$instructor', preserveNullAndEmptyArrays: true } },
-      // Đếm số bài giảng thuộc khóa học
+      // Đếm số bài giảng thuộc khóa học (chỉ lấy _id để tối ưu bộ nhớ)
       {
         $lookup: {
           from: 'lessons',
           localField: '_id',
           foreignField: 'course',
-          as: '_lessons'
+          as: '_lessons',
+          pipeline: [{ $project: { _id: 1 } }]
         }
       },
-      // Đếm số học viên đã thanh toán xong
+      // Đếm số học viên đã thanh toán xong (chỉ lấy _id)
       {
         $lookup: {
           from: 'enrollments',
@@ -91,7 +92,8 @@ class CourseRepository extends BaseRepository {
                   ]
                 }
               }
-            }
+            },
+            { $project: { _id: 1 } }
           ],
           as: '_enrollments'
         }

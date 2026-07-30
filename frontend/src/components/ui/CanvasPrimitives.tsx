@@ -43,37 +43,10 @@ export const AmbientGlow: React.FC<{ variant?: 'default' | 'warm' | 'cool' }> = 
   );
 };
 
-const heroBackgroundImages = [
-  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&q=80",
-  "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80",
-  "https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800&q=80",
-  "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=800&q=80"
-];
-
 const HeroBackgroundSlideshow = () => {
-  const [index, setIndex] = React.useState(0);
-  
-  React.useEffect(() => {
-    const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % heroBackgroundImages.length);
-    }, 2500); // 2.5 seconds per slide (2s display + 0.5s transition feels best)
-    return () => clearInterval(timer);
-  }, []);
-
   return (
-    <div className="absolute -inset-x-10 -inset-y-16 z-0 overflow-hidden pointer-events-none [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_75%)]">
-      {heroBackgroundImages.map((src, i) => (
-        <motion.img
-          key={src}
-          src={src}
-          className="absolute inset-0 h-full w-full object-cover mix-blend-luminosity"
-          style={{ filter: 'grayscale(50%)' }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: i === index ? 0.35 : 0 }}
-          transition={{ duration: 0.8 }}
-          alt=""
-        />
-      ))}
+    <div className="absolute -inset-x-10 -inset-y-16 z-0 overflow-hidden pointer-events-none opacity-30 dark:opacity-20 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_75%)]">
+      <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 via-sky-400/20 to-purple-500/20 blur-2xl" />
     </div>
   );
 };

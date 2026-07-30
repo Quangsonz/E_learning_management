@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, LayoutGroup } from 'framer-motion';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../hooks/useSocket';
@@ -20,14 +20,22 @@ const sidebarItems = [
   { key: 'layout.nav.leaderboard', to: '/leaderboard' }
 ];
 
+const prefetchRoute = (to: string) => {
+  if (to === '/courses') import('../../pages/CourseList');
+  else if (to === '/home') import('../../pages/Home');
+  else if (to === '/learning') import('../../pages/MyLearning');
+  else if (to === '/leaderboard') import('../../pages/Leaderboard');
+};
+
 /* ── Desktop Nav Item ────────────────────────────────────── */
 const DesktopNavItem: React.FC<{ item: { to: string; label: string }; onClick: () => void }> = ({ item, onClick }) => (
   <NavLink
     to={item.to}
     end={item.to === '/'}
     onClick={onClick}
+    onMouseEnter={() => prefetchRoute(item.to)}
     className={({ isActive }) =>
-      `relative px-6 py-2.5 text-base font-semibold transition-colors duration-300 rounded-full whitespace-nowrap ${
+      `relative px-6 py-2.5 text-base font-semibold transition-colors duration-200 rounded-full whitespace-nowrap ${
         isActive
           ? 'text-slate-900 dark:text-white'
           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -41,7 +49,7 @@ const DesktopNavItem: React.FC<{ item: { to: string; label: string }; onClick: (
           <motion.div
             layoutId="desktop-nav-active"
             className="absolute inset-0 bg-slate-100 dark:bg-white/10 rounded-full"
-            transition={{ type: "spring", stiffness: 350, damping: 30 }}
+            transition={{ type: "spring", stiffness: 380, damping: 30, mass: 0.8 }}
           />
         )}
       </>
@@ -106,10 +114,12 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return match?.label ?? t('layout.nav.home');
   }, [location.pathname, translatedSidebarItems, t]);
 
-  // Close mobile menu on route change
+  // Reset scroll and close popovers / mobile menu on route change
   useEffect(() => {
     setMobileOpen(false);
     setProfileOpen(false);
+    setNotificationsOpen(false);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [location.pathname]);
 
   // Keyboard handler
@@ -118,6 +128,7 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       if (e.key === 'Escape') {
         setProfileOpen(false);
         setMobileOpen(false);
+        setNotificationsOpen(false);
       }
     };
     document.addEventListener('keydown', handler);
@@ -141,11 +152,13 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </Link>
         </div>
         
-        <nav className="flex items-center px-3 gap-2">
-          {translatedSidebarItems.map((item) => (
-            <DesktopNavItem key={item.to} item={item} onClick={() => {}} />
-          ))}
-        </nav>
+        <LayoutGroup id="desktop-header-nav">
+          <nav className="flex items-center px-3 gap-2">
+            {translatedSidebarItems.map((item) => (
+              <DesktopNavItem key={item.to} item={item} onClick={() => {}} />
+            ))}
+          </nav>
+        </LayoutGroup>
 
         <div className="pl-3 pr-2 border-l border-slate-200 dark:border-white/10 flex items-center gap-2">
           <button

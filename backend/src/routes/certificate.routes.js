@@ -84,6 +84,8 @@ const router = express.Router();
  *         description: Chưa hoàn thành 100% khóa học
  */
 router.get('/verify/:certificateId', certificateController.verifyCertificate);
+router.get('/:certificateId/pdf', certificateController.downloadCertificatePDF);
+router.get('/pdf/:certificateId', certificateController.downloadCertificatePDF);
 
 router.use(authMiddleware.protect);
 router.get('/my-certificates', certificateController.getMyCertificates);

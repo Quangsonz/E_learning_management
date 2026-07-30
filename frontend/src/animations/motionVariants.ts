@@ -55,7 +55,7 @@ export const floatY = (distance = 8, duration = 5.5) => ({
 });
 
 export const pageEnter: Variants = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0, transition: spring },
-  exit: { opacity: 0, y: -10, transition: { duration: 0.24 } }
+  initial: { opacity: 0, y: 4 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.15, ease: 'easeOut' } },
+  exit: { opacity: 0, y: -4, transition: { duration: 0.1 } }
 };

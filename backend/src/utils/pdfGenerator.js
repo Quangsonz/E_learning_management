@@ -1,6 +1,47 @@
-const PDFDocument = require('pdfkit');
-const cloudinary = require('../config/cloudinary');
-const streamifier = require('streamifier');
+const fs = require('fs');
+const path = require('path');
+
+function removeVietnameseTones(str) {
+  if (!str) return '';
+  str = String(str);
+  str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, 'a');
+  str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, 'e');
+  str = str.replace(/ì|í|ị|ỉ|ĩ/g, 'i');
+  str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, 'o');
+  str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, 'u');
+  str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, 'y');
+  str = str.replace(/đ/g, 'd');
+  str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, 'A');
+  str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, 'E');
+  str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, 'I');
+  str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, 'O');
+  str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, 'U');
+  str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, 'Y');
+  str = str.replace(/Đ/g, 'D');
+  return str;
+}
+
+function setupPDFFont(doc) {
+  const fontCandidates = [
+    'C:\\Windows\\Fonts\\arial.ttf',
+    'C:\\Windows\\Fonts\\segoeui.ttf',
+    'C:\\Windows\\Fonts\\times.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+  ];
+
+  for (const fontPath of fontCandidates) {
+    if (fs.existsSync(fontPath)) {
+      try {
+        doc.font(fontPath);
+        return true;
+      } catch (err) {}
+    }
+  }
+  return false;
+}
+
+exports.setupPDFFont = setupPDFFont;
+exports.removeVietnameseTones = removeVietnameseTones;
 
 /**
  * Hàm sinh PDF và upload trực tiếp lên Cloudinary
@@ -14,14 +55,15 @@ exports.generateCertificate = (studentName, courseTitle, certificateId, qrCodeDa
         size: 'A4',
       });
 
+      const hasTTF = setupPDFFont(doc);
+      const clean = (str) => hasTTF ? str : removeVietnameseTones(str);
+
       // Thu thập dữ liệu chunk vào một mảng Buffer
       const buffers = [];
       doc.on('data', buffers.push.bind(buffers));
       doc.on('end', () => {
         const pdfData = Buffer.concat(buffers);
 
-        // Upload buffer PDF này lên Cloudinary với resource_type là raw hoặc image
-        // File pdf có thể lưu dạng image để dễ preview trên web
         const stream = cloudinary.uploader.upload_stream(
           {
             folder: 'elearning/certificates',
@@ -51,25 +93,25 @@ exports.generateCertificate = (studentName, courseTitle, certificateId, qrCodeDa
 
       // Tiêu đề
       doc.moveDown(3);
-      doc.fontSize(50).fillColor('#000').text('CHỨNG NHẬN HOÀN THÀNH', { align: 'center' });
+      doc.fontSize(45).fillColor('#000').text(clean('CHỨNG NHẬN HOÀN THÀNH'), { align: 'center' });
       
       doc.moveDown(1);
-      doc.fontSize(20).text('Chứng nhận này được cấp cho học viên', { align: 'center' });
+      doc.fontSize(18).text(clean('Chứng nhận này được cấp cho học viên'), { align: 'center' });
       
       doc.moveDown(0.5);
-      doc.fontSize(40).fillColor('#007bff').text(studentName, { align: 'center' });
+      doc.fontSize(36).fillColor('#007bff').text(clean(studentName), { align: 'center' });
       
       doc.moveDown(1);
-      doc.fontSize(20).fillColor('#000').text('Đã hoàn thành xuất sắc khóa học', { align: 'center' });
+      doc.fontSize(18).fillColor('#000').text(clean('Đã hoàn thành xuất sắc khóa học'), { align: 'center' });
       
       doc.moveDown(0.5);
-      doc.fontSize(30).fillColor('#28a745').text(courseTitle, { align: 'center' });
+      doc.fontSize(26).fillColor('#28a745').text(clean(courseTitle), { align: 'center' });
       
       doc.moveDown(2);
-      doc.fontSize(12).fillColor('#666').text(`Mã chứng chỉ: ${certificateId}`, { align: 'center' });
+      doc.fontSize(12).fillColor('#666').text(clean(`Mã chứng chỉ: ${certificateId}`), { align: 'center' });
       
       const dateStr = new Date().toLocaleDateString('vi-VN');
-      doc.text(`Ngày cấp: ${dateStr}`, { align: 'center' });
+      doc.text(clean(`Ngày cấp: ${dateStr}`), { align: 'center' });
 
       // Nếu có QR Code thì vẽ lên góc dưới bên phải
       if (qrCodeDataUrl) {

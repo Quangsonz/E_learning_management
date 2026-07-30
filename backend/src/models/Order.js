@@ -38,6 +38,8 @@ const orderSchema = new mongoose.Schema(
 
 // Indexes for faster lookups during webhooks and user queries
 orderSchema.index({ user: 1, course: 1 });
+orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ createdAt: -1 });
 
 const Order = mongoose.model('Order', orderSchema);
 
