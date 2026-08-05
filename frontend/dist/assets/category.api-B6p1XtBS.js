@@ -1,1 +1,0 @@
-import{k as t}from"./index-AUiw8Z66.js";const o={getAllCategories:async()=>(await t.get("/categories")).data,getCategoryById:async e=>(await t.get(`/categories/${e}`)).data,createCategory:async e=>(await t.post("/categories",e)).data,updateCategory:async(e,a)=>(await t.patch(`/categories/${e}`,a)).data,deleteCategory:async e=>{await t.delete(`/categories/${e}`)}};export{o as c};

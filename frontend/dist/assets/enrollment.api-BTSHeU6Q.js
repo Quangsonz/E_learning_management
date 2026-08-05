@@ -1,1 +1,0 @@
-import{k as n}from"./index-AUiw8Z66.js";const o={getMyEnrollments:async()=>(await n.get("/enrollments/my-enrollments")).data,enrollCourse:async e=>(await n.post("/enrollments",{courseId:e})).data,unenrollCourse:async e=>{await n.delete(`/enrollments/${e}`)}};export{o as e};

@@ -1,1 +1,0 @@
-import{k as s}from"./index-AUiw8Z66.js";const n={getAdminDashboard:async()=>(await s.get("/analytics/admin")).data,getTeacherDashboard:async()=>(await s.get("/analytics/teacher")).data,getSystemHealth:async()=>(await s.get("/analytics/system-health")).data,getOrderStats:async a=>(await s.get("/analytics/orders",{params:a})).data};export{n as a};
