@@ -5,7 +5,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../hooks/useSocket';
 import clsx from 'clsx';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { userApi } from '../../services/user.api';
 import { CommandPalette } from '../ui/CommandPalette';
 import { WishlistDrawer } from './WishlistDrawer';
@@ -92,7 +92,7 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [wishlistOpen, setWishlistOpen] = useState(false);
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { notifications, unreadCount, setUnreadCount } = useSocket();
+  const { notifications, unreadCount, setUnreadCount } = useSocket(useQueryClient());
   const { t } = useTranslation();
 
   const translatedSidebarItems = sidebarItems.map(item => ({

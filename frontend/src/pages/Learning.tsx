@@ -11,6 +11,7 @@ import { discussionApi, Discussion, Comment } from '../services/discussion.api';
 import { useAuth } from '../contexts/AuthContext';
 import { assignmentApi, Assignment, AssignmentSubmission } from '../services/assignment.api';
 import { uploadApi } from '../services/upload.api';
+import { certificateApi, Certificate } from '../services/certificate.api';
 import { store } from '../store/store';
 
 
@@ -52,6 +53,8 @@ const Learning: React.FC = () => {
   const [submitFileName, setSubmitFileName] = useState('');
   const [submitFileUrl, setSubmitFileUrl] = useState('');
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [claimedCertificate, setClaimedCertificate] = useState<Certificate | null>(null);
+  const [showCertSuccess, setShowCertSuccess] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -198,6 +201,8 @@ const Learning: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['my-stats'] });
       queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
       queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      // Phase 2: Invalidate home dashboard summary so progress cards refresh
+      queryClient.invalidateQueries({ queryKey: ['student-dashboard-summary'] });
       
       refreshProfile(); // Đồng bộ với Account Overview (Redux auth user object)
       
@@ -209,6 +214,17 @@ const Learning: React.FC = () => {
       if (currentIndex !== -1 && currentIndex < lessons.length - 1) {
         setSelectedLessonId(lessons[currentIndex + 1]._id);
       }
+    }
+  });
+
+  // Phase 1: Certificate claim mutation
+  const claimCertificateMutation = useMutation({
+    mutationFn: (cId: string) => certificateApi.claimCertificate(cId),
+    onSuccess: (cert) => {
+      setClaimedCertificate(cert);
+      setShowCertSuccess(true);
+      queryClient.invalidateQueries({ queryKey: ['my-certificates'] });
+      window.setTimeout(() => setShowCertSuccess(false), 4000);
     }
   });
 
@@ -694,6 +710,37 @@ const Learning: React.FC = () => {
                   transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                 />
               </div>
+
+              {/* Phase 1: Certificate claim — appears only when course is 100% complete */}
+              {progressPercent >= 100 && (
+                <div className="mt-4">
+                  {claimedCertificate ? (
+                    <a
+                      href={claimedCertificate.pdfUrl || claimedCertificate.validationUrl || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 rounded-xl text-sm font-semibold border border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                      View Certificate
+                    </a>
+                  ) : (
+                    <button
+                      onClick={() => courseId && claimCertificateMutation.mutate(courseId)}
+                      disabled={claimCertificateMutation.isPending}
+                      className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-semibold border border-amber-200 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+                      {claimCertificateMutation.isPending ? 'Đang tạo chứng chỉ...' : 'Nhận chứng chỉ'}
+                    </button>
+                  )}
+                  {claimCertificateMutation.isError && (
+                    <p className="mt-2 text-xs text-rose-500 text-center">
+                      {(claimCertificateMutation.error as any)?.response?.data?.message || 'Không thể tạo chứng chỉ.'}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Typography-driven Curriculum */}
@@ -974,6 +1021,13 @@ const Learning: React.FC = () => {
         visible={showAchievement}
         title="Lesson completed"
         message="Progress saved. Continue to the next module."
+        variant="success"
+        position="bottom-right"
+      />
+      <Toast
+        visible={showCertSuccess}
+        title="Chứng chỉ đã sẵn sàng!"
+        message="Chứng chỉ hoàn thành khóa học của bạn đã được tạo thành công."
         variant="success"
         position="bottom-right"
       />

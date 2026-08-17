@@ -171,6 +171,7 @@ const Checkout = () => {
                               queryClient.invalidateQueries({ queryKey: ['enrollments'] });
                               queryClient.invalidateQueries({ queryKey: ['my-enrollments'] });
                               queryClient.invalidateQueries({ queryKey: ['course', courseId] });
+                              queryClient.invalidateQueries({ queryKey: ['student-dashboard-summary'] });
                               
                               refreshProfile(); // Đồng bộ tài khoản
                               

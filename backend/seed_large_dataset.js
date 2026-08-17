@@ -20,6 +20,19 @@ const AuditLog = require('./src/models/AuditLog');
 const Order = require('./src/models/Order');
 const Certificate = require('./src/models/Certificate');
 
+const TEST_VIDEOS = [
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
+  'https://www.youtube.com/watch?v=w7ejDZ8SWv8',
+  'https://www.youtube.com/watch?v=zQnBQ4tB3ZA',
+  'https://www.youtube.com/watch?v=x7X9w_GIm1s',
+  'https://www.youtube.com/watch?v=NthVlhF-ytg'
+];
+
 // Generator Helpers
 const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 const getRandomChoice = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -222,14 +235,15 @@ async function seedLargeDataset() {
 
       for (let lIdx = 1; lIdx <= lessonCount; lIdx++) {
         const lessonId = new mongoose.Types.ObjectId();
-        const durationSeconds = getRandomInt(300, 2400);
+        const videoSample = TEST_VIDEOS[(cIdx + lIdx) % TEST_VIDEOS.length];
+        const durationSeconds = getRandomInt(10, 15);
 
         lessonDocs.push({
           _id: lessonId,
           title: `Bài ${lIdx}: Tìm hiểu kiến thức nền tảng ${course.title.split(' ')[0]} (Phần ${lIdx})`,
           description: `Nội dung chi tiết bài học số ${lIdx}. Thực hành trực tiếp và giải thích chi tiết các mẫu thiết kế.`,
           course: course._id,
-          videoUrl: `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4`,
+          videoUrl: videoSample,
           duration: durationSeconds,
           order: lIdx,
           isPreview: lIdx === 1,

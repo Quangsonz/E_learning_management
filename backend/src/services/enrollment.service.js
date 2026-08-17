@@ -3,6 +3,7 @@ const courseRepository = require('../repositories/course.repository');
 const progressRepository = require('../repositories/progress.repository');
 const notificationService = require('./notification.service');
 const AppError = require('../utils/appError');
+const Order = require('../models/Order');
 
 class EnrollmentService {
   async enrollCourse(courseId, user) {
@@ -28,6 +29,15 @@ class EnrollmentService {
     };
 
     const newEnrollment = await enrollmentRepository.create(enrollmentData);
+
+    // 4. Persist Order document for revenue tracking (works for both mock and real payments)
+    await Order.create({
+      user: user.id,
+      course: courseId,
+      amount: course.price || 0,
+      currency: 'vnd',
+      status: 'paid'
+    });
 
     // 5. Khởi tạo Tiến độ học tập (Progress)
     await progressRepository.create({
