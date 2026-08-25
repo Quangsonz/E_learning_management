@@ -96,6 +96,98 @@ class PaymentController {
 
     res.status(200).json({ received: true });
   });
+
+  /**
+   * POST /api/payments/create-qr-order
+   * Tạo thông tin quét mã VietQR và đơn hàng chờ thanh toán
+   */
+  createQROrder = catchAsync(async (req, res, next) => {
+    const { courseId, testAmount } = req.body;
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+      return next(new AppError('Không tìm thấy khóa học này', 404));
+    }
+
+    // Cho phép dùng số tiền thử nghiệm (ví dụ 1000đ) hoặc giá gốc của khóa học
+    const amount = testAmount && Number(testAmount) > 0 ? Number(testAmount) : (Number(course.price) || 0);
+    const transferContent = `EL${courseId.toString().slice(-6).toUpperCase()}${req.user._id.toString().slice(-4).toUpperCase()}`;
+    
+    const bankId = process.env.VIETQR_BANK_ID || 'MB';
+    const bankAccount = process.env.VIETQR_ACCOUNT_NO || '0383888999';
+    const accountName = process.env.VIETQR_ACCOUNT_NAME || 'HE THONG E LEARNING';
+    const bankFullName = process.env.VIETQR_BANK_NAME || 'MBBank (Ngân hàng Quân Đội)';
+
+    // Mã VietQR.io chuẩn NAPAS
+    const qrUrl = `https://img.vietqr.io/image/${bankId}-${bankAccount}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(accountName)}`;
+
+    // Tạo đơn hàng chờ
+    let order = await Order.findOne({ user: req.user._id, course: course._id, status: 'pending' });
+    if (!order) {
+      order = await Order.create({
+        user: req.user._id,
+        course: course._id,
+        amount: amount,
+        currency: 'vnd',
+        status: 'pending',
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        orderId: order._id,
+        qrUrl,
+        bankInfo: {
+          bankName: bankFullName,
+          accountNumber: bankAccount,
+          accountName: accountName,
+          amount,
+          transferContent
+        }
+      }
+    });
+  });
+
+  /**
+   * POST /api/payments/confirm-qr-payment
+   * Xác nhận thanh toán mã QR -> Cập nhật Order paid & tự động ghi danh
+   */
+  confirmQRPayment = catchAsync(async (req, res, next) => {
+    const { courseId } = req.body;
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+      return next(new AppError('Không tìm thấy khóa học này', 404));
+    }
+
+    const amount = Number(course.price) || 0;
+
+    // Cập nhật hoặc tạo đơn hàng ở trạng thái paid
+    let order = await Order.findOne({ user: req.user._id, course: course._id });
+    if (order) {
+      order.status = 'paid';
+      order.amount = amount;
+      await order.save();
+    } else {
+      order = await Order.create({
+        user: req.user._id,
+        course: course._id,
+        amount: amount,
+        currency: 'vnd',
+        status: 'paid',
+      });
+    }
+
+    // Tự động ghi danh vào khóa học
+    await enrollmentService.enrollCourse(courseId, req.user);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Thanh toán qua VietQR thành công! Bạn đã được đăng ký vào khóa học.',
+      data: { order }
+    });
+  });
 }
 
 module.exports = new PaymentController();

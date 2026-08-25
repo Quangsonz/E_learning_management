@@ -22,6 +22,10 @@ router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/admin', adminRoutes);
 router.use('/categories', categoryRoutes);
+
+// Nested routes with specific subpaths MUST be mounted before /courses
+router.use('/courses/:courseId/lessons/:lessonId/discussions', discussionRoutes);
+
 router.use('/courses', courseRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/enrollments', enrollmentRoutes);
@@ -34,7 +38,6 @@ router.use('/analytics', analyticsRoutes);
 // Student Dashboard — Nested route: /students/:id/dashboard/*
 router.use('/students/:id/dashboard', dashboardRoutes);
 router.use('/payments', paymentRoutes);
-router.use('/courses/:courseId/lessons/:lessonId/discussions', discussionRoutes);
 
 // Mount nested quiz creation route in course
 // But since we can use /api/quizzes directly or nested, we mounted it on /quizzes

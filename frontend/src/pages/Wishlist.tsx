@@ -13,6 +13,8 @@ import { userApi } from '../services/user.api';
 import { courseApi } from '../services/course.api';
 import { Star, Clock, BookOpen, Sparkles, Heart } from 'lucide-react';
 
+import { useToast } from '../contexts/ToastContext';
+
 type Course = {
   id: string;
   title: string;
@@ -190,10 +192,13 @@ const Wishlist: React.FC = () => {
     queryFn: () => courseApi.getAllCourses({ limit: 4, sort: '-averageRating', status: 'published' })
   });
 
+  const { success: successToast } = useToast();
+
   const removeMutation = useMutation({
     mutationFn: (id: string) => userApi.toggleWishlist(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wishlist'] });
+      successToast('Đã gỡ khóa học khỏi danh sách yêu thích thành công.', 'Đã gỡ');
     }
   });
 

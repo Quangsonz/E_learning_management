@@ -255,6 +255,8 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-moderation-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-analytics'] });
       setToast(vars.status === 'published' ? 'Khóa học đã được xuất bản.' : 'Khóa học đã thu hồi về Draft.');
     },
     onError: (error: any) => {

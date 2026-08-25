@@ -1,26 +1,26 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
-  // 1) Cấu hình transporter (sử dụng Mailtrap cho dev hoặc Gmail/SendGrid cho prod)
+  const port = Number(process.env.EMAIL_PORT) || 587;
+  const host = process.env.EMAIL_HOST || 'smtp.gmail.com';
+
   const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'sandbox.smtp.mailtrap.io',
-    port: process.env.EMAIL_PORT || 2525,
+    host: host,
+    port: port,
+    secure: port === 465, // TLS 465 hoặc STARTTLS 587
     auth: {
-      user: process.env.EMAIL_USERNAME || 'username',
-      pass: process.env.EMAIL_PASSWORD || 'password',
+      user: process.env.EMAIL_USERNAME,
+      pass: process.env.EMAIL_PASSWORD,
     },
   });
 
-  // 2) Định nghĩa email options
   const mailOptions = {
-    from: 'E-Learning Admin <noreply@elearning.com>',
+    from: `"E-Learning System" <${process.env.EMAIL_USERNAME || 'noreply@elearning.com'}>`,
     to: options.email,
     subject: options.subject,
     text: options.message,
-    // html: options.html
   };
 
-  // 3) Thực hiện gửi email
   await transporter.sendMail(mailOptions);
 };
 

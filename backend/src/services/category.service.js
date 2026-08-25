@@ -43,6 +43,12 @@ class CategoryService {
   }
 
   async deleteCategory(id) {
+    const mongoose = require('mongoose');
+    const courseCount = await mongoose.model('Course').countDocuments({ category: id });
+    if (courseCount > 0) {
+      throw new AppError(`Không thể xóa danh mục này vì đang có ${courseCount} khóa học đang sử dụng. Vui lòng chuyển danh mục cho các khóa học trước khi xóa.`, 400);
+    }
+
     const category = await categoryRepository.deleteById(id);
     if (!category) {
       throw new AppError('Không tìm thấy danh mục với ID này', 404);

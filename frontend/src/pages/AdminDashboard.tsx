@@ -242,6 +242,7 @@ const UserIntelligence = () => {
   const [page, setPage] = useState(1);
   const [editUser, setEditUser] = useState<any | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ userId: string; action: 'suspend' | 'activate' } | null>(null);
+  const [deleteUserConfirm, setDeleteUserConfirm] = useState<{ userId: string; userName: string } | null>(null);
 
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ['admin-users', filter, search, page],
@@ -274,6 +275,7 @@ const UserIntelligence = () => {
     mutationFn: ({ id, data }: { id: string; data: any }) => userApi.updateUser(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-analytics'] });
       setEditUser(null);
     }
   });
@@ -282,7 +284,17 @@ const UserIntelligence = () => {
     mutationFn: (userId: string) => userApi.toggleUserActive(userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-analytics'] });
       setConfirmAction(null);
+    }
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (userId: string) => userApi.deleteUser(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-analytics'] });
+      setDeleteUserConfirm(null);
     }
   });
 
@@ -410,11 +422,17 @@ const UserIntelligence = () => {
                           onClick={() => setConfirmAction({ userId: user.id, action: user.isActive ? 'suspend' : 'activate' })}
                           className={`w-full text-left px-4 py-2 text-xs font-semibold transition-colors ${
                             user.isActive
-                              ? 'text-red-400 hover:bg-red-500/10'
+                              ? 'text-amber-400 hover:bg-amber-500/10'
                               : 'text-emerald-400 hover:bg-emerald-500/10'
                           }`}
                         >
                           {user.isActive ? 'Suspend User' : 'Activate User'}
+                        </button>
+                        <button
+                          onClick={() => setDeleteUserConfirm({ userId: user.id, userName: user.name })}
+                          className="w-full text-left px-4 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors"
+                        >
+                          Delete User
                         </button>
                       </ActionDropdown>
                     </td>
@@ -474,6 +492,19 @@ const UserIntelligence = () => {
           if (confirmAction) toggleActiveMutation.mutate(confirmAction.userId);
         }}
         onCancel={() => setConfirmAction(null)}
+      />
+
+      {/* Confirm Delete User */}
+      <ConfirmModal
+        isOpen={!!deleteUserConfirm}
+        title="Delete User?"
+        message={`Bạn có chắc muốn xóa người dùng "${deleteUserConfirm?.userName}"? Thao tác này sẽ xóa vĩnh viễn người dùng và dọn dẹp các dữ liệu liên quan.`}
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        onConfirm={() => {
+          if (deleteUserConfirm) deleteUserMutation.mutate(deleteUserConfirm.userId);
+        }}
+        onCancel={() => setDeleteUserConfirm(null)}
       />
     </div>
   );
@@ -552,19 +583,19 @@ const SystemMonitoring = () => {
 
 /* ── ENGAGEMENT CENTER ─────────────────────────────────────────────── */
 const EngagementCenter = () => {
-  const activities = [
-    { type: 'review', user: 'Alex N.', action: 'left a 5-star review on', target: 'React Mastery', time: '2 mins ago', color: 'text-amber-400 bg-amber-400/10 border-amber-400/20', icon: '⭐' },
-    { type: 'discussion', user: 'Sarah W.', action: 'started a new thread in', target: 'Advanced System Design', time: '15 mins ago', color: 'text-blue-400 bg-blue-400/10 border-blue-400/20', icon: '💬' },
-    { type: 'completion', user: 'Mike T.', action: 'just completed the course', target: 'UX/UI Fundamentals', time: '1 hour ago', color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', icon: '🎓' },
-    { type: 'report', user: 'System', action: 'flagged a suspicious comment in', target: 'Python for Beginners', time: '3 hours ago', color: 'text-rose-400 bg-rose-400/10 border-rose-400/20', icon: '⚠️' },
-  ];
+  const { data: analyticsData, isLoading } = useQuery({
+    queryKey: ['admin-analytics'],
+    queryFn: analyticsApi.getAdminDashboard,
+  });
+
+  const recentEnrollments: any[] = analyticsData?.data?.recentEnrollments || [];
 
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 pb-20 mt-4">
       <div className="flex flex-col gap-2">
         <span className="text-sm font-semibold uppercase tracking-[0.25em] text-white/40 pl-1">Community</span>
         <h1 className="text-4xl font-light tracking-tight text-white">Engagement Center</h1>
-        <p className="text-white/40 text-base max-w-lg">Quản lý thông báo hệ thống, review học viên, và thảo luận khóa học.</p>
+        <p className="text-white/40 text-base max-w-lg">Quản lý hoạt động học tập, đăng ký khóa học, và tương tác học viên theo thời gian thực.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-4">
@@ -577,39 +608,55 @@ const EngagementCenter = () => {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">Live</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">Live MongoDB Feed</span>
             </div>
           </div>
           
           <div className="flex flex-col gap-4 mt-2">
-            {activities.map((item, i) => (
-              <motion.div 
-                key={i} 
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="flex items-start gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors cursor-pointer group"
-              >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${item.color} border shrink-0`}>
-                  {item.icon}
-                </div>
-                <div className="flex flex-col gap-1">
-                  <p className="text-sm text-white/80 group-hover:text-white transition-colors">
-                    <span className="font-bold">{item.user}</span> {item.action} <span className="font-medium text-indigo-400">{item.target}</span>
-                  </p>
-                  <span className="text-xs text-white/30">{item.time}</span>
-                </div>
-              </motion.div>
-            ))}
+            {isLoading ? (
+              <div className="py-8 text-center text-white/30 text-sm">Loading activity feed...</div>
+            ) : recentEnrollments.length === 0 ? (
+              <div className="py-8 text-center text-white/30 text-sm">No recent activity detected.</div>
+            ) : (
+              recentEnrollments.map((item: any, i: number) => (
+                <motion.div 
+                  key={i} 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.06 }}
+                  className="flex items-start gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors cursor-pointer group"
+                >
+                  <img
+                    src={item.student?.avatar?.startsWith('http')
+                      ? item.student.avatar
+                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.student?.name || 'U')}&background=6366f1&color=fff&size=40`
+                    }
+                    alt={item.student?.name}
+                    className="w-10 h-10 rounded-full border border-white/10 shrink-0 object-cover"
+                  />
+                  <div className="flex flex-col gap-1 flex-1 min-w-0">
+                    <p className="text-sm text-white/80 group-hover:text-white transition-colors">
+                      <span className="font-bold">{item.student?.name || 'Học viên'}</span> vừa đăng ký khóa học <span className="font-medium text-indigo-400">{item.course?.title || 'Khóa học'}</span>
+                    </p>
+                    <div className="flex items-center gap-3 text-xs text-white/30">
+                      <span>{item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : 'Gần đây'}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${item.paymentStatus === 'completed' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-white/40'}`}>
+                        {item.paymentStatus === 'completed' ? 'Đã thanh toán' : 'Miễn phí / Chờ'}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            )}
           </div>
         </div>
 
         {/* Modules */}
         <div className="lg:col-span-4 flex flex-col gap-4">
           {[
-            { label: 'Reviews', desc: 'Quản lý đánh giá khóa học', icon: '⭐' },
-            { label: 'Discussions', desc: 'Kiểm duyệt thảo luận', icon: '💬' },
-            { label: 'Notifications', desc: 'Gửi thông báo', icon: '📢' },
+            { label: 'Reviews', desc: 'Quản lý đánh giá khóa học', icon: '⭐', count: 'Active' },
+            { label: 'Discussions', desc: 'Kiểm duyệt thảo luận', icon: '💬', count: 'Active' },
+            { label: 'Notifications', desc: 'Hệ thống thông báo', icon: '📢', count: 'Socket.IO' },
           ].map((item, i) => (
             <motion.div 
               key={item.label}
@@ -622,10 +669,12 @@ const EngagementCenter = () => {
                 {item.icon}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-white">{item.label}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold text-white">{item.label}</p>
+                  <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400">{item.count}</span>
+                </div>
                 <p className="text-xs text-white/40 truncate mt-0.5">{item.desc}</p>
               </div>
-              <svg className="w-4 h-4 text-white/20 group-hover:text-white/50 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"></path></svg>
             </motion.div>
           ))}
         </div>
@@ -691,6 +740,9 @@ const ModerationQueue = () => {
       courseApi.approveCourse(id, status, notes),
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ['admin-moderation-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-analytics'] });
       successToast(vars.status === 'published' ? 'Đã phê duyệt xuất bản khóa học.' : 'Đã từ chối và trả khóa học về trạng thái nháp.');
       setRejectCourse(null);
       setRejectReason('');
@@ -702,6 +754,9 @@ const ModerationQueue = () => {
       adminApi.processTeacherApplication(id, { action }),
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ['admin-teacher-applications'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['teachers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-analytics'] });
       successToast(vars.action === 'approve' ? 'Đã duyệt hồ sơ giảng viên.' : 'Đã từ chối hồ sơ giảng viên.');
     }
   });

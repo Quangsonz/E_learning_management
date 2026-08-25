@@ -10,5 +10,7 @@ const router = express.Router();
 // The proper way is to configure this route to use express.raw() in server.js.
 
 router.post('/create-payment-intent', auth, paymentController.createPaymentIntent);
+router.post('/create-qr-order', auth, paymentController.createQROrder);
+router.post('/confirm-qr-payment', auth, paymentController.confirmQRPayment);
 
 module.exports = router;

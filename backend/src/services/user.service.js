@@ -103,14 +103,28 @@ class UserService {
   }
 
   /**
-   * Xóa user
+   * Xóa user và dọn dẹp tất cả dữ liệu liên quan
    * @param {string} id - User ID
    */
   async deleteUser(id) {
-    const user = await userRepository.deleteById(id);
+    const user = await userRepository.findById(id);
     if (!user) {
       throw new AppError('Không tìm thấy người dùng với ID này', 404);
     }
+
+    const mongoose = require('mongoose');
+    
+    // Dọn dẹp dữ liệu liên quan
+    await Promise.all([
+      mongoose.model('Enrollment').deleteMany({ student: id }),
+      mongoose.model('Progress').deleteMany({ student: id }),
+      mongoose.model('Review').deleteMany({ user: id }),
+      mongoose.model('Comment').deleteMany({ user: id }),
+      mongoose.model('TeacherApplication').deleteMany({ student: id }),
+      mongoose.model('PayoutRequest').deleteMany({ instructor: id }),
+    ]);
+
+    await userRepository.deleteById(id);
     return user;
   }
 }

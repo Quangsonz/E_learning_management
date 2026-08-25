@@ -3,6 +3,7 @@ import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { quizApi } from '../services/quiz.api';
 import {
   Button,
@@ -29,6 +30,7 @@ const Quiz: React.FC = () => {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { refreshProfile } = useAuth();
+  const { success: successToast, info: infoToast } = useToast();
 
   const limitParam = searchParams.get('limit');
   const limit = limitParam ? parseInt(limitParam, 10) : 10;
@@ -110,8 +112,16 @@ const Quiz: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
         refreshProfile();
 
-        setResultData(response.data.data.result);
+        const result = response.data?.data?.result;
+        setResultData(result);
         setCelebrate(true);
+
+        if (result?.passed) {
+          successToast(`Chúc mừng! Bạn đạt ${result.score}% điểm và vượt qua bài trắc nghiệm!`, 'Bài tập Quiz');
+        } else if (result) {
+          infoToast(`Bạn đạt ${result.score}% điểm. Hãy ôn tập và thử lại nhé!`, 'Kết quả Quiz');
+        }
+
         window.setTimeout(() => {
           setCelebrate(false);
           setShowResult(true);

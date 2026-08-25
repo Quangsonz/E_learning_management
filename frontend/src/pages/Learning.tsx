@@ -9,6 +9,7 @@ import { quizApi } from '../services/quiz.api';
 import { enrollmentApi } from '../services/enrollment.api';
 import { discussionApi, Discussion, Comment } from '../services/discussion.api';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { assignmentApi, Assignment, AssignmentSubmission } from '../services/assignment.api';
 import { uploadApi } from '../services/upload.api';
 import { certificateApi, Certificate } from '../services/certificate.api';
@@ -46,6 +47,7 @@ const Learning: React.FC = () => {
   const [expandedDiscussionId, setExpandedDiscussionId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const { user, refreshProfile } = useAuth();
+  const { success: successToast, error: errorToast } = useToast();
   
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
   const [practiceLimit, setPracticeLimit] = useState(10);
@@ -328,7 +330,8 @@ const Learning: React.FC = () => {
     addBookmarkMutation.mutate({ cId: courseId, lId: selectedLessonId, time: videoRef.current.currentTime, note: bookmarkNote });
   };
 
-  const getYoutubeVideoId = (url: string) => {
+  const getYoutubeVideoId = (url?: string) => {
+    if (!url || typeof url !== 'string') return null;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
     return match && match[2].length === 11 ? match[2] : null;
@@ -339,6 +342,7 @@ const Learning: React.FC = () => {
     onSuccess: () => {
       setDiscussionText('');
       queryClient.invalidateQueries({ queryKey: ['discussions', courseId, selectedLessonId] });
+      successToast('Câu hỏi/Thảo luận của bạn đã được đăng thành công!', 'Đã đăng bài');
     }
   });
 
@@ -348,6 +352,7 @@ const Learning: React.FC = () => {
       setCommentText('');
       queryClient.invalidateQueries({ queryKey: ['comments', courseId, selectedLessonId, expandedDiscussionId] });
       queryClient.invalidateQueries({ queryKey: ['discussions', courseId, selectedLessonId] });
+      successToast('Bình luận của bạn đã được đăng thành công!', 'Đã trả lời');
     }
   });
 

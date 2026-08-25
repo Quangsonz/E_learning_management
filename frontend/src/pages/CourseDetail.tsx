@@ -21,6 +21,7 @@ import useSimulatedLoading from '../hooks/useSimulatedLoading';
 import { CourseCurriculum } from '../components/course/CourseCurriculum';
 import { CourseReviews } from '../components/course/CourseReviews';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 
 type MotionDivProps = React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>;
 const MotionDiv = motion.div as unknown as React.FC<MotionDivProps>;
@@ -158,10 +159,16 @@ const CourseDetail: React.FC = () => {
     return wishlistData.data.wishlist.some((c: any) => c._id === courseId);
   }, [wishlistData, courseId]);
 
+  const { success: successToast } = useToast();
+
   const toggleWishlistMutation = useMutation({
     mutationFn: () => userApi.toggleWishlist(courseId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wishlist'] });
+      successToast(
+        isInWishlist ? 'Đã gỡ khóa học khỏi danh sách yêu thích.' : 'Đã thêm khóa học vào danh sách yêu thích thành công!',
+        isInWishlist ? 'Danh sách yêu thích' : 'Đã lưu khóa học'
+      );
     }
   });
 

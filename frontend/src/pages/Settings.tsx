@@ -24,10 +24,13 @@ import {
   Sun
 } from 'lucide-react';
 
+import { useToast } from '../contexts/ToastContext';
+
 type TabId = 'profile' | 'security' | 'notifications' | 'appearance';
 
 const Settings: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const { success: successToast } = useToast();
   const user = useSelector(selectCurrentUser);
   const dispatch = useDispatch();
 
@@ -284,8 +287,11 @@ const ProfileForm: React.FC<{
       setErrorMsg('');
       try {
         const res = await uploadApi.uploadImage(file);
-        if (res.data?.url) setAvatar(res.data.url);
-        else if (res.data?.data?.url) setAvatar(res.data.data.url);
+        const uploadedUrl = res.data?.url || res.data?.data?.url;
+        if (uploadedUrl) {
+          setAvatar(uploadedUrl);
+          successToast('Tải ảnh đại diện thành công!', 'Ảnh đại diện');
+        }
       } catch (err) {
         setErrorMsg('Tải ảnh lên thất bại. Vui lòng thử lại.');
       } finally {
@@ -300,6 +306,7 @@ const ProfileForm: React.FC<{
       setSuccessMsg('Cập nhật hồ sơ thành công!');
       setErrorMsg('');
       if (res.data?.user) dispatch(updateUser(res.data.user));
+      successToast('Đã lưu thông tin hồ sơ thành công!', 'Cài đặt');
       setTimeout(() => setSuccessMsg(''), 3000);
     },
     onError: (err: any) => {

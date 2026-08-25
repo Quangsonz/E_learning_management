@@ -32,6 +32,7 @@ const CategoryManagementTab: React.FC = () => {
     mutationFn: categoryApi.createCategory,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       closeModal();
     },
     onError: (error: any) => {
@@ -44,6 +45,7 @@ const CategoryManagementTab: React.FC = () => {
       categoryApi.updateCategory(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       closeModal();
     },
     onError: (error: any) => {
@@ -55,6 +57,7 @@ const CategoryManagementTab: React.FC = () => {
     mutationFn: categoryApi.deleteCategory,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
     }
   });
 

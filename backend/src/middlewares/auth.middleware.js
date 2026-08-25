@@ -38,6 +38,11 @@ exports.protect = catchAsync(async (req, res, next) => {
     return next(new AppError('Tài khoản sở hữu token này không còn tồn tại.', 401));
   }
 
+  // 4) Kiểm tra tài khoản có bị tạm ngưng (suspend) không
+  if (!currentUser.isActive) {
+    return next(new AppError('Tài khoản của bạn đã bị tạm ngưng. Vui lòng liên hệ Quản trị viên.', 403));
+  }
+
   // Cấp quyền truy cập, gắn thông tin user vào request
   req.user = currentUser;
   next();

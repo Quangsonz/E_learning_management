@@ -107,10 +107,8 @@ class AuthService {
     const resetToken = user.createPasswordResetToken();
     await user.save({ validateBeforeSave: false });
 
-    const protocol = req.protocol || 'http';
-    const host = req.get ? req.get('host') : 'localhost:3000';
-    // Link trỏ về frontend để user nhập mật khẩu mới
-    const resetURL = `${protocol}://${host}/reset-password?token=${resetToken}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetURL = `${frontendUrl}/reset-password?token=${resetToken}`;
     const message = `Bạn đã yêu cầu đặt lại mật khẩu.\n\nClick vào link bên dưới để đặt lại (có hiệu lực trong 10 phút):\n${resetURL}\n\nNếu bạn không yêu cầu, vui lòng bỏ qua email này.`;
 
     try {
@@ -120,10 +118,11 @@ class AuthService {
         message,
       });
     } catch (err) {
+      console.error('[AuthService] Forgot password email error:', err);
       user.passwordResetToken = undefined;
       user.passwordResetExpires = undefined;
       await user.save({ validateBeforeSave: false });
-      throw new AppError('Đã có lỗi xảy ra khi gửi email. Thử lại sau!', 500);
+      throw new AppError(`Đã có lỗi xảy ra khi gửi email: ${err.message}`, 500);
     }
   }
 

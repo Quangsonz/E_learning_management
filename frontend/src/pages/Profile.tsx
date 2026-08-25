@@ -11,6 +11,8 @@ import { enrollmentApi } from '../services/enrollment.api';
 import { certificateApi } from '../services/certificate.api';
 import { adminApi } from '../services/admin.api';
 
+import { useToast } from '../contexts/ToastContext';
+
 // ============================================================================
 // FALLBACK MOCK DATA (Hiển thị khi chưa có real data)
 // ============================================================================
@@ -109,14 +111,17 @@ const ProfileHero: React.FC = () => {
     : 'Recently';
   const streak = user?.studyStreakDays || 0;
 
+  const { success: successToast, error: errorToast } = useToast();
+
   const handleUpdateName = async (newName: string) => {
     try {
       const res = await userApi.updateMyProfile({ name: newName });
       if (res.data?.user) {
         dispatch(updateUser({ name: res.data.user.name }));
+        successToast('Đã cập nhật họ và tên thành công!', 'Tài khoản');
       }
-    } catch (err) {
-      console.error('Update name failed:', err);
+    } catch (err: any) {
+      errorToast(err.message || 'Không thể cập nhật tên', 'Lỗi');
     }
   };
 
