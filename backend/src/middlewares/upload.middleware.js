@@ -25,14 +25,19 @@ const videoFilter = (req, file, cb) => {
 exports.uploadImage = multer({
   storage: storage,
   fileFilter: imageFilter,
-  limits: { fileSize: 5 * 1024 * 1024 } // Giới hạn 5MB cho ảnh
+  limits: {
+    fileSize: 5 * 1024 * 1024, // Giới hạn 5MB cho ảnh
+    files: 5 // Tối đa 5 file ảnh cùng lúc
+  }
 });
 
 exports.uploadVideo = multer({
   storage: storage,
   fileFilter: videoFilter,
-  // Tạm để giới hạn lớn hơn cho Video (vd: 500MB)
-  limits: { fileSize: 500 * 1024 * 1024 } 
+  limits: {
+    fileSize: 500 * 1024 * 1024, // Giới hạn 500MB cho video
+    files: 1 // Tối đa 1 video mỗi lần upload
+  }
 });
 
 // Bộ lọc cho Tài liệu / Assignment (PDF, ZIP, RAR, Word, Image)
@@ -49,6 +54,8 @@ const documentFilter = (req, file, cb) => {
 exports.uploadDocument = multer({
   storage: storage,
   fileFilter: documentFilter,
-  limits: { fileSize: 20 * 1024 * 1024 } // Giới hạn 20MB cho tài liệu
+  limits: {
+    fileSize: 20 * 1024 * 1024, // Giới hạn 20MB cho tài liệu
+    files: 5 // Tối đa 5 tài liệu cùng lúc
+  }
 });
-

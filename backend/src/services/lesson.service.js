@@ -3,6 +3,8 @@ const courseRepository = require('../repositories/course.repository');
 const AppError = require('../utils/appError');
 const enrollmentRepository = require('../repositories/enrollment.repository');
 
+const uploadService = require('./upload.service');
+
 class LessonService {
   // Lấy toàn bộ bài giảng của một khóa học
   async getLessonsByCourse(courseId, user) {
@@ -33,19 +35,18 @@ class LessonService {
       console.error('Lỗi khi kiểm tra phân quyền bài giảng:', e);
     }
 
-    const lessons = await lessonRepository.find({ course: courseId });
-    const sortedLessons = lessons.sort((a, b) => (a.order || 0) - (b.order || 0));
+    const lessons = await lessonRepository.findByCourseId(courseId);
 
     if (!hasFullAccess) {
       // Chỉ trả về curriculum, giấu videoUrl
-      return sortedLessons.map(lesson => {
-        const doc = lesson.toObject ? lesson.toObject() : { ...lesson };
+      return lessons.map(lesson => {
+        const doc = { ...lesson };
         delete doc.videoUrl;
         return doc;
       });
     }
 
-    return sortedLessons;
+    return lessons;
   }
 
   async getLessonById(id, courseId, user) {
@@ -106,6 +107,15 @@ class LessonService {
 
     lessonData.course = courseId;
 
+    // Tự động phát hiện provider nếu chưa có
+    const isYouTube = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/i.test(lessonData.videoUrl || '');
+    if (!lessonData.provider) {
+      lessonData.provider = isYouTube ? 'youtube' : 'cloudinary';
+    }
+    if (isYouTube) {
+      lessonData.videoPublicId = null;
+    }
+
     // Tự động gán order nếu không truyền (lấy số bài giảng hiện có + 1)
     if (!lessonData.order) {
       const lessons = await lessonRepository.find({ course: courseId });
@@ -127,10 +137,34 @@ class LessonService {
       throw new AppError('Bạn không có quyền sửa bài giảng này', 403);
     }
 
-    const lesson = await lessonRepository.findOneAndUpdate({ _id: id, course: courseId }, updateData, { new: true, runValidators: true });
+    // Lấy thông tin bài giảng cũ trước khi cập nhật để quản lý lifecycle video
+    const existingLesson = await lessonRepository.findOne({ _id: id, course: courseId });
+    if (!existingLesson) throw new AppError('Không tìm thấy bài giảng', 404);
+
+    // Tự động phát hiện provider nếu URL thay đổi
+    if (updateData.videoUrl && !updateData.provider) {
+      const isYouTube = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/i.test(updateData.videoUrl);
+      updateData.provider = isYouTube ? 'youtube' : 'cloudinary';
+      if (isYouTube) {
+        updateData.videoPublicId = null;
+      }
+    }
+
+    // 1. Cập nhật dữ liệu vào MongoDB trước
+    const updatedLesson = await lessonRepository.findOneAndUpdate({ _id: id, course: courseId }, updateData, { new: true, runValidators: true });
     
-    if (!lesson) throw new AppError('Không tìm thấy bài giảng', 404);
-    return lesson;
+    // 2. LIFECYCLE: Xóa video cũ trên Cloudinary SAU KHI CẬP NHẬT DATABASE THÀNH CÔNG
+    const oldPublicId = existingLesson.videoPublicId;
+    const newPublicId = updateData.videoPublicId !== undefined ? updateData.videoPublicId : updatedLesson.videoPublicId;
+    const wasCloudinary = existingLesson.provider === 'cloudinary' || (existingLesson.videoUrl && !existingLesson.videoUrl.includes('youtube.com') && !existingLesson.videoUrl.includes('youtu.be'));
+
+    if (wasCloudinary && oldPublicId && oldPublicId !== newPublicId) {
+      uploadService.deleteVideo(oldPublicId).catch(err => {
+        console.error(`[Cloudinary Replacement Cleanup Error] ${err.message}`);
+      });
+    }
+
+    return updatedLesson;
   }
 
   async deleteLesson(id, courseId, user) {
@@ -145,9 +179,21 @@ class LessonService {
       throw new AppError('Bạn không có quyền xóa bài giảng này', 403);
     }
 
+    // Lấy thông tin bài giảng trước khi xóa
+    const lessonToDelete = await lessonRepository.findOne({ _id: id, course: courseId });
+    if (!lessonToDelete) throw new AppError('Không tìm thấy bài giảng', 404);
+
+    // 1. Xóa trong Database trước
     const lesson = await lessonRepository.findOneAndDelete({ _id: id, course: courseId });
-    if (!lesson) throw new AppError('Không tìm thấy bài giảng', 404);
     
+    // 2. LIFECYCLE: Xóa video trên Cloudinary SAU KHI XÓA DATABASE THÀNH CÔNG
+    const isCloudinary = lessonToDelete.provider === 'cloudinary' || (lessonToDelete.videoUrl && !lessonToDelete.videoUrl.includes('youtube.com') && !lessonToDelete.videoUrl.includes('youtu.be'));
+    if (isCloudinary && lessonToDelete.videoPublicId) {
+      uploadService.deleteVideo(lessonToDelete.videoPublicId).catch(err => {
+        console.error(`[Cloudinary Deletion Cleanup Error] ${err.message}`);
+      });
+    }
+
     return lesson;
   }
 

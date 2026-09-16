@@ -4,6 +4,7 @@ import { lessonApi } from '../../services/lesson.api';
 import { Button, Modal, EmptyState, ConfirmModal } from '../ui';
 import { Input } from '../ui/Input';
 import { LessonQuestionManager } from './LessonQuestionManager';
+import { useLocalizedValue } from '../../utils/localized';
 
 type LessonManagerProps = {
   courseId: string;
@@ -12,6 +13,7 @@ type LessonManagerProps = {
 };
 
 export const LessonManager: React.FC<LessonManagerProps> = ({ courseId, courseTitle, onClose }) => {
+  const lv = useLocalizedValue();
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -91,21 +93,21 @@ export const LessonManager: React.FC<LessonManagerProps> = ({ courseId, courseTi
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-medium text-slate-500">{index + 1}</span>
                     <div>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{lesson.title}</p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{lv(lesson.title)}</p>
                       <p className="text-xs text-slate-500 truncate max-w-[200px] sm:max-w-[300px]">{lesson.videoUrl}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
                       className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-md transition-colors text-xs font-semibold"
-                      onClick={() => setActiveQuestionLesson({ id: lesson._id, title: lesson.title })}
+                      onClick={() => setActiveQuestionLesson({ id: lesson._id, title: lv(lesson.title) })}
                       title="Manage questions for this lesson"
                     >
                       Questions
                     </button>
                     <button 
                       className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-md transition-colors"
-                      onClick={() => setDeleteTarget({ id: lesson._id, title: lesson.title })}
+                      onClick={() => setDeleteTarget({ id: lesson._id, title: lv(lesson.title) })}
                       title="Delete lesson"
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2 2h4a2 2 0 0 1 2 2v2"/></svg>

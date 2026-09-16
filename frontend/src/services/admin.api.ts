@@ -96,5 +96,13 @@ export const adminApi = {
     const response = await axiosInstance.get('/admin/teacher-applications/my-status');
     return response.data;
   },
+
+  /**
+   * Admin lấy số lượng tác vụ cần duyệt (Action Center) - GET /api/admin/pending-counts
+   */
+  getPendingCounts: async (): Promise<any> => {
+    const response = await axiosInstance.get('/admin/pending-counts');
+    return response.data;
+  },
 };
 

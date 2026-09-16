@@ -6,9 +6,10 @@ class LessonRepository extends BaseRepository {
     super(Lesson);
   }
 
-  // Override đềElấy bài giảng theo Course ID và sắp xếp theo order
+  // Override để lấy bài giảng theo Course ID và sắp xếp theo order
   async findByCourseId(courseId) {
-    return await this.model.find({ course }).sort({ order: 1 });
+    if (!courseId) return [];
+    return await this.model.find({ course: courseId }).sort({ order: 1 }).lean();
   }
 }
 

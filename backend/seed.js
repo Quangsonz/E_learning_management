@@ -38,12 +38,14 @@ async function seed() {
       AuditLog.deleteMany()
     ]);
 
-    // 2. Tạo Users (Mật khẩu chung: password123)
+    // 2. Tạo Users (Mật khẩu cấu hình qua SEED_DEFAULT_PASSWORD hoặc mặc định dev)
     console.log('🌱 Seeding Users...');
+    const defaultPassword = process.env.SEED_DEFAULT_PASSWORD || 'password123';
+
     const admin = await User.create({
       name: 'System Admin',
       email: 'admin@elearning.com',
-      password: 'password123',
+      password: defaultPassword,
       role: 'admin',
       avatar: 'https://i.pravatar.cc/150?u=admin',
       isVerified: true
@@ -52,7 +54,7 @@ async function seed() {
     const teacherA = await User.create({
       name: 'Sarah Johnson',
       email: 'sarah@elearning.com',
-      password: 'password123',
+      password: defaultPassword,
       role: 'teacher',
       avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&q=80',
       isVerified: true
@@ -61,7 +63,7 @@ async function seed() {
     const teacherB = await User.create({
       name: 'Michael Chen',
       email: 'michael@elearning.com',
-      password: 'password123',
+      password: defaultPassword,
       role: 'teacher',
       avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=500&q=80',
       isVerified: true
@@ -71,7 +73,7 @@ async function seed() {
     const student1 = await User.create({
       name: 'Alex Developer',
       email: 'alex@student.com',
-      password: 'password123',
+      password: defaultPassword,
       role: 'student',
       avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&q=80',
       isVerified: true,
@@ -89,7 +91,7 @@ async function seed() {
     const student2 = await User.create({
       name: 'Emma Design',
       email: 'emma@student.com',
-      password: 'password123',
+      password: defaultPassword,
       role: 'student',
       avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&q=80',
       isVerified: true,
@@ -103,7 +105,7 @@ async function seed() {
     const student3 = await User.create({
       name: 'David Inactive',
       email: 'david@student.com',
-      password: 'password123',
+      password: defaultPassword,
       role: 'student',
       avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=500&q=80',
       isVerified: true
@@ -111,10 +113,22 @@ async function seed() {
 
     // 3. Tạo Categories
     console.log('🌱 Seeding Categories...');
-    const catWeb = await Category.create({ name: 'Lập trình Web', slug: 'lap-trinh-web' });
-    const catDesign = await Category.create({ name: 'UI/UX Design', slug: 'ui-ux-design' });
-    const catData = await Category.create({ name: 'Khoa học dữ liệu', slug: 'khoa-hoc-du-lieu' });
-    const catBiz = await Category.create({ name: 'Marketing & Kinh doanh', slug: 'marketing-kinh-doanh' });
+    const catWeb = await Category.create({ 
+      name: { vi: 'Lập trình Web', en: 'Web Development' }, 
+      slug: 'lap-trinh-web' 
+    });
+    const catDesign = await Category.create({ 
+      name: { vi: 'Thiết kế UI/UX', en: 'UI/UX Design' }, 
+      slug: 'ui-ux-design' 
+    });
+    const catData = await Category.create({ 
+      name: { vi: 'Khoa học dữ liệu', en: 'Data Science' }, 
+      slug: 'khoa-hoc-du-lieu' 
+    });
+    const catBiz = await Category.create({ 
+      name: { vi: 'Marketing & Kinh doanh', en: 'Marketing & Business' }, 
+      slug: 'marketing-kinh-doanh' 
+    });
 
     // Cập nhật sở thích (Preferences) cho Student 1
     student1.preferences = [catWeb._id, catDesign._id];
@@ -123,8 +137,11 @@ async function seed() {
     // 4. Tạo Courses
     console.log('🌱 Seeding Courses...');
     const courseReact = await Course.create({
-      title: 'React.js Zero to Hero 2026',
-      description: 'Khóa học React.js toàn diện nhất từ cơ bản đến nâng cao. Xây dựng ứng dụng thực tế với Redux, React Query, và Hooks.',
+      title: { vi: 'React.js từ số 0 đến Master 2026', en: 'React.js Zero to Hero 2026' },
+      description: {
+        vi: 'Khóa học React.js toàn diện nhất từ cơ bản đến nâng cao. Xây dựng ứng dụng thực tế với Redux, React Query, và Hooks.',
+        en: 'The most comprehensive React.js course from basic to advanced. Build real-world apps with Redux, React Query, and Hooks.'
+      },
       price: 599000,
       instructor: teacherA._id,
       category: catWeb._id,
@@ -134,8 +151,11 @@ async function seed() {
     });
 
     const courseUIUX = await Course.create({
-      title: 'UI/UX Masterclass: Thiết kế ứng dụng triệu đô',
-      description: 'Học cách thiết kế trải nghiệm người dùng tuyệt vời với Figma. Quy trình từ wireframe đến prototype hoàn chỉnh.',
+      title: { vi: 'UI/UX Masterclass: Thiết kế ứng dụng triệu đô', en: 'UI/UX Masterclass: Designing Million Dollar Apps' },
+      description: {
+        vi: 'Học cách thiết kế trải nghiệm người dùng tuyệt vời với Figma. Quy trình từ wireframe đến prototype hoàn chỉnh.',
+        en: 'Learn how to design great user experiences with Figma. Workflow from wireframe to complete prototype.'
+      },
       price: 799000,
       instructor: teacherB._id,
       category: catDesign._id,
@@ -268,9 +288,9 @@ async function seed() {
     // 5. Tạo Lessons
     console.log('🌱 Seeding Lessons...');
     const reactLessons = await Lesson.insertMany([
-      { course: courseReact._id, title: 'Chương 1: Giới thiệu về React.js', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 1 },
-      { course: courseReact._id, title: 'Chương 1: Cài đặt môi trường', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 2 },
-      { course: courseReact._id, title: 'Chương 2: JSX và Components', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 3 },
+      { course: courseReact._id, title: { vi: 'Chương 1: Giới thiệu về React.js', en: 'Chapter 1: Introduction to React.js' }, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 1 },
+      { course: courseReact._id, title: { vi: 'Chương 1: Cài đặt môi trường', en: 'Chapter 1: Environment Setup' }, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 2 },
+      { course: courseReact._id, title: { vi: 'Chương 2: JSX và Components', en: 'Chapter 2: JSX and Components' }, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 3 },
       { course: courseReact._id, title: 'Chương 2: State và Props', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 4 },
       { course: courseReact._id, title: 'Chương 3: React Hooks (useState & useEffect)', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 5 },
       { course: courseReact._id, title: 'Chương 3: Custom Hooks', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', duration: 10, order: 6 },
@@ -321,7 +341,7 @@ async function seed() {
     console.log('🌱 Seeding Quizzes...');
     const quizReact = await Quiz.create({
       course: courseReact._id,
-      title: 'Kiểm tra giữa kỳ: Hooks & Components',
+      title: { vi: 'Kiểm tra giữa kỳ: Hooks & Components', en: 'Midterm Exam: Hooks & Components' },
       passingScore: 70,
       timeLimit: 30,
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 ngày tới

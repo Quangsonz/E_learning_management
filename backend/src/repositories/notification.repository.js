@@ -6,9 +6,9 @@ class NotificationRepository extends BaseRepository {
     super(Notification);
   }
 
-  // Lấy danh sách thông báo theo ID người nhận
-  async findByRecipient(userId) {
-    return await this.model.find({ recipient: userId }).sort({ createdAt: -1 });
+  // Lấy danh sách thông báo theo ID người nhận (tối ưu lean + index)
+  async findByRecipient(userId, limit = 50) {
+    return await this.model.find({ recipient: userId }).sort({ createdAt: -1 }).limit(limit).lean();
   }
 
   // Lấy các thông báo chưa đọc

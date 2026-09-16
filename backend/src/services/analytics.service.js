@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Enrollment = require('../models/Enrollment');
 const Course = require('../models/Course');
 const User = require('../models/User');
@@ -195,7 +196,8 @@ class AnalyticsService {
       .sort({ createdAt: -1 })
       .limit(limit)
       .populate('student', 'name email avatar')
-      .populate('course', 'title');
+      .populate('course', 'title')
+      .lean();
   }
 
   // ==================================================
@@ -226,9 +228,8 @@ class AnalyticsService {
   }
 
   async _getTeacherOverview(teacherId) {
-    // Tìm tất cả khóa học của giảng viên này
-    const courses = await Course.find({ instructor: teacherId });
-    const courseIds = courses.map(c => c._id);
+    // Tìm tất cả ID khóa học của giảng viên này (dùng distinct tránh pre-find populate thừa)
+    const courseIds = await Course.distinct('_id', { instructor: teacherId });
 
     const [
       totalCourses,
@@ -254,8 +255,12 @@ class AnalyticsService {
   }
 
   async _getTeacherCourseStats(teacherId) {
+    const instructorId = mongoose.Types.ObjectId.isValid(teacherId)
+      ? new mongoose.Types.ObjectId(teacherId)
+      : teacherId;
+
     return await Course.aggregate([
-      { $match: { instructor: teacherId } },
+      { $match: { instructor: instructorId } },
       {
         $lookup: {
           from: 'enrollments',
@@ -280,6 +285,7 @@ class AnalyticsService {
           estimatedPrice: 1,
           discountPercentage: 1,
           thumbnail: 1,
+          thumbnailUrl: 1,
           enrollmentCount: { $size: '$enrollments' },
           avgProgress: {
             $avg: '$progresses.progressPercentage'
@@ -291,7 +297,10 @@ class AnalyticsService {
   }
 
   async _getTeacherMonthlyEnrollments(teacherId) {
-    const courses = await Course.find({ instructor: teacherId }, '_id');
+    const instructorId = mongoose.Types.ObjectId.isValid(teacherId)
+      ? new mongoose.Types.ObjectId(teacherId)
+      : teacherId;
+    const courses = await Course.find({ instructor: instructorId }, '_id');
     const courseIds = courses.map(c => c._id);
     const currentYear = new Date().getFullYear();
 
@@ -332,6 +341,10 @@ class AnalyticsService {
   }
 
   async _getTeacherQuizStats(teacherId) {
+    const instructorId = mongoose.Types.ObjectId.isValid(teacherId)
+      ? new mongoose.Types.ObjectId(teacherId)
+      : teacherId;
+
     return await Result.aggregate([
       {
         $lookup: {
@@ -352,36 +365,56 @@ class AnalyticsService {
       },
       { $unwind: '$course' },
       {
-        $match: { 'course.instructor': teacherId }
+        $match: {
+          'course.instructor': instructorId
+        }
       },
       {
         $group: {
           _id: '$quiz._id',
           quizTitle: { $first: '$quiz.title' },
           totalAttempts: { $sum: 1 },
-          avgScore: { $avg: '$scorePercentage' },
-          passCount: { $sum: { $cond: ['$isPassed', 1, 0] } }
+          passedCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'passed'] }, 1, 0] }
+          },
+          avgScore: { $avg: '$score' }
         }
       },
       {
         $project: {
-          _id: 0,
+          _id: 1,
           quizTitle: 1,
           totalAttempts: 1,
-          avgScore: { $round: ['$avgScore', 1] },
+          passedCount: 1,
           passRate: {
-            $round: [
-              { $multiply: [{ $divide: ['$passCount', '$totalAttempts'] }, 100] },
-              1
+            $cond: [
+              { $gt: ['$totalAttempts', 0] },
+              {
+                $round: [
+                  {
+                    $multiply: [
+                      { $divide: ['$passedCount', '$totalAttempts'] },
+                      100
+                    ]
+                  },
+                  1
+                ]
+              },
+              0
             ]
-          }
+          },
+          avgScore: { $round: ['$avgScore', 1] }
         }
-      }
+      },
+      { $sort: { totalAttempts: -1 } }
     ]);
   }
 
   async _getTeacherDropOffAnalysis(teacherId) {
-    const courses = await Course.find({ instructor: teacherId }, '_id');
+    const instructorId = mongoose.Types.ObjectId.isValid(teacherId)
+      ? new mongoose.Types.ObjectId(teacherId)
+      : teacherId;
+    const courses = await Course.find({ instructor: instructorId }, '_id');
     const courseIds = courses.map(c => c._id);
 
     return await Progress.aggregate([
@@ -439,7 +472,8 @@ class AnalyticsService {
         .skip(skip)
         .limit(limitNum)
         .populate('user', 'name email avatar')
-        .populate('course', 'title price'),
+        .populate('course', 'title price')
+        .lean(),
       Order.countDocuments(filter),
       Order.aggregate([
         { $match: { status: 'paid' } },

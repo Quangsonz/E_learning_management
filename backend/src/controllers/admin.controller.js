@@ -74,7 +74,8 @@ class AdminController {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
-        .populate('student', 'name email avatar'),
+        .populate('student', 'name email avatar')
+        .lean(),
       TeacherApplication.countDocuments(filter)
     ]);
 
@@ -150,7 +151,8 @@ class AdminController {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
-        .populate('actor', 'name email role avatar'),
+        .populate('actor', 'name email role avatar')
+        .lean(),
       AuditLog.countDocuments(filter)
     ]);
 
@@ -182,7 +184,8 @@ class AdminController {
       Course.find(filter)
         .sort({ updatedAt: -1 })
         .skip(skip)
-        .limit(limitNum),
+        .limit(limitNum)
+        .lean(),
       Course.countDocuments(filter)
     ]);
 
@@ -243,7 +246,8 @@ class AdminController {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
-        .populate('instructor', 'name email avatar'),
+        .populate('instructor', 'name email avatar')
+        .lean(),
       PayoutRequest.countDocuments(filter)
     ]);
 
@@ -290,6 +294,29 @@ class AdminController {
       data: { payout }
     });
   });
+
+  /**
+   * GET /api/admin/pending-counts
+   * Lấy số lượng các tác vụ cần phê duyệt (Action Center) siêu nhẹ và nhanh
+   */
+  getPendingCounts = catchAsync(async (req, res, next) => {
+    const [pendingCourses, pendingApplications, pendingPayouts] = await Promise.all([
+      Course.countDocuments({ status: 'pending_review' }),
+      TeacherApplication.countDocuments({ status: 'pending' }),
+      PayoutRequest.countDocuments({ status: 'pending' }),
+    ]);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        pendingCourses,
+        pendingApplications,
+        pendingPayouts,
+        totalPending: pendingCourses + pendingApplications + pendingPayouts
+      }
+    });
+  });
 }
 
 module.exports = new AdminController();
+

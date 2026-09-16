@@ -11,5 +11,9 @@ const enrollmentSchema = new mongoose.Schema({
 enrollmentSchema.index({ student: 1, course: 1 }, { unique: true });
 enrollmentSchema.index({ course: 1, paymentStatus: 1 });
 enrollmentSchema.index({ student: 1, paymentStatus: 1 });
+// Indexes tối ưu hóa truy vấn phân tích (Recent enrollments & Doanh thu theo tháng)
+enrollmentSchema.index({ createdAt: -1 });
+enrollmentSchema.index({ paymentStatus: 1, createdAt: 1 });
 
 module.exports = mongoose.model('Enrollment', enrollmentSchema);
+

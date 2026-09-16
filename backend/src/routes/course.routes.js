@@ -3,6 +3,8 @@ const courseController = require('../controllers/course.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
 const { requireRole } = require('../middlewares/roleMiddleware');
 const { requirePermission } = require('../middlewares/permissionMiddleware');
+const validate = require('../middlewares/validate.middleware');
+const courseValidation = require('../validations/course.validation');
 const lessonRoutes = require('./lesson.routes');
 
 const router = express.Router();
@@ -77,7 +79,7 @@ router.get('/recommendations', authMiddleware.optionalProtect, courseController.
  *       400:
  *         description: Tiêu đề đã tồn tại
  */
-router.get('/', authMiddleware.optionalProtect, courseController.getAllCourses);
+router.get('/', validate(courseValidation.queryCourses), authMiddleware.optionalProtect, courseController.getAllCourses);
 
 /**
  * @swagger
@@ -91,7 +93,7 @@ router.get('/', authMiddleware.optionalProtect, courseController.getAllCourses);
  */
 router.get('/my-courses', authMiddleware.protect, requireRole('teacher', 'admin'), courseController.getMyCourses);
 
-router.get('/:id', authMiddleware.optionalProtect, courseController.getCourse);
+router.get('/:id', validate(courseValidation.getCourse), authMiddleware.optionalProtect, courseController.getCourse);
 
 router.use(authMiddleware.protect);
 
@@ -99,7 +101,7 @@ router.use(authMiddleware.protect);
 
 router.use(requireRole('admin', 'teacher'));
 
-router.post('/', requirePermission('create_course'), courseController.createCourse);
+router.post('/', requirePermission('create_course'), validate(courseValidation.createCourse), courseController.createCourse);
 
 /**
  * @swagger
@@ -164,8 +166,8 @@ router.post('/', requirePermission('create_course'), courseController.createCour
  */
 router
   .route('/:id')
-  .patch(requirePermission('edit_own_course'), courseController.updateCourse)
-  .delete(requirePermission('delete_own_course'), courseController.deleteCourse);
+  .patch(requirePermission('edit_own_course'), validate(courseValidation.updateCourse), courseController.updateCourse)
+  .delete(requirePermission('delete_own_course'), validate(courseValidation.getCourse), courseController.deleteCourse);
 
 /**
  * @swagger
@@ -199,6 +201,6 @@ router
  */
 const auditMiddleware = require('../middlewares/auditLog.middleware');
 
-router.patch('/:id/approve', requireRole('admin'), requirePermission('approve_courses'), auditMiddleware.logAdminAction('COURSE_APPROVE', 'Course'), courseController.approveCourse);
+router.patch('/:id/approve', requireRole('admin'), requirePermission('approve_courses'), validate(courseValidation.approveCourse), auditMiddleware.logAdminAction('COURSE_APPROVE', 'Course'), courseController.approveCourse);
 
 module.exports = router;

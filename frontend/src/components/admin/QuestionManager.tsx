@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { quizApi } from '../../services/quiz.api';
 import { Button, Modal, EmptyState, ConfirmModal } from '../ui';
 import { Input } from '../ui/Input';
+import { useLocalizedValue } from '../../utils/localized';
 
 type QuestionManagerProps = {
   quizId: string;
@@ -11,6 +12,7 @@ type QuestionManagerProps = {
 };
 
 export const QuestionManager: React.FC<QuestionManagerProps> = ({ quizId, quizTitle, onClose }) => {
+  const lv = useLocalizedValue();
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [text, setText] = useState('');
@@ -198,18 +200,18 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({ quizId, quizTi
                     <span className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-500">{index + 1}</span>
                     <div className="space-y-2 w-full">
                       <div className="flex justify-between items-start gap-2">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white leading-relaxed">{question.text}</p>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white leading-relaxed">{lv(question.text)}</p>
                         <div className="flex gap-1.5 shrink-0">
                           <button
                             type="button"
                             className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
                             onClick={() => {
                               setEditingQuestionId(question._id);
-                              setText(question.text);
+                              setText(lv(question.text));
                               setPoints(question.points.toString());
-                              setExplanation(question.explanation || '');
+                              setExplanation(lv(question.explanation) || '');
                               setOptions(question.options.map((opt: any) => ({
-                                text: opt.text,
+                                text: lv(opt.text),
                                 isCorrect: !!opt.isCorrect
                               })));
                               setFormOpen(true);
@@ -225,13 +227,13 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({ quizId, quizTi
                              type="button"
                              className="p-1 text-slate-400 hover:text-rose-500 transition-colors"
                              onClick={() => {
-                               setDeleteTarget({ id: question._id, text: question.text });
+                               setDeleteTarget({ id: question._id, text: lv(question.text) });
                              }}
                              title="Delete Question"
                            >
                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                <polyline points="3 6 5 6 21 6"></polyline>
-                               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2 2h4a2 2 0 0 1 2 2v2"></path>
                              </svg>
                            </button>
                         </div>
@@ -239,11 +241,11 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({ quizId, quizTi
                       <div className="grid gap-1.5">
                         {question.options.map((opt: any, i: number) => (
                           <div key={opt._id || i} className={`text-xs p-2 rounded-lg border ${opt.isCorrect ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-300' : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'}`}>
-                            {opt.text} {opt.isCorrect && '✓'}
+                            {lv(opt.text)} {opt.isCorrect && '✓'}
                           </div>
                         ))}
                       </div>
-                      <p className="text-xs text-slate-400">Points: {question.points} {question.explanation && `• Explanation: ${question.explanation}`}</p>
+                      <p className="text-xs text-slate-400">Points: {question.points} {question.explanation && `• Explanation: ${lv(question.explanation)}`}</p>
                     </div>
                   </div>
                 </div>

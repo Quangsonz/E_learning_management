@@ -35,6 +35,25 @@ vi.mock('../../contexts/ToastContext', () => ({
   ToastProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+// Mock react-i18next
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const dict: Record<string, string> = {
+        'auth.login.emailLabel': 'Email Address',
+        'auth.login.passwordLabel': 'Password',
+        'auth.login.submit': 'Sign In',
+        'auth.login.submitting': 'Signing in...',
+      };
+      return dict[key] || key;
+    },
+    i18n: {
+      changeLanguage: () => Promise.resolve(),
+      language: 'en',
+    },
+  }),
+}));
+
 // Setup a mock store
 const createMockStore = () => configureStore({
   reducer: { auth: authReducer },

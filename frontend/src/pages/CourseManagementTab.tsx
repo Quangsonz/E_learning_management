@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import {
   Button,
@@ -13,12 +14,16 @@ import {
 } from '../components/ui';
 import { Input } from '../components/ui/Input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { courseApi } from '../services/course.api';
 import { categoryApi } from '../services/category.api';
 import { userApi } from '../services/user.api';
+import { analyticsApi } from '../services/analytics.api';
+import { adminApi } from '../services/admin.api';
 import { LessonManager } from '../components/admin/LessonManager';
 import { QuizManager } from '../components/admin/QuizManager';
 import { useNavigate } from 'react-router-dom';
+import { useLocalizedValue } from '../utils/localized';
 
 type CourseStatus = 'draft' | 'published';
 
@@ -68,18 +73,20 @@ const statusTone: Record<string, string> = {
   published: 'status-badge-success'
 };
 
-const stepList = ['Draft', 'Publish'];
-
 interface CourseManagementTabProps {
   teacherMode?: boolean;
 }
 
 const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode = false }) => {
+  const { t } = useTranslation();
+  const lv = useLocalizedValue();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+
+  const stepList = [t('admin.courseManagement.draftStep'), t('admin.courseManagement.publishStep')];
 
   const { data: responseData, isLoading } = useQuery({
     queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses', page, search, selectedCategory],
@@ -102,6 +109,20 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
     enabled: !teacherMode
   });
 
+  const { data: analyticsData } = useQuery({
+    queryKey: ['admin-analytics'],
+    queryFn: analyticsApi.getAdminDashboard,
+    enabled: !teacherMode,
+    staleTime: 60000
+  });
+
+  const { data: pendingCountsData } = useQuery({
+    queryKey: ['admin-pending-counts'],
+    queryFn: adminApi.getPendingCounts,
+    enabled: !teacherMode,
+    staleTime: 60000
+  });
+
   const categoriesData = useMemo(() => categoryData?.data?.categories || [], [categoryData]);
   const teachers = useMemo(() => teacherData?.data?.users || [], [teacherData]);
 
@@ -109,9 +130,9 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
     if (!responseData?.data?.courses) return [];
     return responseData.data.courses.map((course: any) => ({
       id: course._id,
-      title: course.title,
+      title: lv(course.title),
       categoryId: course.category?._id || '',
-      categoryName: course.category?.name || 'Uncategorized',
+      categoryName: lv(course.category?.name) || 'Uncategorized',
       lessons: course.lessonsCount || 0,
       price: Number(course.price) || 0,
       estimatedPrice: Number(course.estimatedPrice || course.price) || 0,
@@ -187,18 +208,32 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
   };
 
   const summary = useMemo(() => {
+    if (!teacherMode && analyticsData?.data?.overview) {
+      const ov = analyticsData.data.overview;
+      const pc = pendingCountsData?.data || {};
+      const totalCoursesDb = responseData?.data?.total || ov.totalCourses || 0;
+      const publishedCount = ov.totalCourses || 0;
+      const reviewCount = pc.pendingCourses || 0;
+      const draftCount = Math.max(0, totalCoursesDb - publishedCount);
+      return {
+        published: publishedCount,
+        review: reviewCount,
+        draft: draftCount,
+        revenue: ov.totalRevenue || 0
+      };
+    }
     const published = courses.filter((course) => course.status === 'published').length;
     const review = 0;
     const draft = courses.filter((course) => course.status === 'draft').length;
     const revenue = courses.reduce((sum, course) => sum + course.price * course.students, 0);
     return { published, review, draft, revenue };
-  }, [courses]);
+  }, [courses, teacherMode, analyticsData, pendingCountsData, responseData]);
 
   const metrics = [
-    { label: 'Total Revenue', value: `${summary.revenue.toLocaleString('vi-VN')}đ`, delta: '+12.4%' },
-    { label: 'Published', value: summary.published.toString(), delta: 'Live courses' },
-    { label: 'In Review', value: summary.review.toString(), delta: 'Needs approval' },
-    { label: 'Drafts', value: summary.draft.toString(), delta: 'Ready to publish' }
+    { label: t('admin.courseManagement.metrics.totalRevenue'), value: `${summary.revenue.toLocaleString('vi-VN')}đ`, delta: '+12.4%' },
+    { label: t('admin.courseManagement.metrics.published'), value: summary.published.toString(), delta: t('admin.courseManagement.metrics.liveCourses') },
+    { label: t('admin.courseManagement.metrics.inReview'), value: summary.review.toString(), delta: t('admin.courseManagement.metrics.needsApproval') },
+    { label: t('admin.courseManagement.metrics.drafts'), value: summary.draft.toString(), delta: t('admin.courseManagement.metrics.readyToPublish') }
   ];
 
   const openCreate = () => {
@@ -227,7 +262,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
-      setToast('Course created successfully.');
+      setToast(t('admin.courseManagement.createdSuccess'));
       setCreateOpen(false);
     },
     onError: (error: any) => {
@@ -240,7 +275,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
-      setToast('Course updated successfully.');
+      setToast(t('admin.courseManagement.updatedSuccess'));
       setEditOpen(false);
       setEditingCourse(null);
     },
@@ -257,10 +292,10 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       queryClient.invalidateQueries({ queryKey: ['courses'] });
       queryClient.invalidateQueries({ queryKey: ['admin-moderation-courses'] });
       queryClient.invalidateQueries({ queryKey: ['admin-analytics'] });
-      setToast(vars.status === 'published' ? 'Khóa học đã được xuất bản.' : 'Khóa học đã thu hồi về Draft.');
+      setToast(vars.status === 'published' ? t('admin.courseManagement.publishedSuccess') : t('admin.courseManagement.withdrawnDraft'));
     },
     onError: (error: any) => {
-      setToast(error.response?.data?.message || 'Không thể thay đổi trạng thái khóa học.');
+      setToast(error.response?.data?.message || t('admin.courseManagement.statusChangeFailed'));
     }
   });
 
@@ -268,15 +303,15 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
 
   const saveCourse = () => {
     if (!form.title.trim()) {
-      setToast('Title is required');
+      setToast(t('admin.courseManagement.titleRequired'));
       return;
     }
     if (!form.categoryId) {
-      setToast('Category is required');
+      setToast(t('admin.courseManagement.categoryRequired'));
       return;
     }
     if (!form.description.trim()) {
-      setToast('Description is required');
+      setToast(t('admin.courseManagement.descriptionRequired'));
       return;
     }
 
@@ -319,17 +354,34 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-         <div>
-           <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Course Management</h2>
-           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Create, edit, publish and approve platform courses.</p>
-         </div>
-         <div className="flex items-center gap-3">
-            <Button onClick={openCreate}>Create course</Button>
-         </div>
-      </div>
+      {!teacherMode && (
+        <>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">{t('admin.courseManagement.title')}</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t('admin.courseManagement.subtitle')}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button onClick={openCreate}>{t('admin.courseManagement.createBtn')}</Button>
+            </div>
+          </div>
 
-      <MetricsSurface metrics={metrics} />
+          <MetricsSurface metrics={metrics} />
+        </>
+      )}
+
+      {teacherMode && (
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {t('teacher.courses.myCoursesTitle', 'Danh sách khóa học của bạn')}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              {t('teacher.courses.myCoursesSubtitle', 'Quản lý bài giảng, biên tập giáo trình và theo dõi học viên đăng ký.')}
+            </p>
+          </div>
+        </div>
+      )}
 
       <FilterBar>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -337,7 +389,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
             type="search"
             value={search}
             onChange={(event) => { setSearch(event.target.value); setPage(1); }}
-            placeholder="Search courses..."
+            placeholder={t('admin.courseManagement.searchPlaceholder')}
             icon={
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 <path
@@ -354,7 +406,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
           />
 
           <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:justify-end hide-scrollbar">
-            {[{ _id: 'All', name: 'All' }, ...categoriesData].map((category) => {
+            {[{ _id: 'All', name: t('admin.users.tabAll') }, ...categoriesData].map((category) => {
               const isActive = selectedCategory === category._id;
               return (
                 <button
@@ -368,7 +420,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                     isActive ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/50'
                   }`}
                 >
-                  {category.name}
+                  {lv(category.name)}
                 </button>
               );
             })}
@@ -378,10 +430,54 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
 
       <section>
         <SectionLead
-          label="Course catalog"
-          title="All courses"
-          meta={<span className="text-sm tabular-nums text-slate-400">Page {page} of {totalPages}</span>}
+          label={t('admin.courseManagement.catalogLabel')}
+          title={t('admin.courseManagement.allCoursesTitle')}
+          meta={<span className="text-sm tabular-nums text-slate-400">{t('admin.courseManagement.pageOf', { page, total: totalPages })}</span>}
         />
+
+        {selectedCourseIds.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="mt-4 px-4 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/50 flex flex-wrap items-center justify-between gap-3 shadow-sm"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                {t('admin.courseManagement.selectedItems', { count: selectedCourseIds.size, defaultValue: `Đã chọn ${selectedCourseIds.size} khóa học` })}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  Array.from(selectedCourseIds).forEach(id => approveMutation.mutate({ id, status: 'published' }));
+                  setSelectedCourseIds(new Set());
+                }}
+                className="px-3 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors shadow-sm cursor-pointer"
+              >
+                {t('admin.courseManagement.bulkPublish', 'Duyệt xuất bản')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  Array.from(selectedCourseIds).forEach(id => approveMutation.mutate({ id, status: 'draft' }));
+                  setSelectedCourseIds(new Set());
+                }}
+                className="px-3 py-1.5 text-xs font-bold bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-700 dark:text-slate-200 rounded-lg transition-colors cursor-pointer"
+              >
+                {t('admin.courseManagement.bulkDraft', 'Chuyển về Draft')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCourseIds(new Set())}
+                className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 px-2 py-1 cursor-pointer"
+              >
+                {t('admin.courseManagement.clearSelection', 'Bỏ chọn')}
+              </button>
+            </div>
+          </motion.div>
+        )}
 
         <div className="canvas-surface mt-5 overflow-hidden">
           {isLoading ? (
@@ -401,21 +497,21 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                         />
                       </th>
                       <th className="px-5 py-4 cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('title')}>
-                        Course {sortConfig?.key === 'title' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
+                        {t('admin.courseManagement.thCourse')} {sortConfig?.key === 'title' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
                       </th>
                       <th className="px-5 py-4 cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('lessons')}>
-                        Lessons {sortConfig?.key === 'lessons' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
+                        {t('admin.courseManagement.thLessons')} {sortConfig?.key === 'lessons' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
                       </th>
                       <th className="px-5 py-4 cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('price')}>
-                        Price {sortConfig?.key === 'price' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
+                        {t('admin.courseManagement.thPrice')} {sortConfig?.key === 'price' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
                       </th>
                       <th className="px-5 py-4 cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('students')}>
-                        Students {sortConfig?.key === 'students' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
+                        {t('admin.courseManagement.thStudents')} {sortConfig?.key === 'students' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
                       </th>
                       <th className="px-5 py-4 cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors" onClick={() => handleSort('status')}>
-                        Status {sortConfig?.key === 'status' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
+                        {t('admin.courseManagement.thStatus')} {sortConfig?.key === 'status' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : <span className="opacity-0 group-hover:opacity-30">↕</span>}
                       </th>
-                      <th className="px-5 py-4 text-right">Actions</th>
+                      <th className="px-5 py-4 text-right">{t('admin.courseManagement.thActions')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200/60">
@@ -463,7 +559,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                           <td className="px-5 py-4">{course.students.toLocaleString('vi-VN')}</td>
                           <td className="px-5 py-4">
                             <div className="flex flex-col items-start gap-1">
-                              <span className={`status-badge ${statusTone[course.status]}`}>{course.status}</span>
+                              <span className={`status-badge ${statusTone[course.status]} capitalize font-medium`}>{course.status}</span>
                               <span className="text-[10px] text-slate-400">{course.updatedAt}</span>
                             </div>
                           </td>
@@ -475,21 +571,21 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                                   className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                   onClick={() => navigate(`/teacher/courses/${course.id}/curriculum`)}
                                 >
-                                  Manage Lessons
+                                  {t('admin.courseManagement.manageLessons')}
                                 </button>
                                 <button
                                   type="button"
                                   className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                   onClick={() => setManagingQuizzesCourse(course)}
                                 >
-                                  Manage Quizzes
+                                  {t('admin.courseManagement.manageQuizzes')}
                                 </button>
                                 <button
                                   type="button"
                                   className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                   onClick={() => openEdit(course)}
                                 >
-                                  Edit Details
+                                  {t('admin.courseManagement.editDetails')}
                                 </button>
                                 {/* Approve/Reject — chỉ admin */}
                                 {!teacherMode && (
@@ -502,7 +598,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                                     }`}
                                     onClick={() => setApproveConfirm({ id: course.id, currentStatus: course.status })}
                                   >
-                                    {course.status === 'published' ? 'Unpublish Course' : 'Approve Course'}
+                                    {course.status === 'published' ? t('admin.courseManagement.unpublishCourse') : t('admin.courseManagement.approveCourse')}
                                   </button>
                                 )}
                                 {teacherMode && (
@@ -511,7 +607,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                                     className="w-full text-left px-4 py-2 text-xs font-semibold text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
                                     onClick={() => openPublish(course)}
                                   >
-                                    Publish Course
+                                    {t('admin.courseManagement.publishCourse')}
                                   </button>
                                 )}
                               </ActionDropdown>
@@ -532,29 +628,29 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                         🚀
                       </div>
                       <div className="space-y-2">
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">Bạn chưa tạo khóa học nào</h3>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">{t('admin.courseManagement.teacherEmptyTitle')}</h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                          Hãy bắt đầu hành trình giảng dạy của bạn qua 3 bước đơn giản bên dưới:
+                          {t('admin.courseManagement.teacherEmptySubtitle')}
                         </p>
                       </div>
 
                       <div className="grid sm:grid-cols-3 gap-4 w-full text-left pt-2">
                         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 space-y-2">
                           <span className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center">1</span>
-                          <h4 className="font-bold text-xs text-slate-900 dark:text-white">Tạo thông tin cơ bản</h4>
-                          <p className="text-[11px] text-slate-500">Nhập tiêu đề, mô tả, chọn danh mục và thiết lập giá bán.</p>
+                          <h4 className="font-bold text-xs text-slate-900 dark:text-white">{t('admin.courseManagement.teacherStep1Title')}</h4>
+                          <p className="text-[11px] text-slate-500">{t('admin.courseManagement.teacherStep1Desc')}</p>
                         </div>
 
                         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 space-y-2">
                           <span className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center">2</span>
-                          <h4 className="font-bold text-xs text-slate-900 dark:text-white">Tải bài giảng & Quiz</h4>
-                          <p className="text-[11px] text-slate-500">Đăng tải video bài giảng, soạn bộ câu hỏi Quiz & Bài tập.</p>
+                          <h4 className="font-bold text-xs text-slate-900 dark:text-white">{t('admin.courseManagement.teacherStep2Title')}</h4>
+                          <p className="text-[11px] text-slate-500">{t('admin.courseManagement.teacherStep2Desc')}</p>
                         </div>
 
                         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 space-y-2">
                           <span className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center">3</span>
-                          <h4 className="font-bold text-xs text-slate-900 dark:text-white">Xuất bản ra cộng đồng</h4>
-                          <p className="text-[11px] text-slate-500">Phê duyệt và xuất bản khóa học để chào đón những học viên đầu tiên.</p>
+                          <h4 className="font-bold text-xs text-slate-900 dark:text-white">{t('admin.courseManagement.teacherStep3Title')}</h4>
+                          <p className="text-[11px] text-slate-500">{t('admin.courseManagement.teacherStep3Desc')}</p>
                         </div>
                       </div>
 
@@ -563,14 +659,14 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                           onClick={() => navigate('/teacher/courses/new')}
                           className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all active:scale-95"
                         >
-                          + Tạo khóa học đầu tiên ngay
+                          {t('admin.courseManagement.createFirstCourse')}
                         </button>
                       </div>
                     </div>
                   ) : (
                     <EmptyState
-                      title="No courses match your filters"
-                      message="Try changing the search term or category filter. This state keeps the admin workflow clear without changing any data."
+                      title={t('admin.courseManagement.emptyFilterTitle')}
+                      message={t('admin.courseManagement.emptyFilterMessage')}
                     />
                   )}
                 </div>
@@ -579,11 +675,11 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-5 py-4 border-t border-slate-200/60 dark:border-slate-800">
                   <span className="text-sm text-slate-500 dark:text-slate-400">
-                    Showing page {page} of {totalPages}
+                    {t('admin.courseManagement.showingPage', { page, total: totalPages })}
                   </span>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={page === 1}>Previous</Button>
-                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={page === totalPages}>Next</Button>
+                    <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={page === 1}>{t('admin.courseManagement.previous')}</Button>
+                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={page === totalPages}>{t('admin.courseManagement.next')}</Button>
                   </div>
                 </div>
               )}
@@ -604,17 +700,17 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-500 text-xs font-bold text-white">
                   {selectedCourseIds.size}
                 </div>
-                <span className="text-sm font-semibold whitespace-nowrap">Courses Selected</span>
+                <span className="text-sm font-semibold whitespace-nowrap">{t('admin.courseManagement.selectedCourses', { count: selectedCourseIds.size })}</span>
               </div>
               <div className="h-6 w-px bg-white/20"></div>
               <div className="flex items-center gap-2">
-                <button className="px-4 py-2 bg-emerald-500/10 text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-full hover:bg-emerald-500/20 transition-colors">Approve All</button>
-                <button className="px-4 py-2 bg-rose-500/10 text-rose-400 text-xs font-bold uppercase tracking-wider rounded-full hover:bg-rose-500/20 transition-colors">Delete</button>
+                <button className="px-4 py-2 bg-emerald-500/10 text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-full hover:bg-emerald-500/20 transition-colors">{t('admin.courseManagement.approveAll')}</button>
+                <button className="px-4 py-2 bg-rose-500/10 text-rose-400 text-xs font-bold uppercase tracking-wider rounded-full hover:bg-rose-500/20 transition-colors">{t('admin.courseManagement.delete')}</button>
                 <button 
                   onClick={() => setSelectedCourseIds(new Set())}
                   className="px-4 py-2 bg-white/5 text-white/50 text-xs font-bold uppercase tracking-wider rounded-full hover:bg-white/10 hover:text-white transition-colors ml-2"
                 >
-                  Cancel
+                  {t('admin.courseManagement.cancel')}
                 </button>
               </div>
             </motion.div>
@@ -625,15 +721,15 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)}>
         <div className="space-y-5">
           <div>
-            <p className="section-label">Create Course Modal</p>
-            <h2 className="mt-2 section-title">Create a new course</h2>
+            <p className="section-label">{t('admin.courseManagement.createModalLabel')}</p>
+            <h2 className="mt-2 section-title">{t('admin.courseManagement.createCourse')}</h2>
           </div>
           <CourseForm form={form} setForm={setForm} categories={categoriesData} teachers={teachers} teacherMode={teacherMode} />
           <div className="mt-4 flex flex-wrap justify-end gap-3">
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
-              Cancel
+              {t('admin.courseManagement.cancel')}
             </Button>
-            <Button onClick={saveCourse}>Create course</Button>
+            <Button onClick={saveCourse}>{t('admin.courseManagement.createBtn')}</Button>
           </div>
         </div>
       </Modal>
@@ -641,15 +737,15 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       <Modal isOpen={editOpen} onClose={() => setEditOpen(false)}>
         <div className="space-y-5">
           <div>
-            <p className="section-label">Edit Course Modal</p>
-            <h2 className="mt-2 section-title">Edit course details</h2>
+            <p className="section-label">{t('admin.courseManagement.editModalLabel')}</p>
+            <h2 className="mt-2 section-title">{t('admin.courseManagement.editCourse')}</h2>
           </div>
           <CourseForm form={form} setForm={setForm} categories={categoriesData} teachers={teachers} teacherMode={teacherMode} />
           <div className="mt-4 flex flex-wrap justify-end gap-3">
             <Button variant="ghost" onClick={() => setEditOpen(false)}>
-              Cancel
+              {t('admin.courseManagement.cancel')}
             </Button>
-            <Button onClick={saveCourse}>Save changes</Button>
+            <Button onClick={saveCourse}>{t('admin.courseManagement.saveChanges')}</Button>
           </div>
         </div>
       </Modal>
@@ -657,9 +753,9 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       <Modal isOpen={publishOpen} onClose={() => setPublishOpen(false)}>
         <div className="space-y-5">
           <div>
-            <p className="section-label">Publish Workflow</p>
+            <p className="section-label">{t('admin.courseManagement.publishWorkflowLabel')}</p>
             <h2 className="mt-2 section-title">{publishingCourse?.title}</h2>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Move the course through Draft → Review → Publish.</p>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t('admin.courseManagement.publishWorkflowDesc')}</p>
           </div>
 
           <div className="flex gap-3">
@@ -679,18 +775,18 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
           </div>
 
           <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
-            {workflowStep === 0 && 'Review the course draft, confirm the content structure, and prepare for publication.'}
-            {workflowStep === 1 && 'The course is ready to publish. Confirm to make it visible to students.'}
+            {workflowStep === 0 && t('admin.courseManagement.draftStepDesc')}
+            {workflowStep === 1 && t('admin.courseManagement.publishStepDesc')}
           </p>
 
           <div className="mt-2 flex flex-wrap justify-end gap-3">
             <Button variant="ghost" onClick={() => setPublishOpen(false)}>
-              Cancel
+              {t('admin.courseManagement.cancel')}
             </Button>
             {workflowStep < 1 ? (
-              <Button onClick={advancePublish}>Next step</Button>
+              <Button onClick={advancePublish}>{t('admin.courseManagement.nextStep')}</Button>
             ) : (
-              <Button onClick={confirmPublish}>Publish now</Button>
+              <Button onClick={confirmPublish}>{t('admin.courseManagement.publishNow')}</Button>
             )}
           </div>
         </div>
@@ -715,26 +811,26 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       <Toast 
         visible={Boolean(toast)} 
         message={toast} 
-        title={toast.includes('xuất bản') || toast.includes('thành công') || toast.includes('thu hồi') ? "Success" : "Error"} 
-        variant={toast.includes('xuất bản') || toast.includes('thành công') || toast.includes('thu hồi') ? "success" : "error"} 
+        title={toast.includes('xuất bản') || toast.includes('thành công') || toast.includes('thu hồi') || toast.includes('success') ? "Success" : "Error"} 
+        variant={toast.includes('xuất bản') || toast.includes('thành công') || toast.includes('thu hồi') || toast.includes('success') ? "success" : "error"} 
         onClose={() => setToast('')} 
       />
 
       {/* Approve/Unpublish Confirm */}
-      {approveConfirm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+      {approveConfirm && createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center px-4 overflow-y-auto">
           <div onClick={() => setApproveConfirm(null)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-          <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-2xl">
+          <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-2xl my-auto">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-              {approveConfirm.currentStatus === 'draft' ? 'Approve & Publish Course?' : 'Unpublish Course?'}
+              {approveConfirm.currentStatus === 'draft' ? t('admin.courseManagement.approveModalDraftTitle') : t('admin.courseManagement.approveModalPublishTitle')}
             </h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
               {approveConfirm.currentStatus === 'draft'
-                ? 'Khóa học sẽ được xuất bản và hiển thị cho học viên.'
-                : 'Khóa học sẽ bị ẩn khỏi danh sách công khai.'}
+                ? t('admin.courseManagement.approveModalDraftDesc')
+                : t('admin.courseManagement.approveModalPublishDesc')}
             </p>
             <div className="flex justify-end gap-3">
-              <Button variant="ghost" onClick={() => setApproveConfirm(null)}>Cancel</Button>
+              <Button variant="ghost" onClick={() => setApproveConfirm(null)}>{t('admin.courseManagement.cancel')}</Button>
               <Button
                 onClick={() => {
                   const newStatus = approveConfirm.currentStatus === 'draft' ? 'published' : 'draft';
@@ -742,11 +838,12 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                   setApproveConfirm(null);
                 }}
               >
-                {approveConfirm.currentStatus === 'draft' ? 'Approve' : 'Unpublish'}
+                {approveConfirm.currentStatus === 'draft' ? t('admin.courseManagement.approveBtn') : t('admin.courseManagement.unpublishBtn')}
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -759,6 +856,8 @@ const CourseForm: React.FC<{
   teachers: any[];
   teacherMode: boolean;
 }> = ({ form, setForm, categories, teachers, teacherMode }) => {
+  const { t } = useTranslation();
+  const lv = useLocalizedValue();
   const update = (field: keyof CourseFormState, value: string) => {
     setForm((current) => {
       const next = { ...current, [field]: value };
@@ -775,52 +874,52 @@ const CourseForm: React.FC<{
     <div className="grid gap-4 sm:grid-cols-2">
       {/* Title - full width */}
       <div className="sm:col-span-2">
-        <Field label="Course title *" value={form.title} onChange={(value) => update('title', value)} placeholder="e.g. Complete JavaScript Course" />
+        <Field label={t('admin.courseManagement.form.titleLabel')} value={form.title} onChange={(value) => update('title', value)} placeholder={t('admin.courseManagement.form.titlePlaceholder')} />
       </div>
 
       {/* Description - full width */}
       <div className="sm:col-span-2">
         <label className="block space-y-2">
-          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Description *</span>
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('admin.courseManagement.form.descLabel')}</span>
           <textarea
             value={form.description}
             onChange={(event) => update('description', event.target.value)}
             rows={3}
-            placeholder="Mô tả ngắn về khóa học, nội dung và mục tiêu học tập..."
+            placeholder={t('admin.courseManagement.form.descPlaceholder')}
             className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50 px-4 py-3 text-sm font-medium text-slate-900 dark:text-white outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10 resize-none"
           />
         </label>
       </div>
 
       <label className="block space-y-2">
-        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Category *</span>
+        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('admin.courseManagement.form.categoryLabel')}</span>
         <select
           value={form.categoryId}
           onChange={(event) => update('categoryId', event.target.value)}
           className="h-[46px] w-full rounded-2xl border border-slate-200 bg-white dark:bg-slate-900/50 px-4 text-sm font-medium text-slate-900 dark:text-white outline-none transition duration-sm ease-standard focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
         >
-          <option value="">Select a category</option>
+          <option value="">{t('admin.courseManagement.form.selectCategory')}</option>
           {categories.map((cat) => (
-            <option key={cat._id} value={cat._id}>{cat.name}</option>
+            <option key={cat._id} value={cat._id}>{lv(cat.name)}</option>
           ))}
         </select>
       </label>
 
-      <Field label="Original Price (đ) *" value={form.estimatedPrice} onChange={(value) => update('estimatedPrice', value)} type="number" placeholder="0" />
+      <Field label={t('admin.courseManagement.form.origPriceLabel')} value={form.estimatedPrice} onChange={(value) => update('estimatedPrice', value)} type="number" placeholder="0" />
 
-      <Field label="Discount (%)" value={form.discountPercentage} onChange={(value) => update('discountPercentage', value)} type="number" placeholder="0" />
+      <Field label={t('admin.courseManagement.form.discountLabel')} value={form.discountPercentage} onChange={(value) => update('discountPercentage', value)} type="number" placeholder="0" />
 
-      <Field label="Selling Price (đ)" value={form.price} onChange={(value) => update('price', value)} type="number" placeholder="0" className="bg-slate-50 dark:bg-slate-800/50 cursor-not-allowed opacity-80" disabled />
+      <Field label={t('admin.courseManagement.form.sellingPriceLabel')} value={form.price} onChange={(value) => update('price', value)} type="number" placeholder="0" className="bg-slate-50 dark:bg-slate-800/50 cursor-not-allowed opacity-80" disabled />
 
       {!teacherMode && (
         <label className="block space-y-2">
-          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Instructor</span>
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('admin.courseManagement.form.instructorLabel')}</span>
           <select
             value={form.instructorId}
             onChange={(event) => update('instructorId', event.target.value)}
             className="h-[46px] w-full rounded-2xl border border-slate-200 bg-white dark:bg-slate-900/50 px-4 text-sm font-medium text-slate-900 dark:text-white outline-none transition duration-sm ease-standard focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
           >
-            <option value="">Select an instructor</option>
+            <option value="">{t('admin.courseManagement.form.selectInstructor')}</option>
             {teachers.map((t) => (
               <option key={t._id} value={t._id}>{t.name} ({t.email})</option>
             ))}
@@ -829,14 +928,14 @@ const CourseForm: React.FC<{
       )}
 
       <label className="block space-y-2">
-        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Status</span>
+        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('admin.courseManagement.form.statusLabel')}</span>
         <select
           value={form.status}
           onChange={(event) => update('status', event.target.value as CourseStatus)}
           className="h-[46px] w-full rounded-2xl border border-slate-200 bg-white dark:bg-slate-900/50 px-4 text-sm font-medium text-slate-900 dark:text-white outline-none transition duration-sm ease-standard focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
         >
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
+          <option value="draft">{t('admin.courseManagement.form.statusDraft')}</option>
+          <option value="published">{t('admin.courseManagement.form.statusPublished')}</option>
         </select>
       </label>
     </div>

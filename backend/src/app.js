@@ -3,79 +3,53 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
+const compression = require('compression');
 
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./middlewares/error.middleware');
+const { requestFilter, handleJsonSyntaxError } = require('./middlewares/requestFilter.middleware');
+const { sanitizeInput } = require('./middlewares/sanitize.middleware');
+const { dynamicLimiter } = require('./middlewares/rateLimiter.middleware');
 const routes = require('./routes');
 const swaggerSpec = require('./config/swagger');
 
-const compression = require('compression');
-
 const app = express();
+
+// 1. Security HTTP headers & compression
 app.use(helmet());
 app.use(compression());
 
-const rateLimit = require('express-rate-limit');
-const jwt = require('jsonwebtoken');
+// 2. Enable CORS for all requests (including preflight and early errors)
+app.use(cors());
 
-const isDev = process.env.NODE_ENV === 'development';
+// 3. Request filtering (URL length check, Content-Type check, pagination limits)
+app.use(requestFilter);
 
-// Limit requests from same API
-const limiter = rateLimit({
-  max: isDev ? 10000 : 1000, // Limit each IP per 15 mins (much higher in dev)
-  windowMs: 15 * 60 * 1000,
-  message: 'Too many requests from this IP, please try again in 15 minutes!'
-});
-
-const adminTeacherLimiter = rateLimit({
-  max: isDev ? 50000 : 5000, // Limit each IP per 15 mins for Admins & Teachers
-  windowMs: 15 * 60 * 1000,
-  message: 'Too many administrative requests from this IP, please try again in 15 minutes!'
-});
-
-// Dynamic Rate Limiter based on Role decoded from token
-const dynamicLimiter = (req, res, next) => {
-  let isAdminOrTeacher = false;
-  try {
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer')) {
-      const token = authHeader.split(' ')[1];
-      const decoded = jwt.decode(token);
-      if (decoded && ['admin', 'teacher'].includes(decoded.role)) {
-        isAdminOrTeacher = true;
-      }
-    }
-  } catch (err) {}
-
-  if (isAdminOrTeacher) {
-    return adminTeacherLimiter(req, res, next);
-  }
-  return limiter(req, res, next);
-};
-
+// 4. Global Dynamic Rate Limiting across all API endpoints
 app.use('/api', dynamicLimiter);
 
-// Development logging
+// 5. Development logging
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// 1.5. STRIPE WEBHOOK (Must be before express.json)
+// 6. STRIPE WEBHOOK (Must be before express.json body parser)
 const paymentController = require('./controllers/payment.controller');
 app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), paymentController.webhook);
 
-// Body parser, reading data from body into req.body
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+// 7. Body parser with strict size limit (50kb limit)
+app.use(express.json({ limit: '50kb' }));
+// Catch malformed JSON syntax immediately
+app.use(handleJsonSyntaxError);
+app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 
+// 8. Sanitize all user inputs (In-place NoSQL injection protection, XSS cleaning, trimming)
+app.use(sanitizeInput);
 
-// Implement CORS
-app.use(cors());
-
-// 2. ROUTES
+// 9. API ROUTES
 app.use('/api', routes);
 
-// 3. SWAGGER API DOCUMENTATION
+// 10. SWAGGER API DOCUMENTATION
 app.use(
   '/api-docs',
   swaggerUi.serve,
@@ -85,12 +59,12 @@ app.use(
   })
 );
 
-// 3. UNHANDLED ROUTES
+// 11. UNHANDLED ROUTES
 app.use((req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
 
-// 4. GLOBAL ERROR HANDLER
+// 12. GLOBAL ERROR HANDLER
 app.use(globalErrorHandler);
 
 module.exports = app;

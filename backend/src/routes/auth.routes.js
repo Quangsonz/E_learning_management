@@ -1,6 +1,9 @@
 const express = require('express');
 const authController = require('../controllers/auth.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { authLimiter } = require('../middlewares/rateLimiter.middleware');
+const validate = require('../middlewares/validate.middleware');
+const authValidation = require('../validations/auth.validation');
 
 const router = express.Router();
 
@@ -38,7 +41,7 @@ const router = express.Router();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/register', authController.register);
+router.post('/register', authLimiter, validate(authValidation.register), authController.register);
 
 /**
  * @swagger
@@ -63,7 +66,7 @@ router.post('/register', authController.register);
  *       401:
  *         description: Email hoặc mật khẩu không chính xác
  */
-router.post('/login', authController.login);
+router.post('/login', authLimiter, validate(authValidation.login), authController.login);
 
 /**
  * @swagger
@@ -104,7 +107,7 @@ router.post('/logout', authMiddleware.protect, authController.logout);
  *       404:
  *         description: Không tìm thấy email
  */
-router.post('/forgot-password', authController.forgotPassword);
+router.post('/forgot-password', authLimiter, validate(authValidation.forgotPassword), authController.forgotPassword);
 
 /**
  * @swagger
@@ -138,7 +141,7 @@ router.post('/forgot-password', authController.forgotPassword);
  *       400:
  *         description: Token không hợp lệ hoặc đã hết hạn
  */
-router.patch('/reset-password/:token', authController.resetPassword);
+router.patch('/reset-password/:token', authLimiter, validate(authValidation.resetPassword), authController.resetPassword);
 
 /**
  * @swagger
@@ -160,6 +163,6 @@ router.patch('/reset-password/:token', authController.resetPassword);
  *       400:
  *         description: Token không hợp lệ
  */
-router.get('/verify-email/:token', authController.verifyEmail);
+router.get('/verify-email/:token', authLimiter, validate(authValidation.verifyEmail), authController.verifyEmail);
 
 module.exports = router;

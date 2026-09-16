@@ -1,22 +1,45 @@
 const courseRepository = require('../repositories/course.repository');
+const Category = require('../models/Category');
 const AppError = require('../utils/appError');
 const slugify = require('slugify');
 const mongoose = require('mongoose');
+const { buildLocalizedSearchConditions, escapeRegex } = require('../utils/searchHelper');
 
 class CourseService {
   async getAllCourses(query, user) {
     let filter = {};
 
     if (query.search) {
-      filter.$text = { $search: query.search };
+      const searchConditions = buildLocalizedSearchConditions('title', query.search);
+      const slugRegex = new RegExp(escapeRegex(query.search.trim().toLowerCase()), 'i');
+      searchConditions.push({ slug: slugRegex });
+      filter.$or = searchConditions;
     }
 
     if (query.category && query.category !== 'All') {
-      filter.category = query.category;
+      if (mongoose.Types.ObjectId.isValid(query.category)) {
+        filter.category = new mongoose.Types.ObjectId(query.category);
+      } else {
+        const foundCat = await Category.findOne({
+          $or: [
+            { slug: query.category },
+            { name: query.category },
+            { 'name.en': query.category },
+            { 'name.vi': query.category }
+          ]
+        }).lean();
+        if (foundCat) {
+          filter.category = foundCat._id;
+        } else {
+          filter.category = query.category;
+        }
+      }
     }
 
     if (query.instructor) {
-      filter.instructor = query.instructor;
+      filter.instructor = mongoose.Types.ObjectId.isValid(query.instructor)
+        ? new mongoose.Types.ObjectId(query.instructor)
+        : query.instructor;
     }
 
     if (query.status) {
@@ -80,7 +103,15 @@ class CourseService {
       courseData.instructor = user.id;
     }
 
-    if (courseData.estimatedPrice !== undefined && courseData.discountPercentage !== undefined) {
+    if (courseData.level && typeof courseData.level === 'string') {
+      courseData.level = courseData.level.toLowerCase();
+    }
+
+    if (courseData.price !== undefined) {
+      courseData.price = Number(courseData.price) || 0;
+    }
+
+    if (courseData.estimatedPrice !== undefined && courseData.discountPercentage !== undefined && courseData.price === undefined) {
       const estimatedPrice = Number(courseData.estimatedPrice) || 0;
       const discountPercentage = Number(courseData.discountPercentage) || 0;
       courseData.price = Math.round(estimatedPrice * (1 - discountPercentage / 100));

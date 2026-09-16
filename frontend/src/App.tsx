@@ -186,35 +186,50 @@ const App: React.FC = () => {
   const location = useLocation();
 
   React.useEffect(() => {
-    // Preload key page bundles immediately on mount for instant 0ms route switching
-    Promise.all([
-      import('./pages/CourseList'),
-      import('./pages/CourseDetail'),
-      import('./pages/Home'),
-      import('./pages/MyLearning'),
-      import('./pages/Leaderboard')
-    ]).catch(() => {});
+    // Idle prefetch: load next popular page bundles only when browser is idle
+    const prefetchIdle = () => {
+      import('./pages/CourseList').catch(() => {});
+      import('./pages/Home').catch(() => {});
+    };
+
+    if ('requestIdleCallback' in window) {
+      const handle = (window as any).requestIdleCallback(prefetchIdle, { timeout: 3000 });
+      return () => (window as any).cancelIdleCallback(handle);
+    } else {
+      const timer = setTimeout(prefetchIdle, 1500);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   const isNoLayoutRoute =
     noLayoutPaths.some((path) => location.pathname.startsWith(path)) ||
     location.pathname === '/';
 
+  const routeFallback = (
+    <div className="flex-1 w-full min-h-[50vh] flex items-center justify-center py-16">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+      </div>
+    </div>
+  );
+
   return (
     <AppErrorBoundary>
-      <Suspense
-        fallback={
-          <LoadingScreen title="Loading application" message="Preparing your dashboard, routes, and shared UI states..." />
-        }
-      >
-        {isNoLayoutRoute ? (
+      {isNoLayoutRoute ? (
+        <Suspense
+          fallback={
+            <LoadingScreen title="Loading application" message="Preparing your view..." />
+          }
+        >
           <AppRoutes />
-        ) : (
-          <SiteLayout>
+        </Suspense>
+      ) : (
+        <SiteLayout>
+          <Suspense fallback={routeFallback}>
             <AppRoutes />
-          </SiteLayout>
-        )}
-      </Suspense>
+          </Suspense>
+        </SiteLayout>
+      )}
     </AppErrorBoundary>
   );
 };

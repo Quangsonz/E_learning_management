@@ -7,11 +7,13 @@ class ProgressRepository extends BaseRepository {
   }
 
   async findByStudentAndCourse(studentId, courseId) {
+    if (!studentId || !courseId) return null;
     return await this.model.findOne({ student: studentId, course: courseId });
   }
 
   async findByStudent(studentId) {
-    return await this.model.find({ student: studentId }).populate('course', 'title thumbnailUrl');
+    if (!studentId) return [];
+    return await this.model.find({ student: studentId }).populate('course', 'title thumbnailUrl price status');
   }
 }
 

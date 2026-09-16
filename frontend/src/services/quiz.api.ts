@@ -2,10 +2,16 @@ import axiosInstance from './axios';
 
 export interface Quiz {
   _id: string;
-  title: string;
+  title: any;
   course: string;
   passingScore: number;
   timeLimit?: number;
+  questionCount?: number;
+  totalQuestions?: number;
+  isCompleted?: boolean;
+  isPassed?: boolean;
+  scorePercentage?: number | null;
+  score?: number | null;
   scheduledAt?: string;
   dueDate?: string;
   createdAt: string;
@@ -14,19 +20,29 @@ export interface Quiz {
 export interface Question {
   _id?: string;
   quiz?: string;
-  text: string;
+  text: any;
   points: number;
   options: {
     _id?: string;
-    text: string;
+    text: any;
     isCorrect?: boolean;
   }[];
-  explanation?: string;
+  explanation?: any;
 }
 
 export interface QuizSubmission {
   questionId: string;
   selectedOptionId: string;
+}
+
+export interface QuizReviewItem {
+  questionId: string;
+  text: any;
+  points: number;
+  selectedOptionId: string | null;
+  correctOptionId: string | null;
+  isCorrect: boolean;
+  explanation?: any;
 }
 
 export const quizApi = {
@@ -54,6 +70,10 @@ export const quizApi = {
     return axiosInstance.post(`/quizzes/${quizId}/submit`, { answers });
   },
 
+  getQuizResults: (quizId: string) => {
+    return axiosInstance.get(`/quizzes/${quizId}/results`);
+  },
+
   getLessonQuestions: (lessonId: string) => {
     return axiosInstance.get(`/quizzes/lessons/${lessonId}/questions`);
   },
@@ -68,9 +88,11 @@ export const quizApi = {
     });
   },
 
-  submitSmartQuiz: (courseId: string, answers: QuizSubmission[]) => {
-    return axiosInstance.post(`/quizzes/courses/${courseId}/smart-quiz/submit`, { answers });
+  submitSmartQuiz: (courseId: string, payload: { questionIds?: string[]; answers: QuizSubmission[] } | QuizSubmission[]) => {
+    const data = Array.isArray(payload) ? { answers: payload } : payload;
+    return axiosInstance.post(`/quizzes/courses/${courseId}/smart-quiz/submit`, data);
   },
+
 
   updateQuiz: (quizId: string, quizData: any) => {
     return axiosInstance.patch(`/quizzes/${quizId}`, quizData);

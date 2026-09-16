@@ -4,6 +4,8 @@ export type Lesson = {
   _id: string;
   title: string;
   videoUrl: string;
+  videoPublicId?: string | null;
+  provider?: 'cloudinary' | 'youtube';
   duration: number;
   order: number;
   course: string;

@@ -45,6 +45,10 @@ const userSchema = new mongoose.Schema({
 // Tối ưu hóa truy vấn đăng nhập và lấy người dùng theo vai trò
 userSchema.index({ role: 1 });
 userSchema.index({ xp: -1 }); // Tối ưu hoá truy vấn Leaderboard
+userSchema.index({ role: 1, xp: -1 }); // Tối ưu hoá truy vấn Leaderboard (equality + range + sort)
+userSchema.index({ name: 1 });
+userSchema.index({ role: 1, createdAt: -1 });
+
 
 
 // Middleware: Mã hóa password trước khi save

@@ -3,6 +3,8 @@ const categoryController = require('../controllers/category.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
 const { requireRole } = require('../middlewares/roleMiddleware');
 const { requirePermission } = require('../middlewares/permissionMiddleware');
+const validate = require('../middlewares/validate.middleware');
+const categoryValidation = require('../validations/category.validation');
 
 const router = express.Router();
 
@@ -49,14 +51,14 @@ const router = express.Router();
  *         description: Không có quyền
  */
 router.get('/', categoryController.getAllCategories);
-router.get('/:id', categoryController.getCategory);
+router.get('/:id', validate(categoryValidation.categoryIdParam), categoryController.getCategory);
 
 router.use(authMiddleware.protect);
 router.use(requireRole('admin'));
 router.use(requirePermission('manage_categories'));
 
-router.post('/', categoryController.createCategory);
-router.patch('/:id', categoryController.updateCategory);
+router.post('/', validate(categoryValidation.createCategory), categoryController.createCategory);
+router.patch('/:id', validate(categoryValidation.updateCategory), categoryController.updateCategory);
 
 /**
  * @swagger
@@ -117,6 +119,6 @@ router.patch('/:id', categoryController.updateCategory);
  *       204:
  *         description: Xóa thành công
  */
-router.delete('/:id', categoryController.deleteCategory);
+router.delete('/:id', validate(categoryValidation.categoryIdParam), categoryController.deleteCategory);
 
 module.exports = router;

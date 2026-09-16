@@ -10,7 +10,8 @@ import {
   LoadingScreen, 
   EmptyState, 
   GlassPanel,
-  Button
+  Button,
+  HeroBackgroundSlideshow
 } from '../components/ui';
 import { 
   Trophy, 
@@ -28,6 +29,22 @@ import {
 } from 'lucide-react';
 
 type PeriodFilter = 'week' | 'month' | 'all';
+
+// Standardized progression: 1000 XP per level with dynamic prestige tiers
+const getLevelAndTitle = (xp: number = 0, t: any) => {
+  const level = Math.max(1, Math.floor(xp / 1000) + 1);
+  let titleKey = 'learner';
+  if (level >= 40) titleKey = 'grandmaster';
+  else if (level >= 30) titleKey = 'apex';
+  else if (level >= 20) titleKey = 'master';
+  else if (level >= 10) titleKey = 'veteran';
+  else if (level >= 5) titleKey = 'specialist';
+
+  return {
+    level,
+    title: t(`leaderboard.levelTitle.${titleKey}`, { level })
+  };
+};
 
 const Leaderboard: React.FC = () => {
   const { t } = useTranslation();
@@ -65,9 +82,10 @@ const Leaderboard: React.FC = () => {
     );
   }
 
-  // Top 3 Podium
-  const top3 = users.slice(0, 3);
-  const others = users.slice(3);
+  // Strictly Top 10: Top 3 Podium + Rank 4 to 10 in List
+  const top10 = users.slice(0, 10);
+  const top3 = top10.slice(0, 3);
+  const others = top10.slice(3, 10);
 
   // Order for podium render: Rank 2 - Rank 1 - Rank 3
   const podiumUsers = [];
@@ -76,9 +94,10 @@ const Leaderboard: React.FC = () => {
   if (top3[2]) podiumUsers.push({ ...top3[2], rank: 3 });
 
   return (
-    <PageShell wide className="pb-20 relative overflow-hidden">
-      {/* Background Glows & Mesh Grid */}
+    <PageShell wide animate={false} className="pb-12 relative">
+      {/* Background Glows & Ambient Slideshow with gentle fade */}
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <HeroBackgroundSlideshow maskVariant="fade-bottom" />
         <div className="absolute -top-40 left-1/4 w-[600px] h-[600px] bg-amber-500/10 dark:bg-amber-500/10 rounded-full blur-[140px]" />
         <div className="absolute top-96 right-10 w-[500px] h-[500px] bg-indigo-500/10 dark:bg-indigo-600/10 rounded-full blur-[140px]" />
       </div>
@@ -89,13 +108,13 @@ const Leaderboard: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-4 border-b border-slate-200 dark:border-white/10">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 dark:text-amber-400 text-xs font-bold uppercase tracking-wider mb-2">
-              <Trophy size={14} /> Global Hall of Fame
+              <Trophy size={14} /> {t('leaderboard.globalHallOfFame')}
             </div>
             <h1 className="text-3xl lg:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
-              Bảng Xếp Hạng Toàn Cầu
+              {t('leaderboard.globalTitle')}
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Vinh danh những học viên xuất sắc nhất hệ thống E-Learning qua điểm số XP & Chuỗi ngày học tập.
+              {t('leaderboard.globalSubtitle')}
             </p>
           </div>
 
@@ -111,7 +130,7 @@ const Leaderboard: React.FC = () => {
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                {p === 'week' ? 'Tuần này' : p === 'month' ? 'Tháng này' : 'Tất cả thời gian'}
+                {p === 'week' ? t('leaderboard.timeframe.week') : p === 'month' ? t('leaderboard.timeframe.month') : t('leaderboard.timeframe.all')}
               </button>
             ))}
           </div>
@@ -145,7 +164,7 @@ const Leaderboard: React.FC = () => {
                         ? 'text-slate-300 drop-shadow-[0_0_8px_rgba(148,163,184,0.6)]' 
                         : 'text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]';
 
-                      const levelTitle = isFirst ? 'Lv.15 Grandmaster' : u.rank === 2 ? 'Lv.12 Apex' : 'Lv.10 Veteran';
+                      const { level, title: levelTitle } = getLevelAndTitle(u.xp, t);
 
                       return (
                         <motion.div 
@@ -173,7 +192,7 @@ const Leaderboard: React.FC = () => {
                               isFirst ? 'border-amber-400 bg-amber-500/20 shadow-amber-500/40' : u.rank === 2 ? 'border-slate-300 bg-slate-400/20' : 'border-orange-400 bg-orange-500/20'
                             } shadow-xl`}>
                               {u.avatar ? (
-                                <img src={u.avatar} alt={u.name} className="w-full h-full rounded-full object-cover border border-white/20" />
+                                <img src={u.avatar} alt={u.name} loading="lazy" decoding="async" className="w-full h-full rounded-full object-cover border border-white/20" />
                               ) : (
                                 <div className="w-full h-full rounded-full bg-slate-800 flex items-center justify-center font-bold text-lg text-white border border-white/20">
                                   {u.name?.charAt(0).toUpperCase()}
@@ -202,11 +221,22 @@ const Leaderboard: React.FC = () => {
                           
                           {/* Podium Stand */}
                           <div className={`w-full ${heightClass} ${glassClass} border-t border-x rounded-t-3xl relative flex items-end justify-center pb-5 overflow-hidden transition-all duration-500`}>
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
-                            <div className="relative z-10 flex flex-col items-center">
-                              <div className="flex items-center gap-1 text-xs font-bold text-amber-400">
-                                <Flame size={14} fill="currentColor" />
-                                <span>{u.studyStreakDays || 0} ngày</span>
+                            {/* Ambient Pedestal Upward Glow */}
+                            <div className={`absolute inset-x-2 bottom-0 h-3/4 bg-gradient-to-t ${
+                              isFirst ? 'from-amber-400/25 via-amber-500/10' : u.rank === 2 ? 'from-slate-300/20 via-slate-400/10' : 'from-orange-400/25 via-orange-500/10'
+                            } to-transparent rounded-t-full blur-md pointer-events-none`} />
+
+                            {/* Watermark Rank Numeral inside Pillar */}
+                            <div className="absolute inset-0 flex items-center justify-center select-none pointer-events-none font-black text-6xl sm:text-7xl text-white/[0.08] dark:text-white/[0.06] font-mono tracking-tighter">
+                              {u.rank}
+                            </div>
+
+                            <div className="relative z-10 flex flex-col items-center gap-1">
+                              <div className={`flex items-center gap-1 text-xs font-bold ${
+                                (u.studyStreakDays || 0) > 0 ? 'text-amber-400' : 'text-slate-400 dark:text-slate-500'
+                              }`}>
+                                <Flame size={14} className={(u.studyStreakDays || 0) > 0 ? 'fill-amber-400 text-amber-400' : 'text-slate-500 opacity-40'} />
+                                <span>{(u.studyStreakDays || 0) > 0 ? `${u.studyStreakDays} ${t('leaderboard.days')}` : t('leaderboard.noStreak')}</span>
                               </div>
                             </div>
                           </div>
@@ -219,13 +249,14 @@ const Leaderboard: React.FC = () => {
                 {/* 2. RANK CARDS LIST (TOP 4+) WITH LOGGED-IN USER HIGHLIGHT */}
                 <section className="space-y-3">
                   <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400 px-2 pb-2">
-                    <span>Xếp hạng học viên (Top 4 trở đi)</span>
-                    <span>Điểm XP & Chuỗi Streak</span>
+                    <span>{t('leaderboard.headers.rankTop4')}</span>
+                    <span>{t('leaderboard.headers.xpAndStreak')}</span>
                   </div>
 
                   {others.map((u, idx) => {
                     const rank = idx + 4;
                     const isMe = u._id === currentUser?._id || u._id === currentUser?.id;
+                    const { title } = getLevelAndTitle(u.xp, t);
 
                     return (
                       <motion.div 
@@ -248,7 +279,7 @@ const Leaderboard: React.FC = () => {
                           {/* Avatar */}
                           <div className="w-11 h-11 rounded-full overflow-hidden shrink-0 border border-slate-200 dark:border-white/10">
                             {u.avatar ? (
-                              <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                              <img src={u.avatar} alt={u.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full bg-slate-800 flex items-center justify-center font-bold text-white text-xs">
                                 {u.name?.charAt(0).toUpperCase()}
@@ -264,11 +295,11 @@ const Leaderboard: React.FC = () => {
                               </h4>
                               {isMe && (
                                 <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wider">
-                                  BẠN
+                                  {t('leaderboard.you')}
                                 </span>
                               )}
                             </div>
-                            <span className="text-[11px] text-slate-400">Lv.{Math.floor((u.xp || 0) / 200) + 1} Learner</span>
+                            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-400 block">{title}</span>
                           </div>
                         </div>
 
@@ -277,9 +308,11 @@ const Leaderboard: React.FC = () => {
                           <div className="font-black text-sm text-indigo-600 dark:text-indigo-400">
                             {u.xp?.toLocaleString('vi-VN')} XP
                           </div>
-                          <div className="text-[11px] text-amber-500 font-bold flex items-center justify-end gap-1 mt-0.5">
-                            <Flame size={12} fill="currentColor" />
-                            <span>{u.studyStreakDays || 0} ngày</span>
+                          <div className={`text-[11px] font-bold flex items-center justify-end gap-1 mt-0.5 ${
+                            (u.studyStreakDays || 0) > 0 ? 'text-amber-500 dark:text-amber-400' : 'text-slate-400 dark:text-slate-500'
+                          }`}>
+                            <Flame size={12} className={(u.studyStreakDays || 0) > 0 ? 'fill-current text-amber-500' : 'text-slate-500 opacity-30'} />
+                            <span>{(u.studyStreakDays || 0) > 0 ? `${u.studyStreakDays} ${t('leaderboard.days')}` : t('leaderboard.noStreak')}</span>
                           </div>
                         </div>
                       </motion.div>
@@ -291,13 +324,13 @@ const Leaderboard: React.FC = () => {
           </div>
 
           {/* ================= SIDEBAR AREA (30%) ================= */}
-          <aside className="space-y-6">
+          <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
             
             {/* 1. MY RANK STICKY CARD */}
-            <GlassPanel padding="lg" className="border border-indigo-500/30 bg-gradient-to-b from-indigo-950/40 via-slate-900/60 to-slate-900/80 text-white space-y-5 sticky top-6 shadow-xl">
+            <GlassPanel padding="lg" className="border border-indigo-500/30 bg-gradient-to-b from-indigo-950/40 via-slate-900/60 to-slate-900/80 text-white space-y-5 shadow-xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-400">
-                  <UserIcon size={14} /> Thứ hạng cá nhân của bạn
+                  <UserIcon size={14} /> {t('leaderboard.personal.title')}
                 </div>
                 <span className="px-2.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-black text-xs">
                   #{currentUserRank}
@@ -310,62 +343,84 @@ const Leaderboard: React.FC = () => {
                   <img 
                     src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256&h=256'} 
                     alt={currentUser?.name || 'User'} 
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-bold text-base text-white truncate">{currentUser?.name || 'Học viên E-Learning'}</h3>
-                  <p className="text-xs text-indigo-300 font-semibold">{currentUserXP.toLocaleString('vi-VN')} XP tích lũy</p>
+                  <h3 className="font-bold text-base text-white truncate">{currentUser?.name || t('leaderboard.personal.defaultName')}</h3>
+                  <p className="text-xs text-indigo-300 font-semibold">{t('leaderboard.personal.accumulatedXP', { count: currentUserXP.toLocaleString('vi-VN') })}</p>
                 </div>
               </div>
 
               {/* Motivation Progress to Next Rank */}
               <div className="space-y-2 pt-2 border-t border-white/10">
-                <div className="flex justify-between text-xs font-bold text-slate-300">
-                  <span>Mục tiêu leo Top 10</span>
-                  <span className="text-amber-400">Còn 150 XP</span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full bg-gradient-to-r from-amber-400 to-indigo-500 rounded-full" style={{ width: '75%' }} />
-                </div>
-                <p className="text-[11px] text-slate-400 italic">🔥 Hoàn thành 3 bài giảng nữa để bứt phá vị trí của bạn!</p>
+                {currentUserRank <= 10 ? (
+                  <div className="flex justify-between items-center text-xs font-bold text-slate-300">
+                    <span className="text-emerald-400 font-extrabold flex items-center gap-1.5">
+                      <Sparkles size={14} /> {t('leaderboard.personal.inTop10')}
+                    </span>
+                    <span className="text-emerald-400 font-black">#{currentUserRank}</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-xs font-bold text-slate-300">
+                      <span>{t('leaderboard.personal.targetTop10')}</span>
+                      <span className="text-amber-400 font-extrabold">
+                        {t('leaderboard.personal.remainingXP', { 
+                          count: Math.max(0, (users[9]?.xp || 40000) - currentUserXP).toLocaleString('vi-VN') 
+                        })}
+                      </span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+                      <div 
+                        className="h-full bg-gradient-to-r from-amber-400 to-indigo-500 rounded-full transition-all duration-500" 
+                        style={{ 
+                          width: `${Math.min(95, Math.max(8, Math.round((currentUserXP / (users[9]?.xp || 40000)) * 100)))}%` 
+                        }} 
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-400 italic">{t('leaderboard.personal.motivationTip')}</p>
+                  </>
+                )}
               </div>
             </GlassPanel>
 
             {/* 2. XP RULES GUIDE CARD */}
             <GlassPanel padding="lg" className="border border-slate-200 dark:border-white/10 space-y-4">
               <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white text-base">
-                <ShieldCheck className="text-amber-500" size={20} /> Quy tắc tích điểm XP
+                <ShieldCheck className="text-amber-500" size={20} /> {t('leaderboard.rules.title')}
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Tích lũy điểm XP qua các hoạt động học tập hàng ngày để thăng cấp và chinh phục Bảng xếp hạng:
+                {t('leaderboard.rules.desc')}
               </p>
 
               <div className="space-y-2.5 pt-1 text-xs font-semibold">
                 <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/5">
                   <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                    <BookOpen size={14} className="text-indigo-500" /> Xem hoàn thành bài giảng
+                    <BookOpen size={14} className="text-indigo-500" /> {t('leaderboard.rules.completeLesson')}
                   </span>
                   <span className="font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">+20 XP</span>
                 </div>
 
                 <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/5">
                   <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                    <Sparkles size={14} className="text-amber-500" /> Vượt qua bài kiểm tra Quiz
+                    <Sparkles size={14} className="text-amber-500" /> {t('leaderboard.rules.passQuiz')}
                   </span>
                   <span className="font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">+50 XP</span>
                 </div>
 
                 <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/5">
                   <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                    <Award size={14} className="text-purple-500" /> Nhận chứng chỉ hoàn thành
+                    <Award size={14} className="text-purple-500" /> {t('leaderboard.rules.earnCertificate')}
                   </span>
                   <span className="font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">+200 XP</span>
                 </div>
 
                 <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/5">
                   <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                    <Flame size={14} className="text-orange-500" /> Duy trì chuỗi Streak mỗi ngày
+                    <Flame size={14} className="text-orange-500" /> {t('leaderboard.rules.maintainStreak')}
                   </span>
                   <span className="font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">+10 XP</span>
                 </div>

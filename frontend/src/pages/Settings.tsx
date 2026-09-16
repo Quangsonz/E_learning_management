@@ -38,7 +38,7 @@ const Settings: React.FC = () => {
 
   // Form states for profile tab
   const [name, setName] = useState(user?.name || '');
-  const [bio, setBio] = useState(user?.bio || 'Học viên đam mê học tập và phát triển bản thân.');
+  const [bio, setBio] = useState(user?.bio || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
@@ -51,10 +51,10 @@ const Settings: React.FC = () => {
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
 
   const SETTINGS_TABS = [
-    { id: 'profile' as TabId, label: 'Hồ sơ cá nhân', icon: User, desc: 'Tên, Tiểu sử & Ảnh đại diện' },
-    { id: 'security' as TabId, label: 'Bảo mật & Mật khẩu', icon: ShieldCheck, desc: 'Đổi mật khẩu & 2FA' },
-    { id: 'notifications' as TabId, label: 'Cài đặt Thông báo', icon: Bell, desc: 'Email & Cảnh báo ứng dụng' },
-    { id: 'appearance' as TabId, label: 'Giao diện & Ngôn ngữ', icon: Palette, desc: 'Dark Mode & Ngôn ngữ' },
+    { id: 'profile' as TabId, label: t('settings.tabs.profile'), icon: User, desc: t('settings.tabs.profileDesc') },
+    { id: 'security' as TabId, label: t('settings.tabs.security'), icon: ShieldCheck, desc: t('settings.tabs.securityDesc') },
+    { id: 'notifications' as TabId, label: t('settings.tabs.notifications'), icon: Bell, desc: t('settings.tabs.notificationsDesc') },
+    { id: 'appearance' as TabId, label: t('settings.tabs.appearance'), icon: Palette, desc: t('settings.tabs.appearanceDesc') },
   ];
 
   return (
@@ -64,10 +64,10 @@ const Settings: React.FC = () => {
         {/* Header */}
         <div className="border-b border-slate-200 dark:border-white/10 pb-6">
           <h1 className="text-3xl lg:text-4xl font-black tracking-tight text-slate-900 dark:text-white mb-2">
-            Cài đặt Tài khoản
+            {t('settings.title')}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Quản lý thông tin cá nhân, quyền riêng tư, tùy chọn thông báo và giao diện người dùng.
+            {t('settings.subtitle')}
           </p>
         </div>
 
@@ -113,8 +113,8 @@ const Settings: React.FC = () => {
                   className="space-y-6"
                 >
                   <div>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">Thông tin cá nhân</h2>
-                    <p className="text-xs text-slate-500 mt-1">Cập nhật hình ảnh đại diện và thông tin hiển thị của bạn trên hệ thống.</p>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('settings.profile.title')}</h2>
+                    <p className="text-xs text-slate-500 mt-1">{t('settings.profile.desc')}</p>
                   </div>
 
                   <ProfileForm 
@@ -143,8 +143,8 @@ const Settings: React.FC = () => {
                   className="space-y-8"
                 >
                   <div>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">Bảo mật tài khoản</h2>
-                    <p className="text-xs text-slate-500 mt-1">Thay đổi mật khẩu đăng nhập và cài đặt xác thực 2 lớp (2FA).</p>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('settings.security.title')}</h2>
+                    <p className="text-xs text-slate-500 mt-1">{t('settings.security.desc')}</p>
                   </div>
 
                   <SecurityForm is2FA={is2FAEnabled} setIs2FA={setIs2FAEnabled} />
@@ -162,15 +162,15 @@ const Settings: React.FC = () => {
                   className="space-y-6"
                 >
                   <div>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">Tùy chọn thông báo</h2>
-                    <p className="text-xs text-slate-500 mt-1">Quản lý cách thức bạn nhận thông báo về bài học mới và ưu đãi.</p>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('settings.notifications.title')}</h2>
+                    <p className="text-xs text-slate-500 mt-1">{t('settings.notifications.desc')}</p>
                   </div>
 
                   <div className="space-y-4 pt-2">
                     <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 rounded-2xl">
                       <div>
-                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">Thông báo qua Email</h4>
-                        <p className="text-xs text-slate-500">Nhận email nhắc nhở bài học tuần và chứng chỉ khi hoàn thành.</p>
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">{t('settings.notifications.emailTitle')}</h4>
+                        <p className="text-xs text-slate-500">{t('settings.notifications.emailDesc')}</p>
                       </div>
                       <input 
                         type="checkbox" 
@@ -182,8 +182,8 @@ const Settings: React.FC = () => {
 
                     <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 rounded-2xl">
                       <div>
-                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">Cảnh báo khóa học Realtime</h4>
-                        <p className="text-xs text-slate-500">Nhận chuông thông báo khi giảng viên đăng bài giảng hoặc chấm điểm.</p>
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">{t('settings.notifications.courseTitle')}</h4>
+                        <p className="text-xs text-slate-500">{t('settings.notifications.courseDesc')}</p>
                       </div>
                       <input 
                         type="checkbox" 
@@ -217,7 +217,7 @@ const Settings: React.FC = () => {
           {/* ================= 3. LIVE PROFILE PREVIEW CARD ================= */}
           <aside className="bg-slate-900 text-white rounded-3xl p-6 border border-slate-800 shadow-xl space-y-5 sticky top-6">
             <div className="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase tracking-wider">
-              <Sparkles size={14} /> Live Profile Preview
+              <Sparkles size={14} /> {t('settings.preview.title')}
             </div>
 
             <div className="flex flex-col items-center text-center space-y-3 pt-2">
@@ -230,24 +230,24 @@ const Settings: React.FC = () => {
               </div>
 
               <div>
-                <h3 className="font-bold text-lg text-white leading-snug">{name || user?.name || 'Tên người dùng'}</h3>
+                <h3 className="font-bold text-lg text-white leading-snug">{name || user?.name || t('settings.preview.defaultUser')}</h3>
                 <p className="text-xs text-slate-400">{user?.email || 'user@example.com'}</p>
               </div>
 
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold capitalize">
-                <ShieldCheck size={13} /> {user?.role || 'Học viên'}
+                <ShieldCheck size={13} /> {t(`enums.role.${user?.role || 'student'}`, user?.role || 'Học viên')}
               </div>
             </div>
 
             <div className="p-3 bg-white/5 rounded-2xl text-xs text-slate-300 space-y-1">
-              <span className="text-[10px] font-bold uppercase text-slate-400">Tiểu sử (Bio)</span>
-              <p className="line-clamp-3 text-slate-300 italic">{bio || 'Chưa cập nhật tiểu sử'}</p>
+              <span className="text-[10px] font-bold uppercase text-slate-400">{t('settings.preview.bio')}</span>
+              <p className="line-clamp-3 text-slate-300 italic">{bio || t('settings.preview.noBio')}</p>
             </div>
 
             <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
-              <span>Trạng thái tài khoản</span>
+              <span>{t('settings.preview.status')}</span>
               <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Đang hoạt động
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> {t('settings.preview.active')}
               </span>
             </div>
           </aside>
@@ -274,6 +274,8 @@ const ProfileForm: React.FC<{
   githubUrl: string;
   setGithubUrl: (v: string) => void;
 }> = ({ name, setName, avatar, setAvatar, bio, setBio, linkedinUrl, setLinkedinUrl, githubUrl, setGithubUrl }) => {
+  const { t } = useTranslation();
+  const { success: successToast } = useToast();
   const dispatch = useDispatch();
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -290,10 +292,10 @@ const ProfileForm: React.FC<{
         const uploadedUrl = res.data?.url || res.data?.data?.url;
         if (uploadedUrl) {
           setAvatar(uploadedUrl);
-          successToast('Tải ảnh đại diện thành công!', 'Ảnh đại diện');
+          successToast(t('settings.profile.uploadSuccess'), t('settings.profile.avatar'));
         }
       } catch (err) {
-        setErrorMsg('Tải ảnh lên thất bại. Vui lòng thử lại.');
+        setErrorMsg(t('settings.profile.uploadError'));
       } finally {
         setIsUploading(false);
       }
@@ -303,14 +305,14 @@ const ProfileForm: React.FC<{
   const updateProfileMutation = useMutation({
     mutationFn: userApi.updateMyProfile,
     onSuccess: (res) => {
-      setSuccessMsg('Cập nhật hồ sơ thành công!');
+      setSuccessMsg(t('settings.profile.success'));
       setErrorMsg('');
       if (res.data?.user) dispatch(updateUser(res.data.user));
-      successToast('Đã lưu thông tin hồ sơ thành công!', 'Cài đặt');
+      successToast(t('settings.profile.success'), t('settings.title'));
       setTimeout(() => setSuccessMsg(''), 3000);
     },
     onError: (err: any) => {
-      setErrorMsg(err.response?.data?.message || 'Không thể lưu hồ sơ.');
+      setErrorMsg(err.response?.data?.message || t('settings.profile.error'));
     }
   });
 
@@ -334,49 +336,49 @@ const ProfileForm: React.FC<{
         </div>
 
         <div>
-          <h4 className="font-bold text-sm text-slate-900 dark:text-white">Ảnh đại diện</h4>
-          <p className="text-xs text-slate-500 mb-2">Hỗ trợ JPG, PNG hoặc GIF dưới 5MB.</p>
+          <h4 className="font-bold text-sm text-slate-900 dark:text-white">{t('settings.profile.avatar')}</h4>
+          <p className="text-xs text-slate-500 mb-2">{t('settings.profile.avatarHint')}</p>
           <button 
             type="button" 
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
             className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors"
           >
-            {isUploading ? 'Đang tải...' : 'Tải ảnh mới'}
+            {isUploading ? t('settings.profile.uploading') : t('settings.profile.uploadBtn')}
           </button>
         </div>
       </div>
 
       <div className="space-y-4">
         <Input 
-          label="Họ và tên *"
+          label={t('settings.profile.fullName')}
           value={name} 
           onChange={(e) => setName(e.target.value)} 
-          placeholder="Nhập họ và tên đầy đủ"
+          placeholder={t('settings.profile.fullNamePlaceholder')}
         />
 
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Tiểu sử (Bio)</label>
+          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">{t('settings.profile.bio')}</label>
           <textarea 
             rows={3}
             value={bio}
             onChange={(e) => setBio(e.target.value)}
-            placeholder="Mô tả ngắn gọn về kinh nghiệm hoặc sở thích học tập..."
+            placeholder={t('settings.profile.bioPlaceholder')}
             className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm font-medium text-slate-900 dark:text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 resize-none"
           />
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4">
           <Input 
-            label="Liên kết LinkedIn"
+            label={t('settings.profile.linkedin')}
             value={linkedinUrl}
-            onChange={(e) => setLinkedinUrl(e.target.value)}
+            onChange={(e) => setLinkedinUrl(e.target.value)} 
             placeholder="https://linkedin.com/in/username"
           />
           <Input 
-            label="Liên kết GitHub"
+            label={t('settings.profile.github')}
             value={githubUrl}
-            onChange={(e) => setGithubUrl(e.target.value)}
+            onChange={(e) => setGithubUrl(e.target.value)} 
             placeholder="https://github.com/username"
           />
         </div>
@@ -389,7 +391,7 @@ const ProfileForm: React.FC<{
           disabled={updateProfileMutation.isPending || !name}
           className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50"
         >
-          {updateProfileMutation.isPending ? 'Đang lưu...' : 'Lưu thay đổi hồ sơ'}
+          {updateProfileMutation.isPending ? t('settings.profile.saving') : t('settings.profile.saveBtn')}
         </button>
         {successMsg && <span className="text-xs font-bold text-emerald-500">{successMsg}</span>}
         {errorMsg && <span className="text-xs font-bold text-rose-500">{errorMsg}</span>}
@@ -403,6 +405,7 @@ const ProfileForm: React.FC<{
 // ============================================================================
 
 const SecurityForm: React.FC<{ is2FA: boolean; setIs2FA: (v: boolean) => void }> = ({ is2FA, setIs2FA }) => {
+  const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -412,7 +415,7 @@ const SecurityForm: React.FC<{ is2FA: boolean; setIs2FA: (v: boolean) => void }>
   const changePasswordMutation = useMutation({
     mutationFn: userApi.changePassword,
     onSuccess: () => {
-      setSuccessMsg('Đổi mật khẩu thành công!');
+      setSuccessMsg(t('settings.security.success'));
       setErrorMsg('');
       setCurrentPassword('');
       setNewPassword('');
@@ -420,13 +423,13 @@ const SecurityForm: React.FC<{ is2FA: boolean; setIs2FA: (v: boolean) => void }>
       setTimeout(() => setSuccessMsg(''), 3000);
     },
     onError: (err: any) => {
-      setErrorMsg(err.response?.data?.message || 'Không thể đổi mật khẩu.');
+      setErrorMsg(err.response?.data?.message || 'Error changing password.');
     }
   });
 
   const handleSavePassword = () => {
     if (newPassword !== confirmPassword) {
-      setErrorMsg('Mật khẩu mới không trùng khớp.');
+      setErrorMsg(t('settings.security.errorMismatch'));
       return;
     }
     changePasswordMutation.mutate({ currentPassword, newPassword, confirmPassword });
@@ -437,23 +440,23 @@ const SecurityForm: React.FC<{ is2FA: boolean; setIs2FA: (v: boolean) => void }>
       {/* Change Password */}
       <div className="space-y-4 max-w-lg">
         <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-          <Lock size={16} className="text-indigo-500" /> Đổi mật khẩu
+          <Lock size={16} className="text-indigo-500" /> {t('settings.security.changePassword')}
         </h3>
         <Input 
           type="password"
-          label="Mật khẩu hiện tại *"
+          label={t('settings.security.currentPass')}
           value={currentPassword} 
           onChange={(e) => setCurrentPassword(e.target.value)} 
         />
         <Input 
           type="password"
-          label="Mật khẩu mới *"
+          label={t('settings.security.newPass')}
           value={newPassword} 
           onChange={(e) => setNewPassword(e.target.value)} 
         />
         <Input 
           type="password"
-          label="Xác nhận mật khẩu mới *"
+          label={t('settings.security.confirmPass')}
           value={confirmPassword} 
           onChange={(e) => setConfirmPassword(e.target.value)} 
         />
@@ -464,7 +467,7 @@ const SecurityForm: React.FC<{ is2FA: boolean; setIs2FA: (v: boolean) => void }>
             disabled={changePasswordMutation.isPending || !currentPassword || !newPassword || !confirmPassword}
             className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50"
           >
-            {changePasswordMutation.isPending ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
+            {changePasswordMutation.isPending ? t('settings.security.updating') : t('settings.security.updateBtn')}
           </button>
           {successMsg && <p className="text-xs font-bold text-emerald-500 mt-2">{successMsg}</p>}
           {errorMsg && <p className="text-xs font-bold text-rose-500 mt-2">{errorMsg}</p>}
@@ -476,9 +479,9 @@ const SecurityForm: React.FC<{ is2FA: boolean; setIs2FA: (v: boolean) => void }>
         <div className="flex items-center justify-between p-4 bg-indigo-50/50 dark:bg-indigo-500/10 rounded-2xl border border-indigo-100 dark:border-indigo-500/20">
           <div>
             <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-              <Smartphone size={16} className="text-indigo-500" /> Xác minh 2 yếu tố (2FA)
+              <Smartphone size={16} className="text-indigo-500" /> {t('settings.security.twoFactorTitle')}
             </h4>
-            <p className="text-xs text-slate-500 mt-1">Yêu cầu mã xác minh OTP qua email/điện thoại khi đăng nhập từ thiết bị lạ.</p>
+            <p className="text-xs text-slate-500 mt-1">{t('settings.security.twoFactorDesc')}</p>
           </div>
           <button 
             onClick={() => setIs2FA(!is2FA)}
@@ -488,7 +491,7 @@ const SecurityForm: React.FC<{ is2FA: boolean; setIs2FA: (v: boolean) => void }>
                 : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300'
             }`}
           >
-            {is2FA ? 'Đã bật 2FA ✓' : 'Bật 2FA'}
+            {is2FA ? t('settings.security.twoFactorEnabled') : t('settings.security.twoFactorEnable')}
           </button>
         </div>
       </div>
@@ -501,7 +504,7 @@ const SecurityForm: React.FC<{ is2FA: boolean; setIs2FA: (v: boolean) => void }>
 // ============================================================================
 
 const LanguageSection: React.FC = () => {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const handleLanguageChange = (lng: string) => {
     i18n.changeLanguage(lng);
@@ -511,8 +514,8 @@ const LanguageSection: React.FC = () => {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Ngôn ngữ hiển thị</h2>
-        <p className="text-xs text-slate-500 mt-1">Chọn ngôn ngữ bạn muốn áp dụng cho toàn bộ giao diện hệ thống.</p>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('settings.language.title')}</h2>
+        <p className="text-xs text-slate-500 mt-1">{t('settings.language.desc')}</p>
       </div>
 
       <div className="flex gap-4">
@@ -524,7 +527,7 @@ const LanguageSection: React.FC = () => {
               : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-slate-300'
           }`}
         >
-          <Globe size={16} /> Tiếng Việt (Vietnamese)
+          <Globe size={16} /> {t('settings.language.vi')}
         </button>
 
         <button 
@@ -535,7 +538,7 @@ const LanguageSection: React.FC = () => {
               : 'border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-slate-300'
           }`}
         >
-          <Globe size={16} /> English (English)
+          <Globe size={16} /> {t('settings.language.en')}
         </button>
       </div>
     </div>
@@ -547,13 +550,14 @@ const LanguageSection: React.FC = () => {
 // ============================================================================
 
 const AppearanceSection: React.FC = () => {
+  const { t } = useTranslation();
   const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="pt-6 border-t border-slate-200/60 dark:border-white/10 space-y-4">
       <div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Chế độ Giao diện</h2>
-        <p className="text-xs text-slate-500 mt-1">Tùy chọn tông màu giao diện Sáng (Light) hoặc Tối (Dark Mode).</p>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('settings.appearance.title')}</h2>
+        <p className="text-xs text-slate-500 mt-1">{t('settings.appearance.desc')}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 max-w-md">
@@ -571,7 +575,7 @@ const AppearanceSection: React.FC = () => {
             <div className="w-3/4 h-1.5 bg-slate-100 rounded-full" />
           </div>
           <span className="text-xs font-bold flex items-center gap-1.5 text-slate-900">
-            <Sun size={14} className="text-amber-500" /> Sáng (Light) {theme === 'light' && '✓'}
+            <Sun size={14} className="text-amber-500" /> {t('settings.appearance.light')} {theme === 'light' && '✓'}
           </span>
         </button>
 
@@ -589,7 +593,7 @@ const AppearanceSection: React.FC = () => {
             <div className="w-3/4 h-1.5 bg-slate-800 rounded-full" />
           </div>
           <span className="text-xs font-bold flex items-center gap-1.5 text-white">
-            <Moon size={14} className="text-indigo-400" /> Tối (Dark Mode) {theme === 'dark' && '✓'}
+            <Moon size={14} className="text-indigo-400" /> {t('settings.appearance.dark')} {theme === 'dark' && '✓'}
           </span>
         </button>
       </div>
@@ -598,3 +602,4 @@ const AppearanceSection: React.FC = () => {
 };
 
 export default Settings;
+

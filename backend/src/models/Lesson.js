@@ -2,18 +2,33 @@ const mongoose = require('mongoose');
 
 const lessonSchema = new mongoose.Schema({
   course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
-  title: { type: String, required: true, trim: true },
+  title: { type: mongoose.Schema.Types.Mixed, required: true },
   videoUrl: { type: String, required: true },
+  videoPublicId: { type: String, default: null },
+  provider: { type: String, enum: ['cloudinary', 'youtube'], default: 'cloudinary' },
   duration: { type: Number, default: 0 }, // Giây
   order: { type: Number, required: true } // Thứ tự sắp xếp trong khóa học
 }, { timestamps: true });
 
+// Pre-save hook: tự động phát hiện provider nếu chưa được chỉ định
+lessonSchema.pre('save', function() {
+  if (this.isModified('videoUrl') || !this.provider) {
+    const isYouTube = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/i.test(this.videoUrl);
+    this.provider = isYouTube ? 'youtube' : 'cloudinary';
+    if (isYouTube) {
+      this.videoPublicId = null;
+    }
+  }
+});
+
 // Sắp xếp bài học nhanh chóng khi hiển thị theo khóa
 lessonSchema.index({ course: 1, order: 1 });
+lessonSchema.index({ 'title.vi': 1 });
+lessonSchema.index({ 'title.en': 1 });
+lessonSchema.index({ title: 1 });
 
 // Cascading delete middleware khi xóa bài giảng
-lessonSchema.pre('findOneAndDelete', async function(next) {
-
+lessonSchema.pre('findOneAndDelete', async function() {
   const doc = await this.model.findOne(this.getQuery());
   if (doc) {
     const lessonId = doc._id;
@@ -33,7 +48,6 @@ lessonSchema.pre('findOneAndDelete', async function(next) {
       { $unset: { lastAccessedLesson: "" } }
     );
   }
-  next();
 });
 
 module.exports = mongoose.model('Lesson', lessonSchema);

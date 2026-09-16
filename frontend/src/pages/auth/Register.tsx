@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import AuthLayout from '../../components/auth/AuthLayout';
 import AuthField from '../../components/auth/AuthField';
-
 import { useToast } from '../../contexts/ToastContext';
 
 const Register: React.FC = () => {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,30 +24,50 @@ const Register: React.FC = () => {
   const passwordStrength =
     password.length === 0 ? 0 : password.length < 6 ? 1 : password.length < 10 ? 2 : 3;
   const strengthColors = ['bg-white/10', 'bg-rose-400', 'bg-amber-400', 'bg-emerald-400'];
-  const strengthLabels = ['', 'Weak', 'Good', 'Strong'];
+  const strengthLabels = ['', t('auth.register.weak'), t('auth.register.good'), t('auth.register.strong')];
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validation
-    if (!name.trim()) { setErrorState('Vui lòng nhập họ tên.'); error('Vui lòng nhập họ tên.'); return; }
-    if (!email.trim()) { setErrorState('Vui lòng nhập email.'); error('Vui lòng nhập email.'); return; }
-    if (password.length < 6) { setErrorState('Mật khẩu phải có ít nhất 6 ký tự.'); error('Mật khẩu phải có ít nhất 6 ký tự.'); return; }
-    if (password !== passwordConfirm) { setErrorState('Mật khẩu xác nhận không khớp.'); error('Mật khẩu xác nhận không khớp.'); return; }
+    if (!name.trim()) { 
+      const msg = t('auth.validation.nameRequired');
+      setErrorState(msg); 
+      error(msg); 
+      return; 
+    }
+    if (!email.trim()) { 
+      const msg = t('auth.validation.emailRequired');
+      setErrorState(msg); 
+      error(msg); 
+      return; 
+    }
+    if (password.length < 6) { 
+      const msg = t('auth.validation.passwordMin');
+      setErrorState(msg); 
+      error(msg); 
+      return; 
+    }
+    if (password !== passwordConfirm) { 
+      const msg = t('auth.validation.passwordMismatch');
+      setErrorState(msg); 
+      error(msg); 
+      return; 
+    }
 
     setErrorState('');
     setLoading(true);
     try {
       await register({ name, email, password, passwordConfirm, role });
-      success('Tài khoản đã được tạo thành công!', 'Đăng ký thành công');
+      success(t('auth.toast.registerSuccess'), t('common.success'));
       navigate('/home', { replace: true });
     } catch (err: any) {
       const msg =
         err.response?.data?.message ||
         err.message ||
-        'Đăng ký thất bại. Vui lòng thử lại.';
+        t('auth.register.failed');
       setErrorState(msg);
-      error(msg, 'Đăng ký thất bại');
+      error(msg, t('auth.register.failedTitle'));
     } finally {
       setLoading(false);
     }
@@ -54,18 +75,18 @@ const Register: React.FC = () => {
 
   return (
     <AuthLayout
-      badge="Create Your Space"
-      headline="Create your learning space."
-      description="Join our community of learners and start building your skills today in a beautiful, distraction-free environment."
+      badge={t('auth.register.badge')}
+      headline={t('auth.register.headline')}
+      description={t('auth.register.desc')}
       bannerLabel=""
       bannerTitle=""
       bannerDescription=""
       highlights={[]}
       footer={
         <p className="text-center text-sm text-slate-400 mt-6">
-          Already have an account?{' '}
+          {t('auth.register.alreadyHave')}{' '}
           <Link className="font-semibold text-sky-400 hover:text-sky-300 transition-colors" to="/login">
-            Sign in
+            {t('auth.register.signIn')}
           </Link>
         </p>
       }
@@ -88,7 +109,7 @@ const Register: React.FC = () => {
         )}
 
         <AuthField
-          label="Full name"
+          label={t('auth.register.nameLabel')}
           type="text"
           placeholder="Alex Johnson"
           autoComplete="name"
@@ -96,7 +117,7 @@ const Register: React.FC = () => {
           onChange={(e) => setName(e.target.value)}
         />
         <AuthField
-          label="Email address"
+          label={t('auth.register.emailLabel')}
           type="email"
           placeholder="alex@school.com"
           autoComplete="email"
@@ -105,23 +126,23 @@ const Register: React.FC = () => {
         />
 
         <label className="block space-y-2">
-          <span className="text-sm font-medium text-slate-300">Role</span>
+          <span className="text-sm font-medium text-slate-300">{t('auth.register.role')}</span>
           <select
             value={role}
             onChange={(event) => setRole(event.target.value as 'student' | 'teacher')}
             className="w-full h-[52px] rounded-2xl border bg-white/5 px-4 text-white shadow-sm outline-none transition-all duration-300 border-white/10 hover:border-white/20 focus:border-sky-400 focus:bg-white/10 focus:ring-4 focus:ring-sky-400/20 appearance-none cursor-pointer"
           >
-            <option value="student" className="text-slate-900">Student</option>
-            <option value="teacher" className="text-slate-900">Teacher</option>
+            <option value="student" className="text-slate-900">{t('auth.register.student')}</option>
+            <option value="teacher" className="text-slate-900">{t('auth.register.teacher')}</option>
           </select>
         </label>
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
             <AuthField
-              label="Password"
+              label={t('auth.register.passwordLabel')}
               type="password"
-              placeholder="Create a password"
+              placeholder="••••••••"
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -157,9 +178,9 @@ const Register: React.FC = () => {
             )}
           </div>
           <AuthField
-            label="Confirm password"
+            label={t('auth.register.confirmPasswordLabel')}
             type="password"
-            placeholder="Repeat password"
+            placeholder="••••••••"
             autoComplete="new-password"
             value={passwordConfirm}
             onChange={(e) => setPasswordConfirm(e.target.value)}
@@ -185,13 +206,13 @@ const Register: React.FC = () => {
             </svg>
           </div>
           <span>
-            I agree to the{' '}
+            {t('auth.register.agreeTerms')}{' '}
             <a className="font-semibold text-sky-400 hover:text-sky-300 transition-colors" href="#">
-              Terms
+              {t('auth.register.terms')}
             </a>{' '}
-            and{' '}
+            {t('auth.register.and')}{' '}
             <a className="font-semibold text-sky-400 hover:text-sky-300 transition-colors" href="#">
-              Privacy Policy
+              {t('auth.register.privacy')}
             </a>
             .
           </span>
@@ -208,10 +229,10 @@ const Register: React.FC = () => {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              Creating account...
+              {t('auth.register.submitting')}
             </span>
           ) : (
-            'Create account'
+            t('auth.register.submit')
           )}
         </button>
       </motion.form>

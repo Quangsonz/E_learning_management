@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   DndContext, 
   closestCenter,
@@ -25,16 +28,64 @@ import { assignmentApi, Assignment } from '../../services/assignment.api';
 import { uploadApi } from '../../services/upload.api';
 import { 
   GripVertical, Plus, Trash2, Edit3, Video, FileQuestion, 
-  BookOpen, HelpCircle, Upload, CheckCircle2, FileText 
+  BookOpen, HelpCircle, Upload, CheckCircle2, FileText,
+  Play, Clock, Search, X, AlertTriangle, Sparkles, ExternalLink
 } from 'lucide-react';
 
-const SortableLessonItem = ({ lesson, onEdit, onDelete }: { lesson: Lesson, onEdit: (l: Lesson) => void, onDelete: (id: string) => void }) => {
+/* ── Video & Duration Utilities ───────────────────────────────────── */
+const getYouTubeEmbedUrl = (url?: string): string | null => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? `https://www.youtube-nocookie.com/embed/${match[2]}?autoplay=1` : null;
+};
+
+const getYouTubeId = (url?: string): string | null => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+};
+
+const formatDuration = (seconds?: number): string => {
+  if (!seconds || seconds <= 0) return '';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  if (mins >= 60) {
+    const hrs = Math.floor(mins / 60);
+    const remainMins = mins % 60;
+    return `${hrs}h ${remainMins}m`;
+  }
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+};
+
+const formatTotalDuration = (lessons: Lesson[]): string => {
+  const totalSeconds = lessons.reduce((sum, l) => sum + (Number(l.duration) || 0), 0);
+  if (totalSeconds <= 0) return '0 phút';
+  const hrs = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  if (hrs > 0) {
+    return `${hrs} giờ ${mins > 0 ? `${mins} phút` : ''}`;
+  }
+  return `${mins} phút`;
+};
+
+interface SortableLessonItemProps {
+  lesson: Lesson;
+  index: number;
+  onEdit: (l: Lesson) => void;
+  onDelete: (id: string, title: string) => void;
+  onPreview: (l: Lesson) => void;
+}
+
+const SortableLessonItem = ({ lesson, index, onEdit, onDelete, onPreview }: SortableLessonItemProps) => {
   const {
     attributes,
     listeners,
     setNodeRef,
     transform,
     transition,
+    isDragging,
   } = useSortable({ id: lesson._id });
 
   const style = {
@@ -42,27 +93,110 @@ const SortableLessonItem = ({ lesson, onEdit, onDelete }: { lesson: Lesson, onEd
     transition,
   };
 
+  const isYouTube = lesson.provider === 'youtube' || (lesson.videoUrl && (lesson.videoUrl.includes('youtube.com') || lesson.videoUrl.includes('youtu.be')));
+  const durationText = formatDuration(lesson.duration);
+
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center gap-4 p-4 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm mb-3">
-      <button {...attributes} {...listeners} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-grab active:cursor-grabbing">
-        <GripVertical size={20} />
-      </button>
-      
-      <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-        <Video size={20} />
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <h4 className="font-semibold text-slate-900 dark:text-white truncate">{lesson.title}</h4>
-        <p className="text-sm text-slate-500 truncate">{lesson.videoUrl}</p>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button onClick={() => onEdit(lesson)} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
-          <Edit3 size={18} />
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative flex flex-col sm:flex-row sm:items-center gap-4 p-4 md:p-5 bg-white dark:bg-slate-900 rounded-2xl border transition-all duration-200 shadow-sm hover:shadow-md mb-3 ${
+        isDragging
+          ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-xl opacity-90 z-20'
+          : 'border-slate-200 dark:border-white/10 hover:border-indigo-200 dark:hover:border-white/20'
+      }`}
+    >
+      {/* Drag handle, Index Badge & Play button */}
+      <div className="flex items-center gap-3 shrink-0">
+        <button
+          {...attributes}
+          {...listeners}
+          title="Kéo để đổi thứ tự bài học"
+          className="p-1.5 -ml-1 text-slate-400 hover:text-indigo-600 dark:hover:text-white cursor-grab active:cursor-grabbing rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+        >
+          <GripVertical size={18} />
         </button>
-        <button onClick={() => onDelete(lesson._id)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
-          <Trash2 size={18} />
+
+        <span className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-xs font-bold font-mono text-slate-600 dark:text-slate-300 shrink-0">
+          {String(index + 1).padStart(2, '0')}
+        </span>
+
+        <button
+          onClick={() => onPreview(lesson)}
+          title="Xem trước bài giảng"
+          className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-600 dark:hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 hover:text-white dark:hover:text-white flex items-center justify-center shrink-0 transition-colors shadow-sm"
+        >
+          <Play size={18} className="fill-current ml-0.5" />
+        </button>
+      </div>
+
+      {/* Main Info */}
+      <div className="flex-1 min-w-0 pr-2">
+        <div className="flex flex-wrap items-center gap-2 mb-1">
+          <h4
+            onClick={() => onPreview(lesson)}
+            className="font-semibold text-slate-900 dark:text-white text-base truncate hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors"
+            title={lesson.title}
+          >
+            {lesson.title}
+          </h4>
+        </div>
+
+        {/* Metadata Badges */}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          {isYouTube ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-500/20 font-semibold text-[11px]">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              YouTube Video
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-500/20 font-semibold text-[11px]">
+              <Video size={12} />
+              Cloudinary Video
+            </span>
+          )}
+
+          {durationText && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 font-mono text-[11px] border border-slate-200/60 dark:border-white/5">
+              <Clock size={12} className="text-slate-400" />
+              {durationText}
+            </span>
+          )}
+
+          {lesson.videoUrl && (
+            <span className="hidden md:inline-flex items-center gap-1 text-slate-400 truncate max-w-xs text-[11px]">
+              <span className="text-slate-300 dark:text-slate-600">•</span>
+              {isYouTube ? (getYouTubeId(lesson.videoUrl) ? `ID: ${getYouTubeId(lesson.videoUrl)}` : 'YouTube') : 'Hosted file'}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-white/5 w-full sm:w-auto justify-end">
+        <button
+          onClick={() => onPreview(lesson)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-xl transition-colors border border-indigo-100 dark:border-indigo-500/20"
+          title="Xem trước video"
+        >
+          <Play size={13} className="fill-current" />
+          <span>Xem trước</span>
+        </button>
+
+        <button
+          onClick={() => onEdit(lesson)}
+          className="p-2 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors"
+          title="Chỉnh sửa bài học"
+        >
+          <Edit3 size={16} />
+        </button>
+
+        <button
+          onClick={() => onDelete(lesson._id, lesson.title)}
+          className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors"
+          title="Xóa bài học"
+        >
+          <Trash2 size={16} />
         </button>
       </div>
     </div>
@@ -70,19 +204,46 @@ const SortableLessonItem = ({ lesson, onEdit, onDelete }: { lesson: Lesson, onEd
 };
 
 const CurriculumEditor = () => {
+  const { t } = useTranslation();
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<'lessons' | 'quizzes' | 'assignments'>('lessons');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [previewLesson, setPreviewLesson] = useState<Lesson | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: 'lesson' | 'quiz' | 'question' | 'assignment';
+    id: string;
+    name: string;
+  } | null>(null);
 
   // Lesson states
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [isLessonModalOpen, setIsLessonModalOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
-  const [lessonFormData, setLessonFormData] = useState({ title: '', videoUrl: '' });
+  const [lessonFormData, setLessonFormData] = useState({ 
+    title: '', 
+    videoUrl: '', 
+    videoPublicId: null as string | null, 
+    duration: 0, 
+    provider: 'cloudinary' as 'cloudinary' | 'youtube' 
+  });
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const uploadAbortControllerRef = React.useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isUploadingVideo) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isUploadingVideo]);
 
   // Quiz states
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
@@ -164,9 +325,9 @@ const CurriculumEditor = () => {
     mutationFn: (newOrder: { id: string; order: number }[]) => lessonApi.reorderLessons(courseId!, newOrder),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lessons', courseId] });
-      setToast({ message: 'Curriculum order saved', type: 'success' });
+      setToast({ message: t('teacher.curriculum.toasts.orderSaved'), type: 'success' });
     },
-    onError: () => setToast({ message: 'Failed to reorder lessons', type: 'error' }),
+    onError: () => setToast({ message: t('teacher.curriculum.toasts.orderFailed'), type: 'error' }),
   });
 
   const createLessonMutation = useMutation({
@@ -174,7 +335,11 @@ const CurriculumEditor = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lessons', courseId] });
       setIsLessonModalOpen(false);
-      setToast({ message: 'Lesson added', type: 'success' });
+      setToast({ message: t('teacher.curriculum.toasts.lessonAdded'), type: 'success' });
+    },
+    onError: (err: any) => {
+      const errorMsg = err?.response?.data?.message || t('teacher.curriculum.toasts.lessonAddFailed', 'Không thể thêm bài học. Vui lòng kiểm tra lại thông tin.');
+      setToast({ message: errorMsg, type: 'error' });
     }
   });
 
@@ -183,7 +348,11 @@ const CurriculumEditor = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lessons', courseId] });
       setIsLessonModalOpen(false);
-      setToast({ message: 'Lesson updated', type: 'success' });
+      setToast({ message: t('teacher.curriculum.toasts.lessonUpdated'), type: 'success' });
+    },
+    onError: (err: any) => {
+      const errorMsg = err?.response?.data?.message || t('teacher.curriculum.toasts.lessonUpdateFailed', 'Không thể cập nhật bài học. Vui lòng kiểm tra lại thông tin.');
+      setToast({ message: errorMsg, type: 'error' });
     }
   });
 
@@ -191,7 +360,11 @@ const CurriculumEditor = () => {
     mutationFn: (lessonId: string) => lessonApi.deleteLesson(courseId!, lessonId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lessons', courseId] });
-      setToast({ message: 'Lesson deleted', type: 'success' });
+      setToast({ message: t('teacher.curriculum.toasts.lessonDeleted'), type: 'success' });
+    },
+    onError: (err: any) => {
+      const errorMsg = err?.response?.data?.message || t('teacher.curriculum.toasts.lessonDeleteFailed', 'Không thể xóa bài học.');
+      setToast({ message: errorMsg, type: 'error' });
     }
   });
 
@@ -201,7 +374,7 @@ const CurriculumEditor = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quizzes', courseId] });
       setIsQuizModalOpen(false);
-      setToast({ message: 'Quiz created successfully', type: 'success' });
+      setToast({ message: t('teacher.curriculum.toasts.quizCreated'), type: 'success' });
     }
   });
 
@@ -210,7 +383,7 @@ const CurriculumEditor = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quizzes', courseId] });
       setIsQuizModalOpen(false);
-      setToast({ message: 'Quiz updated successfully', type: 'success' });
+      setToast({ message: t('teacher.curriculum.toasts.quizUpdated'), type: 'success' });
     }
   });
 
@@ -218,7 +391,7 @@ const CurriculumEditor = () => {
     mutationFn: (quizId: string) => quizApi.deleteQuiz(quizId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quizzes', courseId] });
-      setToast({ message: 'Quiz deleted', type: 'success' });
+      setToast({ message: t('teacher.curriculum.toasts.quizDeleted'), type: 'success' });
     }
   });
 
@@ -228,7 +401,7 @@ const CurriculumEditor = () => {
     onSuccess: () => {
       refetchQuestions();
       setIsQuestionModalOpen(false);
-      setToast({ message: 'Question added', type: 'success' });
+      setToast({ message: t('teacher.curriculum.toasts.questionAdded'), type: 'success' });
     }
   });
 
@@ -237,7 +410,7 @@ const CurriculumEditor = () => {
     onSuccess: () => {
       refetchQuestions();
       setIsQuestionModalOpen(false);
-      setToast({ message: 'Question updated', type: 'success' });
+      setToast({ message: t('teacher.curriculum.toasts.questionUpdated'), type: 'success' });
     }
   });
 
@@ -245,7 +418,7 @@ const CurriculumEditor = () => {
     mutationFn: (questionId: string) => quizApi.deleteQuestion(questionId),
     onSuccess: () => {
       refetchQuestions();
-      setToast({ message: 'Question deleted', type: 'success' });
+      setToast({ message: t('teacher.curriculum.toasts.questionDeleted'), type: 'success' });
     }
   });
 
@@ -255,7 +428,7 @@ const CurriculumEditor = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assignments', courseId] });
       setIsAssignmentModalOpen(false);
-      setToast({ message: 'Assignment created', type: 'success' });
+      setToast({ message: t('teacher.curriculum.toasts.assignmentCreated'), type: 'success' });
     }
   });
 
@@ -264,7 +437,7 @@ const CurriculumEditor = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assignments', courseId] });
       setIsAssignmentModalOpen(false);
-      setToast({ message: 'Assignment updated', type: 'success' });
+      setToast({ message: t('teacher.curriculum.toasts.assignmentUpdated'), type: 'success' });
     }
   });
 
@@ -272,9 +445,30 @@ const CurriculumEditor = () => {
     mutationFn: (id: string) => assignmentApi.deleteAssignment(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assignments', courseId] });
-      setToast({ message: 'Assignment deleted', type: 'success' });
+      setToast({ message: t('teacher.curriculum.toasts.assignmentDeleted'), type: 'success' });
     }
   });
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.type === 'lesson') {
+      deleteLessonMutation.mutate(deleteTarget.id, {
+        onSettled: () => setDeleteTarget(null)
+      });
+    } else if (deleteTarget.type === 'quiz') {
+      deleteQuizMutation.mutate(deleteTarget.id, {
+        onSettled: () => setDeleteTarget(null)
+      });
+    } else if (deleteTarget.type === 'question') {
+      deleteQuestionMutation.mutate(deleteTarget.id, {
+        onSettled: () => setDeleteTarget(null)
+      });
+    } else if (deleteTarget.type === 'assignment') {
+      deleteAssignmentMutation.mutate(deleteTarget.id, {
+        onSettled: () => setDeleteTarget(null)
+      });
+    }
+  };
 
   // Handlers
   const handleDragEnd = (event: any) => {
@@ -294,17 +488,46 @@ const CurriculumEditor = () => {
   const handleVideoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const controller = new AbortController();
+    uploadAbortControllerRef.current = controller;
+    setIsUploadingVideo(true);
+    setUploadProgress(0);
+
     try {
-      setIsUploadingVideo(true);
-      const res = await uploadApi.uploadVideo(file);
+      const res = await uploadApi.uploadVideo(
+        file,
+        (percent) => setUploadProgress(percent),
+        controller.signal
+      );
       if (res.data?.data?.url) {
-        setLessonFormData(prev => ({ ...prev, videoUrl: res.data.data.url }));
-        setToast({ message: 'Video uploaded successfully!', type: 'success' });
+        setLessonFormData(prev => ({
+          ...prev,
+          videoUrl: res.data.data.url,
+          videoPublicId: res.data.data.publicId || null,
+          duration: res.data.data.duration || 0,
+          provider: 'cloudinary'
+        }));
+        setToast({ message: t('teacher.curriculum.videoSuccess', 'Video uploaded successfully!'), type: 'success' });
       }
-    } catch (err) {
-      setToast({ message: 'Video upload failed', type: 'error' });
+    } catch (err: any) {
+      if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') {
+        setToast({ message: t('teacher.curriculum.videoCancelled', 'Video upload cancelled'), type: 'error' });
+      } else {
+        const errorMsg = err?.response?.data?.message || t('teacher.curriculum.videoFailed', 'Video upload failed');
+        setToast({ message: errorMsg, type: 'error' });
+      }
     } finally {
       setIsUploadingVideo(false);
+      setUploadProgress(0);
+      uploadAbortControllerRef.current = null;
+    }
+  };
+
+  const handleCancelUpload = () => {
+    if (uploadAbortControllerRef.current) {
+      uploadAbortControllerRef.current.abort();
+      uploadAbortControllerRef.current = null;
     }
   };
 
@@ -330,10 +553,22 @@ const CurriculumEditor = () => {
   const handleOpenLessonModal = (lesson: Lesson | null = null) => {
     if (lesson) {
       setEditingLesson(lesson);
-      setLessonFormData({ title: lesson.title, videoUrl: lesson.videoUrl });
+      setLessonFormData({
+        title: lesson.title,
+        videoUrl: lesson.videoUrl,
+        videoPublicId: lesson.videoPublicId || null,
+        duration: lesson.duration || 0,
+        provider: lesson.provider || 'cloudinary'
+      });
     } else {
       setEditingLesson(null);
-      setLessonFormData({ title: '', videoUrl: '' });
+      setLessonFormData({
+        title: '',
+        videoUrl: '',
+        videoPublicId: null,
+        duration: 0,
+        provider: 'cloudinary'
+      });
     }
     setIsLessonModalOpen(true);
   };
@@ -398,11 +633,15 @@ const CurriculumEditor = () => {
     setIsAssignmentModalOpen(true);
   };
 
-  if (courseLoading) return <PageShell><div className="pt-24 text-center">Loading course data...</div></PageShell>;
+  if (courseLoading) return <PageShell><div className="pt-24 text-center">{t('teacher.curriculum.loadingCourse')}</div></PageShell>;
 
   const quizzesList: Quiz[] = quizzesData?.data?.quizzes || quizzesData?.data?.data?.quizzes || [];
   const assignmentsList: Assignment[] = Array.isArray(assignmentsData) ? assignmentsData : (assignmentsData as any)?.data?.assignments || [];
   const questionsList: Question[] = questionsData?.data?.questions || [];
+
+  const filteredLessons = lessons.filter(l =>
+    l.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <PageShell wide>
@@ -411,93 +650,207 @@ const CurriculumEditor = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <button onClick={() => navigate('/teacher-courses')} className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-2 hover:underline inline-flex items-center gap-1">
-              ← Back to Courses
+              {t('teacher.curriculum.backToCourses')}
             </button>
             <SectionHeader 
-              label="Curriculum Management"
-              title={`Curriculum: ${courseData?.data?.course?.title || 'Course'}`} 
-              description="Manage lessons, quizzes, and homework assignments for your course."
+              label={t('teacher.curriculum.title')}
+              title={t('teacher.curriculum.curriculumFor', { title: courseData?.data?.course?.title || 'Course' })} 
+              description={t('teacher.curriculum.subtitle')}
             />
           </div>
 
           <div className="flex items-center gap-3">
             {activeTab === 'lessons' && (
               <Button onClick={() => handleOpenLessonModal(null)} className="flex items-center gap-2">
-                <Plus size={18} /> Add Lesson
+                <Plus size={18} /> {t('teacher.curriculum.addLesson')}
               </Button>
             )}
             {activeTab === 'quizzes' && (
               <Button onClick={() => handleOpenQuizModal(null)} className="flex items-center gap-2">
-                <Plus size={18} /> Create Quiz
+                <Plus size={18} /> {t('teacher.curriculum.createQuiz')}
               </Button>
             )}
             {activeTab === 'assignments' && (
               <Button onClick={() => handleOpenAssignmentModal(null)} className="flex items-center gap-2">
-                <Plus size={18} /> Create Assignment
+                <Plus size={18} /> {t('teacher.curriculum.createAssignment')}
               </Button>
             )}
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-white/10 mb-8 pb-1">
-          <button
-            onClick={() => setActiveTab('lessons')}
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all ${
-              activeTab === 'lessons'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'
-            }`}
-          >
-            <Video size={18} />
-            Lessons ({lessons.length})
-          </button>
+        {/* Course Summary Metrics Bento */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">Tổng bài học</span>
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                <Video size={16} />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white">{lessons.length}</div>
+            <span className="text-xs text-slate-500 dark:text-white/40 mt-1 block">Bài giảng video</span>
+          </div>
 
-          <button
-            onClick={() => setActiveTab('quizzes')}
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all ${
-              activeTab === 'quizzes'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'
-            }`}
-          >
-            <HelpCircle size={18} />
-            Quizzes ({quizzesList.length})
-          </button>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">Thời lượng</span>
+              <div className="w-8 h-8 rounded-xl bg-cyan-50 dark:bg-cyan-500/20 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
+                <Clock size={16} />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white">{formatTotalDuration(lessons)}</div>
+            <span className="text-xs text-slate-500 dark:text-white/40 mt-1 block">Nội dung học tập</span>
+          </div>
 
-          <button
-            onClick={() => setActiveTab('assignments')}
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all ${
-              activeTab === 'assignments'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'
-            }`}
-          >
-            <BookOpen size={18} />
-            Assignments ({assignmentsList.length})
-          </button>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">Trắc nghiệm</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <HelpCircle size={16} />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white">{quizzesList.length}</div>
+            <span className="text-xs text-slate-500 dark:text-white/40 mt-1 block">Bài kiểm tra & Quiz</span>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-white/40">Bài tập</span>
+              <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                <BookOpen size={16} />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white">{assignmentsList.length}</div>
+            <span className="text-xs text-slate-500 dark:text-white/40 mt-1 block">Bài tập về nhà & thực hành</span>
+          </div>
+        </div>
+
+        {/* Tab Navigation & Toolbar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          {/* Segmented Control */}
+          <div className="inline-flex p-1.5 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 self-start sm:self-auto">
+            <button
+              onClick={() => setActiveTab('lessons')}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl transition-all ${
+                activeTab === 'lessons'
+                  ? 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-sm font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Video size={16} />
+              <span>{t('teacher.curriculum.tabLessons')}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === 'lessons' ? 'bg-indigo-50 dark:bg-white/20 text-indigo-700 dark:text-white font-bold' : 'bg-slate-200/60 dark:bg-white/10 text-slate-600 dark:text-slate-300'}`}>
+                {lessons.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('quizzes')}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl transition-all ${
+                activeTab === 'quizzes'
+                  ? 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-sm font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <HelpCircle size={16} />
+              <span>{t('teacher.curriculum.tabQuizzes')}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === 'quizzes' ? 'bg-indigo-50 dark:bg-white/20 text-indigo-700 dark:text-white font-bold' : 'bg-slate-200/60 dark:bg-white/10 text-slate-600 dark:text-slate-300'}`}>
+                {quizzesList.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('assignments')}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl transition-all ${
+                activeTab === 'assignments'
+                  ? 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-sm font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <BookOpen size={16} />
+              <span>{t('teacher.curriculum.tabAssignments')}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === 'assignments' ? 'bg-indigo-50 dark:bg-white/20 text-indigo-700 dark:text-white font-bold' : 'bg-slate-200/60 dark:bg-white/10 text-slate-600 dark:text-slate-300'}`}>
+                {assignmentsList.length}
+              </span>
+            </button>
+          </div>
+
+          {/* Search bar */}
+          {activeTab === 'lessons' && lessons.length > 0 && (
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Tìm bài học..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-8 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors w-full sm:w-60 text-slate-900 dark:text-white placeholder:text-slate-400 shadow-sm"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* TAB 1: LESSONS */}
         {activeTab === 'lessons' && (
           <div>
             {lessonsLoading ? (
-              <p className="text-center py-10 text-slate-500">Loading lessons...</p>
+              <p className="text-center py-10 text-slate-500">{t('teacher.curriculum.loadingLessons')}</p>
             ) : lessons.length === 0 ? (
-              <div className="text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300">No lessons added yet</h3>
-                <p className="text-slate-500 mt-2">Get started by creating your first video lesson.</p>
-                <Button onClick={() => handleOpenLessonModal(null)} className="mt-6">Add Lesson</Button>
+              <div className="text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-4">
+                  <Video size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300">{t('teacher.curriculum.noLessonsTitle')}</h3>
+                <p className="text-slate-500 mt-1 max-w-sm mx-auto text-sm">{t('teacher.curriculum.noLessonsDesc')}</p>
+                <Button onClick={() => handleOpenLessonModal(null)} className="mt-6">{t('teacher.curriculum.addLesson')}</Button>
               </div>
-            ) : (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={lessons.map(l => l._id)} strategy={verticalListSortingStrategy}>
-                  {lessons.map((lesson) => (
+            ) : searchQuery ? (
+              /* Filtered View (Reordering disabled while searching) */
+              <div>
+                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-3 px-1">
+                  <span>Tìm thấy <strong>{filteredLessons.length}</strong> bài học khớp với "{searchQuery}"</span>
+                  <span className="text-[11px] text-amber-600 dark:text-amber-400">(Kéo thả tạm tắt khi đang lọc)</span>
+                </div>
+                {filteredLessons.length === 0 ? (
+                  <div className="text-center py-12 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl">
+                    <p className="text-slate-500 text-sm">Không tìm thấy bài học nào phù hợp.</p>
+                    <button onClick={() => setSearchQuery('')} className="mt-2 text-xs font-semibold text-indigo-600 hover:underline">
+                      Xóa bộ lọc
+                    </button>
+                  </div>
+                ) : (
+                  filteredLessons.map((lesson, idx) => (
                     <SortableLessonItem 
                       key={lesson._id} 
-                      lesson={lesson} 
+                      lesson={lesson}
+                      index={idx}
                       onEdit={handleOpenLessonModal} 
-                      onDelete={(id) => confirm('Delete lesson?') && deleteLessonMutation.mutate(id)}
+                      onDelete={(id, title) => setDeleteTarget({ type: 'lesson', id, name: title })}
+                      onPreview={(l) => setPreviewLesson(l)}
+                    />
+                  ))
+                )}
+              </div>
+            ) : (
+              /* Full DnD Sortable View */
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={lessons.map(l => l._id)} strategy={verticalListSortingStrategy}>
+                  {lessons.map((lesson, idx) => (
+                    <SortableLessonItem 
+                      key={lesson._id} 
+                      lesson={lesson}
+                      index={idx}
+                      onEdit={handleOpenLessonModal} 
+                      onDelete={(id, title) => setDeleteTarget({ type: 'lesson', id, name: title })}
+                      onPreview={(l) => setPreviewLesson(l)}
                     />
                   ))}
                 </SortableContext>
@@ -510,39 +863,52 @@ const CurriculumEditor = () => {
         {activeTab === 'quizzes' && (
           <div>
             {quizzesLoading ? (
-              <p className="text-center py-10 text-slate-500">Loading quizzes...</p>
+              <p className="text-center py-10 text-slate-500">{t('teacher.curriculum.loadingQuizzes')}</p>
             ) : quizzesList.length === 0 ? (
-              <div className="text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300">No quizzes created yet</h3>
-                <p className="text-slate-500 mt-2">Create multiple-choice quizzes to test student knowledge.</p>
-                <Button onClick={() => handleOpenQuizModal(null)} className="mt-6">Create Quiz</Button>
+              <div className="text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30">
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-4">
+                  <FileQuestion size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300">{t('teacher.curriculum.noQuizzesTitle')}</h3>
+                <p className="text-slate-500 mt-1 max-w-sm mx-auto text-sm">{t('teacher.curriculum.noQuizzesDesc')}</p>
+                <Button onClick={() => handleOpenQuizModal(null)} className="mt-6">{t('teacher.curriculum.createQuiz')}</Button>
               </div>
             ) : (
-              <div className="space-y-4">
-                {quizzesList.map((quiz) => (
-                  <div key={quiz._id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
+              <div className="space-y-3">
+                {quizzesList.map((quiz, idx) => (
+                  <div key={quiz._id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-                        <FileQuestion size={24} />
+                      <span className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-xs font-bold font-mono text-slate-600 dark:text-slate-300 shrink-0">
+                        {String(idx + 1).padStart(2, '0')}
+                      </span>
+                      <div className="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                        <FileQuestion size={22} />
                       </div>
                       <div>
-                        <h4 className="font-bold text-slate-900 dark:text-white text-lg">{quiz.title}</h4>
-                        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 mt-1">
-                          <span>Passing Score: <strong className="text-emerald-600 dark:text-emerald-400">{quiz.passingScore}%</strong></span>
-                          <span>Time Limit: <strong>{quiz.timeLimit || 'No limit'} mins</strong></span>
+                        <h4 className="font-bold text-slate-900 dark:text-white text-base">{quiz.title}</h4>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          <span className="inline-flex items-center gap-1">{t('teacher.curriculum.passingScore')}: <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">{quiz.passingScore}%</strong></span>
+                          <span>•</span>
+                          <span className="inline-flex items-center gap-1">{t('teacher.curriculum.timeLimit')}: <strong className="text-slate-700 dark:text-slate-300">{quiz.timeLimit || t('teacher.curriculum.noLimit')} {t('teacher.curriculum.mins')}</strong></span>
+                          {quiz.questionCount !== undefined && (
+                            <>
+                              <span>•</span>
+                              <span className="inline-flex items-center gap-1">{t('teacher.curriculum.questions', 'Questions')}: <strong className="text-indigo-600 dark:text-indigo-400">{quiz.questionCount}</strong></span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <Button size="sm" variant="outline" onClick={() => setActiveQuizForQuestions(quiz)}>
-                        Manage Questions
+                    <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                      <Button size="sm" variant="outline" onClick={() => setActiveQuizForQuestions(quiz)} className="rounded-xl">
+                        {t('teacher.curriculum.manageQuestions')}
                       </Button>
-                      <button onClick={() => handleOpenQuizModal(quiz)} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
-                        <Edit3 size={18} />
+                      <button onClick={() => handleOpenQuizModal(quiz)} className="p-2 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors" title="Chỉnh sửa bài trắc nghiệm">
+                        <Edit3 size={16} />
                       </button>
-                      <button onClick={() => confirm('Delete quiz?') && deleteQuizMutation.mutate(quiz._id)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
-                        <Trash2 size={18} />
+                      <button onClick={() => setDeleteTarget({ type: 'quiz', id: quiz._id, name: quiz.title })} className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors" title="Xóa bài trắc nghiệm">
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
@@ -556,42 +922,52 @@ const CurriculumEditor = () => {
         {activeTab === 'assignments' && (
           <div>
             {assignmentsLoading ? (
-              <p className="text-center py-10 text-slate-500">Loading assignments...</p>
+              <p className="text-center py-10 text-slate-500">{t('teacher.curriculum.loadingAssignments')}</p>
             ) : assignmentsList.length === 0 ? (
-              <div className="text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300">No assignments created yet</h3>
-                <p className="text-slate-500 mt-2">Add homework assignments for students to complete and submit work.</p>
-                <Button onClick={() => handleOpenAssignmentModal(null)} className="mt-6">Create Assignment</Button>
+              <div className="text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30">
+                <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center mx-auto mb-4">
+                  <BookOpen size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300">{t('teacher.curriculum.noAssignmentsTitle')}</h3>
+                <p className="text-slate-500 mt-1 max-w-sm mx-auto text-sm">{t('teacher.curriculum.noAssignmentsDesc')}</p>
+                <Button onClick={() => handleOpenAssignmentModal(null)} className="mt-6">{t('teacher.curriculum.createAssignment')}</Button>
               </div>
             ) : (
-              <div className="space-y-4">
-                {assignmentsList.map((assignment) => (
-                  <div key={assignment._id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
+              <div className="space-y-3">
+                {assignmentsList.map((assignment, idx) => (
+                  <div key={assignment._id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
-                        <BookOpen size={24} />
+                      <span className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-xs font-bold font-mono text-slate-600 dark:text-slate-300 shrink-0">
+                        {String(idx + 1).padStart(2, '0')}
+                      </span>
+                      <div className="w-11 h-11 rounded-xl bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
+                        <BookOpen size={22} />
                       </div>
                       <div>
-                        <h4 className="font-bold text-slate-900 dark:text-white text-lg">{assignment.title}</h4>
-                        <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{assignment.description}</p>
-                        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 mt-2">
-                          <span>Max Points: <strong className="text-indigo-600 dark:text-indigo-400">{assignment.maxPoints} pts</strong></span>
-                          <span>Due Date: <strong>{new Date(assignment.dueDate).toLocaleDateString()}</strong></span>
+                        <h4 className="font-bold text-slate-900 dark:text-white text-base">{assignment.title}</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">{assignment.description}</p>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-2">
+                          <span>{t('teacher.curriculum.maxPoints')}: <strong className="text-indigo-600 dark:text-indigo-400 font-semibold">{assignment.maxPoints} {t('teacher.curriculum.pts')}</strong></span>
+                          <span>•</span>
+                          <span>{t('teacher.curriculum.dueDate')}: <strong className="text-slate-700 dark:text-slate-300">{new Date(assignment.dueDate).toLocaleDateString()}</strong></span>
                           {assignment.attachmentUrl && (
-                            <a href={assignment.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-sky-500 hover:underline flex items-center gap-1">
-                              <FileText size={12} /> Attachment
-                            </a>
+                            <>
+                              <span>•</span>
+                              <a href={assignment.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-sky-500 hover:underline inline-flex items-center gap-1 font-medium">
+                                <FileText size={12} /> {t('teacher.curriculum.attachment')}
+                              </a>
+                            </>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => handleOpenAssignmentModal(assignment)} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
-                        <Edit3 size={18} />
+                    <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                      <button onClick={() => handleOpenAssignmentModal(assignment)} className="p-2 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors" title="Chỉnh sửa bài tập">
+                        <Edit3 size={16} />
                       </button>
-                      <button onClick={() => confirm('Delete assignment?') && deleteAssignmentMutation.mutate(assignment._id)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
-                        <Trash2 size={18} />
+                      <button onClick={() => setDeleteTarget({ type: 'assignment', id: assignment._id, name: assignment.title })} className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors" title="Xóa bài tập">
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
@@ -603,11 +979,11 @@ const CurriculumEditor = () => {
       </div>
 
       {/* MODAL 1: ADD/EDIT LESSON */}
-      {isLessonModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-md w-full border border-slate-200 dark:border-white/10 shadow-2xl space-y-6">
+      {isLessonModalOpen && createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-md w-full border border-slate-200 dark:border-white/10 shadow-2xl space-y-6 my-auto max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              {editingLesson ? 'Edit Lesson' : 'Add New Lesson'}
+              {editingLesson ? t('teacher.curriculum.editLesson') : t('teacher.curriculum.newLesson')}
             </h2>
             <form onSubmit={(e) => {
               e.preventDefault();
@@ -615,50 +991,72 @@ const CurriculumEditor = () => {
               else createLessonMutation.mutate({ ...lessonFormData, order: lessons.length + 1 });
             }} className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Lesson Title</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('teacher.curriculum.lessonTitle')}</label>
                 <Input 
                   value={lessonFormData.title} 
                   onChange={(e) => setLessonFormData({...lessonFormData, title: e.target.value})} 
-                  placeholder="e.g. Introduction to React" 
+                  placeholder={t('teacher.curriculum.lessonTitlePlaceholder')} 
                   required 
                   className="w-full"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Video Source</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('teacher.curriculum.videoSource')}</label>
                 <Input 
                   value={lessonFormData.videoUrl} 
                   onChange={(e) => setLessonFormData({...lessonFormData, videoUrl: e.target.value})} 
-                  placeholder="Paste YouTube or Cloudinary Video URL..." 
+                  placeholder={t('teacher.curriculum.videoPlaceholder')} 
                   required 
                   className="w-full"
                 />
                 
                 <div className="pt-2">
-                  <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors">
-                    <Upload size={14} />
-                    {isUploadingVideo ? 'Uploading video...' : 'Upload Video File'}
-                    <input type="file" accept="video/*" className="hidden" onChange={handleVideoFileUpload} disabled={isUploadingVideo} />
-                  </label>
+                  {isUploadingVideo ? (
+                    <div className="space-y-2 p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-900/40">
+                      <div className="flex items-center justify-between text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                        <span>{t('teacher.curriculum.uploadingProgress', { progress: uploadProgress })}</span>
+                        <button 
+                          type="button" 
+                          onClick={handleCancelUpload}
+                          className="text-rose-500 hover:text-rose-600 text-xs underline font-semibold cursor-pointer"
+                        >
+                          {t('teacher.curriculum.cancelUpload')}
+                        </button>
+                      </div>
+                      <div className="w-full h-1.5 bg-indigo-200 dark:bg-indigo-900 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-indigo-600 dark:bg-indigo-400 transition-all duration-200"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors">
+                      <Upload size={14} />
+                      {t('teacher.curriculum.uploadVideo')}
+                      <input type="file" accept="video/*" className="hidden" onChange={handleVideoFileUpload} />
+                    </label>
+                  )}
                 </div>
               </div>
 
               <div className="pt-4 flex justify-end gap-3">
-                <Button variant="outline" type="button" onClick={() => setIsLessonModalOpen(false)}>Cancel</Button>
-                <Button type="submit">{editingLesson ? 'Save Changes' : 'Add Lesson'}</Button>
+                <Button variant="outline" type="button" onClick={() => setIsLessonModalOpen(false)}>{t('teacher.dashboard.cancel')}</Button>
+                <Button type="submit">{editingLesson ? t('teacher.curriculum.saveChanges') : t('teacher.curriculum.addLesson')}</Button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL 2: ADD/EDIT QUIZ */}
-      {isQuizModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-md w-full border border-slate-200 dark:border-white/10 shadow-2xl space-y-6">
+      {isQuizModalOpen && createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-md w-full border border-slate-200 dark:border-white/10 shadow-2xl space-y-6 my-auto max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              {editingQuiz ? 'Edit Quiz' : 'Create New Quiz'}
+              {editingQuiz ? t('teacher.curriculum.editQuiz') : t('teacher.curriculum.newQuiz')}
             </h2>
             <form onSubmit={(e) => {
               e.preventDefault();
@@ -666,11 +1064,11 @@ const CurriculumEditor = () => {
               else createQuizMutation.mutate(quizFormData);
             }} className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Quiz Title</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('teacher.curriculum.quizTitle')}</label>
                 <Input 
                   value={quizFormData.title} 
                   onChange={(e) => setQuizFormData({...quizFormData, title: e.target.value})} 
-                  placeholder="e.g. Mid-term Assessment" 
+                  placeholder={t('teacher.curriculum.quizTitlePlaceholder')} 
                   required 
                   className="w-full"
                 />
@@ -678,7 +1076,7 @@ const CurriculumEditor = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Passing Score (%)</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('teacher.curriculum.passingScorePercent')}</label>
                   <Input 
                     type="number"
                     min="0"
@@ -691,7 +1089,7 @@ const CurriculumEditor = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Time Limit (Mins)</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('teacher.curriculum.timeLimitMins')}</label>
                   <Input 
                     type="number"
                     min="1"
@@ -704,26 +1102,27 @@ const CurriculumEditor = () => {
               </div>
 
               <div className="pt-4 flex justify-end gap-3">
-                <Button variant="outline" type="button" onClick={() => setIsQuizModalOpen(false)}>Cancel</Button>
-                <Button type="submit">{editingQuiz ? 'Save Changes' : 'Create Quiz'}</Button>
+                <Button variant="outline" type="button" onClick={() => setIsQuizModalOpen(false)}>{t('teacher.dashboard.cancel')}</Button>
+                <Button type="submit">{editingQuiz ? t('teacher.curriculum.saveChanges') : t('teacher.curriculum.createQuiz')}</Button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL 3: MANAGE QUESTIONS DRAWER */}
-      {activeQuizForQuestions && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-3xl w-full border border-slate-200 dark:border-white/10 shadow-2xl max-h-[90vh] flex flex-col">
+      {activeQuizForQuestions && createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-3xl w-full border border-slate-200 dark:border-white/10 shadow-2xl max-h-[90vh] flex flex-col my-auto">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-white/10 mb-6 shrink-0">
               <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white">Questions for: {activeQuizForQuestions.title}</h2>
-                <p className="text-xs text-slate-500 mt-1">Add multiple choice questions to this quiz.</p>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('teacher.curriculum.questionsFor', { title: activeQuizForQuestions.title })}</h2>
+                <p className="text-xs text-slate-500 mt-1">{t('teacher.curriculum.questionsDesc')}</p>
               </div>
               <div className="flex items-center gap-3">
                 <Button size="sm" onClick={() => handleOpenQuestionModal(null)}>
-                  <Plus size={16} /> Add Question
+                  <Plus size={16} /> {t('teacher.curriculum.addQuestion')}
                 </Button>
                 <button onClick={() => setActiveQuizForQuestions(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white font-bold text-lg">
                   ✕
@@ -733,12 +1132,12 @@ const CurriculumEditor = () => {
 
             <div className="overflow-y-auto space-y-4 pr-2 flex-1">
               {questionsLoading ? (
-                <p className="text-center py-8 text-slate-500">Loading questions...</p>
+                <p className="text-center py-8 text-slate-500">{t('teacher.curriculum.loadingQuestions')}</p>
               ) : questionsList.length === 0 ? (
                 <div className="text-center py-12 border border-dashed border-slate-200 dark:border-white/10 rounded-xl">
-                  <p className="text-slate-500 font-medium">No questions in this quiz yet.</p>
+                  <p className="text-slate-500 font-medium">{t('teacher.curriculum.noQuestions')}</p>
                   <Button size="sm" onClick={() => handleOpenQuestionModal(null)} className="mt-4">
-                    Add First Question
+                    {t('teacher.curriculum.addFirstQuestion')}
                   </Button>
                 </div>
               ) : (
@@ -746,14 +1145,17 @@ const CurriculumEditor = () => {
                   <div key={q._id || idx} className="p-4 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/5 space-y-3">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Question {idx + 1} ({q.points} pt{q.points > 1 ? 's' : ''})</span>
+                        <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">{t('teacher.curriculum.questionNumber', { number: idx + 1, points: q.points, suffix: q.points > 1 ? 's' : '' })}</span>
                         <h4 className="font-semibold text-slate-900 dark:text-white mt-1">{q.text}</h4>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <button onClick={() => handleOpenQuestionModal(q)} className="p-1.5 text-slate-400 hover:text-indigo-600">
                           <Edit3 size={16} />
                         </button>
-                        <button onClick={() => q._id && confirm('Delete question?') && deleteQuestionMutation.mutate(q._id)} className="p-1.5 text-slate-400 hover:text-rose-500">
+                        <button 
+                          onClick={() => q._id && setDeleteTarget({ type: 'question', id: q._id, name: q.text })}
+                          className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                        >
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -770,7 +1172,7 @@ const CurriculumEditor = () => {
 
                     {q.explanation && (
                       <p className="text-xs text-slate-400 italic bg-black/20 p-2.5 rounded-lg">
-                        Explanation: {q.explanation}
+                        {t('teacher.curriculum.explanation')}: {q.explanation}
                       </p>
                     )}
                   </div>
@@ -778,15 +1180,16 @@ const CurriculumEditor = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL 4: ADD/EDIT QUESTION */}
-      {isQuestionModalOpen && (
-        <div className="fixed inset-0 z-55 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-xl w-full border border-slate-200 dark:border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto space-y-6">
+      {isQuestionModalOpen && createPortal(
+        <div className="fixed inset-0 z-[1010] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-xl w-full border border-slate-200 dark:border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto space-y-6 my-auto">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              {editingQuestion ? 'Edit Question' : 'Add New Question'}
+              {editingQuestion ? t('teacher.curriculum.editQuestion') : t('teacher.curriculum.newQuestion')}
             </h2>
             
             <form onSubmit={(e) => {
@@ -795,31 +1198,34 @@ const CurriculumEditor = () => {
               else createQuestionMutation.mutate(questionFormData);
             }} className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Question Text</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('teacher.curriculum.questionText')}</label>
                 <textarea 
                   rows={2}
                   value={questionFormData.text} 
                   onChange={(e) => setQuestionFormData({...questionFormData, text: e.target.value})} 
-                  placeholder="e.g. What is the primary purpose of React Hooks?" 
+                  placeholder={t('teacher.curriculum.questionTextPlaceholder')} 
                   required 
                   className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Options (Check the correct answer)</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('teacher.curriculum.optionsLabel')}</label>
                 <div className="space-y-2">
                   {questionFormData.options.map((opt, idx) => (
                     <div key={idx} className="flex items-center gap-3">
                       <input 
-                        type="checkbox"
+                        type="radio" 
+                        name="correctOptionRadio"
                         checked={opt.isCorrect}
-                        onChange={(e) => {
-                          const updated = [...questionFormData.options];
-                          updated[idx].isCorrect = e.target.checked;
+                        onChange={() => {
+                          const updated = questionFormData.options.map((o, i) => ({
+                            ...o,
+                            isCorrect: i === idx
+                          }));
                           setQuestionFormData({ ...questionFormData, options: updated });
                         }}
-                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                        className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
                       />
                       <Input 
                         value={opt.text}
@@ -828,7 +1234,7 @@ const CurriculumEditor = () => {
                           updated[idx].text = e.target.value;
                           setQuestionFormData({ ...questionFormData, options: updated });
                         }}
-                        placeholder={`Option ${idx + 1}`}
+                        placeholder={t('teacher.curriculum.optionPlaceholder', { number: idx + 1 })}
                         required
                         className="flex-1"
                       />
@@ -839,7 +1245,7 @@ const CurriculumEditor = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Points</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('teacher.curriculum.pointsLabel')}</label>
                   <Input 
                     type="number"
                     min="1"
@@ -852,30 +1258,31 @@ const CurriculumEditor = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Explanation (Optional)</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('teacher.curriculum.explanationOptional')}</label>
                 <Input 
                   value={questionFormData.explanation} 
                   onChange={(e) => setQuestionFormData({...questionFormData, explanation: e.target.value})} 
-                  placeholder="Explain why the correct answer is right..." 
+                  placeholder={t('teacher.curriculum.explanationPlaceholder')} 
                   className="w-full"
                 />
               </div>
 
               <div className="pt-4 flex justify-end gap-3">
-                <Button variant="outline" type="button" onClick={() => setIsQuestionModalOpen(false)}>Cancel</Button>
-                <Button type="submit">{editingQuestion ? 'Save Changes' : 'Save Question'}</Button>
+                <Button variant="outline" type="button" onClick={() => setIsQuestionModalOpen(false)}>{t('teacher.dashboard.cancel')}</Button>
+                <Button type="submit">{editingQuestion ? t('teacher.curriculum.saveChanges') : t('teacher.curriculum.saveQuestion')}</Button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL 5: ADD/EDIT ASSIGNMENT */}
-      {isAssignmentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-lg w-full border border-slate-200 dark:border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto space-y-6">
+      {isAssignmentModalOpen && createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-lg w-full border border-slate-200 dark:border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto space-y-6 my-auto">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              {editingAssignment ? 'Edit Assignment' : 'Create Homework Assignment'}
+              {editingAssignment ? t('teacher.curriculum.editAssignment') : t('teacher.curriculum.newAssignment')}
             </h2>
             <form onSubmit={(e) => {
               e.preventDefault();
@@ -883,23 +1290,23 @@ const CurriculumEditor = () => {
               else createAssignmentMutation.mutate(assignmentFormData);
             }} className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Assignment Title</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('teacher.curriculum.assignmentTitle')}</label>
                 <Input 
                   value={assignmentFormData.title} 
                   onChange={(e) => setAssignmentFormData({...assignmentFormData, title: e.target.value})} 
-                  placeholder="e.g. Build a Todo App with State Management" 
+                  placeholder={t('teacher.curriculum.assignmentTitlePlaceholder')} 
                   required 
                   className="w-full"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Instructions / Description</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('teacher.curriculum.instructionsLabel')}</label>
                 <textarea 
                   rows={3}
                   value={assignmentFormData.description} 
                   onChange={(e) => setAssignmentFormData({...assignmentFormData, description: e.target.value})} 
-                  placeholder="Detailed guidelines on what students should submit..." 
+                  placeholder={t('teacher.curriculum.instructionsPlaceholder')} 
                   required 
                   className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
@@ -907,7 +1314,7 @@ const CurriculumEditor = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Max Points</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('teacher.curriculum.maxPoints')}</label>
                   <Input 
                     type="number"
                     min="10"
@@ -919,7 +1326,7 @@ const CurriculumEditor = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Due Date</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('teacher.curriculum.dueDate')}</label>
                   <Input 
                     type="date"
                     value={assignmentFormData.dueDate} 
@@ -931,7 +1338,7 @@ const CurriculumEditor = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Attachment File URL (Optional)</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{t('teacher.curriculum.attachmentUrlLabel')}</label>
                 <Input 
                   value={assignmentFormData.attachmentUrl} 
                   onChange={(e) => setAssignmentFormData({...assignmentFormData, attachmentUrl: e.target.value})} 
@@ -942,19 +1349,172 @@ const CurriculumEditor = () => {
                 <div className="pt-2">
                   <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors">
                     <Upload size={14} />
-                    {isUploadingDoc ? 'Uploading doc...' : 'Upload Document File'}
+                    {isUploadingDoc ? t('teacher.curriculum.uploadingDoc') : t('teacher.curriculum.uploadDoc')}
                     <input type="file" className="hidden" onChange={handleDocFileUpload} disabled={isUploadingDoc} />
                   </label>
                 </div>
               </div>
 
               <div className="pt-4 flex justify-end gap-3">
-                <Button variant="outline" type="button" onClick={() => setIsAssignmentModalOpen(false)}>Cancel</Button>
-                <Button type="submit">{editingAssignment ? 'Save Changes' : 'Create Assignment'}</Button>
+                <Button variant="outline" type="button" onClick={() => setIsAssignmentModalOpen(false)}>{t('teacher.dashboard.cancel')}</Button>
+                <Button type="submit">{editingAssignment ? t('teacher.curriculum.saveChanges') : t('teacher.curriculum.createAssignment')}</Button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* VIDEO PREVIEW MODAL */}
+      {createPortal(
+        <AnimatePresence>
+          {previewLesson && (
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden max-w-3xl w-full border border-slate-200 dark:border-white/10 shadow-2xl flex flex-col my-auto max-h-[90vh]"
+              >
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02]">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                      <Play size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">
+                        {previewLesson.title}
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                        <span className="font-medium">
+                          {previewLesson.videoUrl?.includes('youtube.com') || previewLesson.videoUrl?.includes('youtu.be') ? 'YouTube Video' : 'Cloudinary Video'}
+                        </span>
+                        {previewLesson.duration ? (
+                          <>
+                            <span>•</span>
+                            <span className="inline-flex items-center gap-1">
+                              <Clock size={12} />
+                              {formatDuration(previewLesson.duration)}
+                            </span>
+                          </>
+                        ) : null}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setPreviewLesson(null)}
+                    className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                    title="Đóng"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="p-4 bg-black/95 flex items-center justify-center aspect-video w-full">
+                  {getYouTubeEmbedUrl(previewLesson.videoUrl) ? (
+                    <iframe
+                      src={getYouTubeEmbedUrl(previewLesson.videoUrl)!}
+                      title={previewLesson.title}
+                      className="w-full h-full rounded-xl border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : previewLesson.videoUrl ? (
+                    <video
+                      src={previewLesson.videoUrl}
+                      controls
+                      autoPlay
+                      className="w-full h-full rounded-xl object-contain"
+                    />
+                  ) : (
+                    <p className="text-sm text-slate-400">Chưa có liên kết video</p>
+                  )}
+                </div>
+
+                <div className="p-4 bg-slate-50 dark:bg-white/5 flex items-center justify-between gap-3 border-t border-slate-200 dark:border-white/10">
+                  {previewLesson.videoUrl ? (
+                    <a
+                      href={previewLesson.videoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
+                    >
+                      <ExternalLink size={14} /> Mở nguồn video
+                    </a>
+                  ) : <span />}
+                  <Button variant="outline" size="sm" onClick={() => setPreviewLesson(null)}>
+                    Đóng
+                  </Button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* CONFIRM DELETE MODAL */}
+      {createPortal(
+        <AnimatePresence>
+          {deleteTarget && (
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full border border-slate-200 dark:border-white/10 shadow-2xl space-y-5 my-auto"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                    <AlertTriangle size={24} />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                      {deleteTarget.type === 'lesson' && (t('teacher.curriculum.deleteLessonTitle', 'Xác nhận xóa bài học'))}
+                      {deleteTarget.type === 'quiz' && (t('teacher.curriculum.deleteQuizTitle', 'Xác nhận xóa bài kiểm tra'))}
+                      {deleteTarget.type === 'question' && (t('teacher.curriculum.deleteQuestionTitle', 'Xác nhận xóa câu hỏi'))}
+                      {deleteTarget.type === 'assignment' && (t('teacher.curriculum.deleteAssignmentTitle', 'Xác nhận xóa bài tập'))}
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                      Bạn có chắc chắn muốn xóa <span className="font-semibold text-slate-900 dark:text-white">"{deleteTarget.name}"</span>? Hành động này không thể hoàn tác.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => setDeleteTarget(null)}
+                    disabled={
+                      deleteLessonMutation.isPending || 
+                      deleteQuizMutation.isPending || 
+                      deleteQuestionMutation.isPending || 
+                      deleteAssignmentMutation.isPending
+                    }
+                  >
+                    {t('teacher.dashboard.cancel')}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    type="button"
+                    onClick={handleConfirmDelete}
+                    loading={
+                      deleteLessonMutation.isPending || 
+                      deleteQuizMutation.isPending || 
+                      deleteQuestionMutation.isPending || 
+                      deleteAssignmentMutation.isPending
+                    }
+                  >
+                    {t('teacher.curriculum.delete')}
+                  </Button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
       )}
 
       <Toast visible={!!toast} message={toast?.message || ''} variant={toast?.type} onClose={() => setToast(null)} />

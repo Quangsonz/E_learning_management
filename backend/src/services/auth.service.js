@@ -87,8 +87,9 @@ class AuthService {
     const user = await userRepository.findByEmail(email);
 
     if (!user || !(await user.correctPassword(password, user.password))) {
-      throw new AppError('Email hoặc mật khẩu không chính xác', 401);
+      throw new AppError('Email hoặc mật khẩu không chính xác', 401, 'INVALID_PASSWORD');
     }
+
 
     createSendToken(user, 200, res);
   }
@@ -107,7 +108,7 @@ class AuthService {
     const resetToken = user.createPasswordResetToken();
     await user.save({ validateBeforeSave: false });
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const resetURL = `${frontendUrl}/reset-password?token=${resetToken}`;
     const message = `Bạn đã yêu cầu đặt lại mật khẩu.\n\nClick vào link bên dưới để đặt lại (có hiệu lực trong 10 phút):\n${resetURL}\n\nNếu bạn không yêu cầu, vui lòng bỏ qua email này.`;
 

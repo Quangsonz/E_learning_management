@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 const slugify = require('slugify');
 
 const courseSchema = new mongoose.Schema({
-  title: { type: String, required: true, trim: true },
+  title: { type: mongoose.Schema.Types.Mixed, required: true },
   slug: { type: String, unique: true },
-  description: { type: String, required: true },
+  description: { type: mongoose.Schema.Types.Mixed, required: true },
   price: { type: Number, required: true, min: [0, 'Giá không được âm'] },
   estimatedPrice: { type: Number, default: 0, min: 0 },
   discountPercentage: { type: Number, default: 0, min: 0, max: 100 },
@@ -13,18 +13,31 @@ const courseSchema = new mongoose.Schema({
   status: { type: String, enum: ['draft', 'pending_review', 'published'], default: 'draft' },
   moderatorNotes: { type: String },
   thumbnailUrl: { type: String },
+  level: { 
+    type: String, 
+    enum: ['beginner', 'intermediate', 'advanced', 'all'], 
+    default: 'all' 
+  },
   averageRating: { type: Number, default: 0, min: 0, max: 5 }
 }, { timestamps: true });
 
 // Indexes giúp lọc khóa học nhanh chóng trên trang chủ
 courseSchema.index({ status: 1, category: 1 });
 courseSchema.index({ instructor: 1 });
-courseSchema.index({ title: 'text', description: 'text' }); // Tìm kiếm theo từ khóa (Full-text search)
+courseSchema.index({ 'title.vi': 1 });
+courseSchema.index({ 'title.en': 1 });
+courseSchema.index({ title: 1 });
+// Tối ưu hóa hàng chờ kiểm duyệt (Moderation Queue)
+courseSchema.index({ status: 1, updatedAt: -1 });
+
 
 // Document middleware: Tự động tạo slug trước khi save
 courseSchema.pre('save', function() {
   if (!this.slug || this.isModified('title')) {
-    this.slug = slugify(this.title, { lower: true, strict: true });
+    const titleStr = typeof this.title === 'object' && this.title !== null
+      ? (this.title.en || this.title.vi || Object.values(this.title)[0] || '')
+      : String(this.title || '');
+    this.slug = slugify(titleStr, { lower: true, strict: true });
   }
 });
 
@@ -40,7 +53,7 @@ courseSchema.pre(/^find/, function() {
 });
 
 // Cascading delete middleware khi xóa khóa học
-courseSchema.pre('findOneAndDelete', async function(next) {
+courseSchema.pre('findOneAndDelete', async function() {
   const doc = await this.model.findOne(this.getQuery());
   if (doc) {
     const courseId = doc._id;
@@ -91,7 +104,6 @@ courseSchema.pre('findOneAndDelete', async function(next) {
     // Xóa certificates
     await Certificate.deleteMany({ course: courseId });
   }
-  next();
 });
 
 module.exports = mongoose.model('Course', courseSchema);

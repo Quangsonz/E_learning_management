@@ -34,20 +34,19 @@ class UserController {
    * Lấy danh sách khóa học trong wishlist của user
    */
   getWishlist = catchAsync(async (req, res, next) => {
-    const userRepository = require('../repositories/user.repository');
-    // fetch user and populate wishlist
-    const user = await userRepository.findById(req.user.id);
-    if (user) {
-      await user.populate({
+    const User = require('../models/User');
+    const user = await User.findById(req.user.id)
+      .select('wishlist')
+      .populate({
         path: 'wishlist',
         select: '-__v'
-      });
-    }
+      })
+      .lean();
 
     res.status(200).json({
       status: 'success',
       data: {
-        wishlist: user.wishlist || []
+        wishlist: user?.wishlist || []
       }
     });
   });

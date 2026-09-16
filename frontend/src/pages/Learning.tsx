@@ -14,8 +14,8 @@ import { assignmentApi, Assignment, AssignmentSubmission } from '../services/ass
 import { uploadApi } from '../services/upload.api';
 import { certificateApi, Certificate } from '../services/certificate.api';
 import { store } from '../store/store';
-
-
+import { useTranslation } from 'react-i18next';
+import { useLocalizedValue } from '../utils/localized';
 
 type Resource = { title: string; type: string };
 
@@ -33,6 +33,8 @@ const notesSeed = [
 ];
 
 const Learning: React.FC = () => {
+  const { t } = useTranslation();
+  const lv = useLocalizedValue();
   const { courseId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -57,6 +59,7 @@ const Learning: React.FC = () => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [claimedCertificate, setClaimedCertificate] = useState<Certificate | null>(null);
   const [showCertSuccess, setShowCertSuccess] = useState(false);
+  const [activeTab, setActiveTab] = useState<'discussion' | 'notes' | 'resources'>('discussion');
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -168,25 +171,27 @@ const Learning: React.FC = () => {
   const groupedLessons = useMemo(() => {
     const groups: { [key: string]: ApiLesson[] } = {};
     lessons.forEach((lesson: ApiLesson) => {
-      const parts = lesson.title.split(': ');
-      const chapter = parts.length > 1 ? parts[0] : 'Phần chung';
+      const titleStr = lv(lesson.title);
+      const parts = titleStr.split(': ');
+      const chapter = parts.length > 1 ? parts[0] : t('learning.generalChapter');
       if (!groups[chapter]) groups[chapter] = [];
-      groups[chapter].push({ ...lesson, title: parts.length > 1 ? parts[1] : lesson.title });
+      groups[chapter].push({ ...lesson, title: parts.length > 1 ? parts[1] : titleStr });
     });
     return Object.entries(groups).map(([chapter, items]) => ({ chapter, items }));
-  }, [lessons]);
+  }, [lessons, t, lv]);
 
   const [openChapters, setOpenChapters] = useState<string[]>([]);
   
   useEffect(() => {
     if (selectedLesson) {
-      const parts = selectedLesson.title.split(': ');
-      const chapter = parts.length > 1 ? parts[0] : 'Phần chung';
+      const titleStr = lv(selectedLesson.title);
+      const parts = titleStr.split(': ');
+      const chapter = parts.length > 1 ? parts[0] : t('learning.generalChapter');
       if (!openChapters.includes(chapter)) {
         setOpenChapters(prev => [...prev, chapter]);
       }
     }
-  }, [selectedLesson]);
+  }, [selectedLesson, t, lv]);
 
   const toggleChapter = (chapter: string) => {
     setOpenChapters(prev => prev.includes(chapter) ? prev.filter(c => c !== chapter) : [...prev, chapter]);
@@ -252,6 +257,32 @@ const Learning: React.FC = () => {
     if (!courseId || !selectedLessonId || !videoRef.current) return;
     updateVideoProgressMutation.mutate({ cId: courseId, lId: selectedLessonId, time: videoRef.current.currentTime });
   };
+
+  const lastSavedTimeRef = React.useRef<number>(0);
+
+  // Periodic 10-second auto-save while video is actively playing
+  useEffect(() => {
+    if (!courseId || !selectedLessonId) return;
+
+    const interval = setInterval(() => {
+      if (
+        videoRef.current &&
+        !videoRef.current.paused &&
+        !videoRef.current.ended &&
+        videoRef.current.currentTime > 0
+      ) {
+        const currentTime = videoRef.current.currentTime;
+        if (Math.abs(currentTime - lastSavedTimeRef.current) >= 2) {
+          lastSavedTimeRef.current = currentTime;
+          progressApi.updateVideoProgress(courseId, selectedLessonId, currentTime).catch(err => {
+            console.error('Failed periodic progress save:', err);
+          });
+        }
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [courseId, selectedLessonId]);
 
   // Ref to hold the current state values for cleanup and unload handlers
   const saveProgressRef = React.useRef({ courseId, selectedLessonId, videoRef });
@@ -342,7 +373,7 @@ const Learning: React.FC = () => {
     onSuccess: () => {
       setDiscussionText('');
       queryClient.invalidateQueries({ queryKey: ['discussions', courseId, selectedLessonId] });
-      successToast('Câu hỏi/Thảo luận của bạn đã được đăng thành công!', 'Đã đăng bài');
+      successToast(t('learning.toast.discussionPosted'), t('common.success'));
     }
   });
 
@@ -352,7 +383,7 @@ const Learning: React.FC = () => {
       setCommentText('');
       queryClient.invalidateQueries({ queryKey: ['comments', courseId, selectedLessonId, expandedDiscussionId] });
       queryClient.invalidateQueries({ queryKey: ['discussions', courseId, selectedLessonId] });
-      successToast('Bình luận của bạn đã được đăng thành công!', 'Đã trả lời');
+      successToast(t('learning.toast.replyPosted'), t('common.success'));
     }
   });
 
@@ -369,7 +400,7 @@ const Learning: React.FC = () => {
   if (isLoadingLessons || isLoadingProgress || isLoadingEnrollments) {
     return (
       <div className="bg-[#FBFBFA] dark:bg-[#111111] flex items-center justify-center py-32 min-h-screen">
-        <LoadingScreen title="Loading workspace" message="Preparing video stream and curriculum..." />
+        <LoadingScreen title={t('common.loadingWorkspace')} message={t('learning.loading')} />
       </div>
     );
   }
@@ -383,10 +414,10 @@ const Learning: React.FC = () => {
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M8 11h8"/></svg>
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Access Denied</h2>
-            <p className="mt-2 text-slate-500 dark:text-slate-400">Bạn phải mua khóa học này để có thể xem bài giảng. Hãy quay lại trang giới thiệu khóa học để đăng ký nhé.</p>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('learning.accessDenied')}</h2>
+            <p className="mt-2 text-slate-500 dark:text-slate-400">{t('learning.accessDeniedDesc')}</p>
           </div>
-          <Button className="w-full" onClick={() => navigate(`/courses/${courseId}`)}>Back to Course</Button>
+          <Button className="w-full" onClick={() => navigate(`/courses/${courseId}`)}>{t('learning.backToCourse')}</Button>
         </div>
       </div>
     );
@@ -396,14 +427,14 @@ const Learning: React.FC = () => {
     <div className="bg-[#FBFBFA] dark:bg-[#111111] text-[#111111] dark:text-[#FBFBFA] selection:bg-slate-200 dark:selection:bg-slate-800">
       
       {/* Top minimal nav */}
-      <nav className="h-14 border-b border-[#EAEAEA] dark:border-white/10 flex items-center px-6 lg:px-8 bg-[#FBFBFA]/80 dark:bg-[#111111]/80 backdrop-blur-md sticky top-0 z-40">
+      <nav className="h-14 border-b border-[#EAEAEA] dark:border-white/10 flex items-center px-6 lg:px-8 bg-[#FBFBFA]/90 dark:bg-[#111111]/90 backdrop-blur-md sticky top-0 z-40">
         <div className="flex items-center gap-4 w-full max-w-[1400px] mx-auto">
-          <Link to="/courses" className="text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors flex items-center gap-1.5">
+          <Link to={`/courses/${courseId || ''}`} className="text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors flex items-center gap-1.5">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-            Back to Course
+            {t('learning.backToCourse', 'Quay lại khóa học')}
           </Link>
           <div className="w-[1px] h-4 bg-slate-200 dark:bg-white/10"></div>
-          <span className="text-sm font-semibold tracking-tight">Course Viewer</span>
+          <span className="text-sm font-semibold tracking-tight">{t('learning.courseViewer', 'Xem bài giảng')}</span>
         </div>
       </nav>
 
@@ -421,29 +452,29 @@ const Learning: React.FC = () => {
                   if (!assignment) return <p className="text-slate-500">Loading assignment...</p>;
                   return (
                     <div className="space-y-8">
-                      <div className="border-b border-[#EAEAEA] dark:border-white/10 pb-6 flex items-start justify-between">
-                        <div>
+                        <div className="border-b border-[#EAEAEA] dark:border-white/10 pb-6 flex items-start justify-between gap-4">
+                          <div>
                           <h1 className="text-3xl font-bold tracking-tight">{assignment.title}</h1>
                           <p className="text-sm text-slate-500 mt-2">
-                            Due Date: {new Date(assignment.dueDate).toLocaleDateString()} | Max Score: {assignment.maxPoints} pts
+                            {t('learning.assignment.dueDate')}: {new Date(assignment.dueDate).toLocaleDateString()} | {t('learning.assignment.maxScore')}: {assignment.maxPoints} pts
                           </p>
                         </div>
                         <span className={`text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full ${mySubmissionData ? (mySubmissionData.status === 'graded' ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-400' : 'bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-400') : 'bg-slate-100 dark:bg-white/5 text-slate-500'}`}>
-                          {mySubmissionData ? mySubmissionData.status.toUpperCase() : 'NOT SUBMITTED'}
+                          {mySubmissionData ? mySubmissionData.status.toUpperCase() : t('learning.assignment.notSubmitted')}
                         </span>
                       </div>
 
                       <div className="space-y-3">
-                        <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Assignment Description</h3>
+                        <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500">{t('common.description', 'Description')}</h3>
                         <p className="text-slate-600 dark:text-slate-300 text-sm whitespace-pre-line leading-relaxed">{assignment.description}</p>
                       </div>
 
                       {assignment.attachmentUrl && (
                         <div className="space-y-3">
-                          <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Materials</h3>
+                          <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500">{t('learning.assignment.materials', 'Materials')}</h3>
                           <a href={assignment.attachmentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-indigo-500 hover:underline">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                            Download reference files
+                            {t('learning.assignment.downloadRef', 'Download reference files')}
                           </a>
                         </div>
                       )}
@@ -452,16 +483,16 @@ const Learning: React.FC = () => {
                         {mySubmissionData ? (
                           <div className="space-y-6">
                             <div className="space-y-2">
-                              <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Your Submission</h3>
+                              <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500">{t('learning.assignment.yourSubmission')}</h3>
                               <div className="bg-slate-50 dark:bg-white/5 p-5 rounded-2xl space-y-4">
                                 {mySubmissionData.studentNotes && (
                                   <div>
-                                    <span className="text-xs font-bold text-slate-400 block mb-1">Your notes:</span>
+                                    <span className="text-xs font-bold text-slate-400 block mb-1">{t('learning.assignment.notes')}:</span>
                                     <p className="text-sm text-slate-700 dark:text-slate-300">{mySubmissionData.studentNotes}</p>
                                   </div>
                                 )}
                                 <div>
-                                  <span className="text-xs font-bold text-slate-400 block mb-1.5">Submitted files:</span>
+                                  <span className="text-xs font-bold text-slate-400 block mb-1.5">{t('learning.assignment.submittedFiles')}:</span>
                                   <div className="flex flex-col gap-2">
                                     {mySubmissionData.submittedFiles?.map((file: any, index: number) => (
                                       <a key={index} href={file.url} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-500 hover:underline flex items-center gap-2">
@@ -477,12 +508,12 @@ const Learning: React.FC = () => {
                             {mySubmissionData.status === 'graded' && (
                               <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/20 p-5 rounded-2xl space-y-4">
                                 <div className="flex items-center justify-between border-b border-emerald-200/20 pb-3">
-                                  <span className="font-bold text-sm text-emerald-800 dark:text-emerald-400">Score Awarded:</span>
+                                  <span className="font-bold text-sm text-emerald-800 dark:text-emerald-400">{t('learning.assignment.scoreAwarded')}:</span>
                                   <span className="font-mono font-bold text-xl text-emerald-600 dark:text-emerald-400">{mySubmissionData.grade} / {assignment.maxPoints} pts</span>
                                 </div>
                                 {mySubmissionData.feedback && (
                                   <div>
-                                    <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400 block mb-1">Teacher Feedback:</span>
+                                    <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400 block mb-1">{t('learning.assignment.teacherFeedback')}:</span>
                                     <p className="text-sm text-slate-700 dark:text-slate-300 italic">"{mySubmissionData.feedback}"</p>
                                   </div>
                                 )}
@@ -491,14 +522,14 @@ const Learning: React.FC = () => {
                           </div>
                         ) : (
                           <div className="space-y-6">
-                            <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Submit Your Work</h3>
+                            <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500">{t('learning.assignment.submitWork')}</h3>
                             <div className="flex flex-col gap-6">
                               <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Submission Notes</label>
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('learning.assignment.submissionNotes')}</label>
                                 <textarea 
                                   value={submitNotesText}
                                   onChange={(e) => setSubmitNotesText(e.target.value)}
-                                  placeholder="Write notes for your instructor about your submission..."
+                                  placeholder={t('learning.assignment.writeNotes')}
                                   className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[100px]"
                                 />
                               </div>
@@ -510,12 +541,12 @@ const Learning: React.FC = () => {
                                 {uploadingFile ? (
                                   <div className="space-y-2">
                                     <div className="animate-spin w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto" />
-                                    <span className="text-sm text-slate-400">Uploading file to Cloudinary...</span>
+                                    <span className="text-sm text-slate-400">{t('common.loading')}</span>
                                   </div>
                                 ) : (
                                   <div className="space-y-1">
                                     <label className="cursor-pointer text-indigo-400 hover:text-indigo-300 font-bold text-sm block">
-                                      <span>Click to upload your assignment file</span>
+                                      <span>{t('learning.assignment.uploadFile')}</span>
                                       <input 
                                         type="file" 
                                         className="hidden" 
@@ -523,16 +554,16 @@ const Learning: React.FC = () => {
                                         accept=".pdf,.zip,.rar,.doc,.docx,.png,.jpg,.jpeg"
                                       />
                                     </label>
-                                    <span className="text-xs text-slate-400 block">Supports PDF, ZIP, RAR, Word documents, or images up to 20MB</span>
+                                    <span className="text-xs text-slate-400 block">{t('learning.assignment.uploadHint')}</span>
                                   </div>
                                 )}
                               </div>
 
                               <div className="grid md:grid-cols-2 gap-6">
                                 <div className="flex flex-col gap-2">
-                                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Attachment File Name</label>
+                                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('learning.assignment.fileName')}</label>
                                   <input 
-                                    type="text"
+                                    type="text" 
                                     value={submitFileName}
                                     onChange={(e) => setSubmitFileName(e.target.value)}
                                     placeholder="e.g. project_submission.zip"
@@ -540,9 +571,9 @@ const Learning: React.FC = () => {
                                   />
                                 </div>
                                 <div className="flex flex-col gap-2">
-                                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Attachment File Link</label>
+                                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('learning.assignment.fileLink')}</label>
                                   <input 
-                                    type="text"
+                                    type="text" 
                                     value={submitFileUrl}
                                     onChange={(e) => setSubmitFileUrl(e.target.value)}
                                     placeholder="e.g. https://cloudinary.com/..."
@@ -550,7 +581,6 @@ const Learning: React.FC = () => {
                                   />
                                 </div>
                               </div>
-
 
                               <div className="flex justify-end">
                                 <Button 
@@ -563,7 +593,7 @@ const Learning: React.FC = () => {
                                   }}
                                   disabled={submitAssignmentMutation.isPending || !submitFileName.trim() || !submitFileUrl.trim()}
                                 >
-                                  {submitAssignmentMutation.isPending ? 'Submitting...' : 'Submit Assignment'}
+                                  {submitAssignmentMutation.isPending ? t('learning.assignment.submitting') : t('learning.assignment.submitBtn')}
                                 </Button>
                               </div>
                             </div>
@@ -581,10 +611,32 @@ const Learning: React.FC = () => {
                   <div className="relative aspect-video w-full bg-black rounded-xl overflow-hidden group shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
                     {selectedQuiz ? (
                       <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 border border-slate-800 text-center p-8">
-                         <h3 className="text-2xl font-bold text-white mb-2">{selectedQuiz.title}</h3>
-                         <p className="text-slate-400 mb-6">Test your knowledge to ensure you're ready to proceed. Time limit: {selectedQuiz.timeLimit || 'No limit'} minutes. Passing score: {selectedQuiz.passingScore}%.</p>
+                         <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4">
+                           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+                           </svg>
+                         </div>
+                         <h3 className="text-2xl font-bold text-white mb-2">{lv(selectedQuiz.title)}</h3>
+                         <p className="text-slate-400 max-w-md mb-4 text-sm leading-relaxed">{t('learning.quiz.readyPrompt')}</p>
+                         
+                         <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-slate-400 mb-6 bg-slate-800/60 px-5 py-2.5 rounded-xl border border-slate-700/50">
+                           <span>{t('learning.questions', 'Questions')}: <strong className="text-white">{selectedQuiz.questionCount ?? selectedQuiz.totalQuestions ?? 0}</strong></span>
+                           <span>•</span>
+                           <span>{t('teacher.curriculum.timeLimit', 'Time limit')}: <strong className="text-white">{selectedQuiz.timeLimit ? `${selectedQuiz.timeLimit} mins` : t('teacher.curriculum.noLimit')}</strong></span>
+                           <span>•</span>
+                           <span>{t('teacher.curriculum.passingScore', 'Passing score')}: <strong className="text-white">{selectedQuiz.passingScore}%</strong></span>
+                         </div>
+
+                         {selectedQuiz.isCompleted && (
+                           <div className={`mb-6 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 ${selectedQuiz.isPassed ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                             <span>{selectedQuiz.isPassed ? '✓ ' + t('quizPage.passed') : '✕ ' + t('quizPage.failed')}</span>
+                             <span>—</span>
+                             <span>{t('quizPage.yourScore')}: <strong>{selectedQuiz.scorePercentage ?? selectedQuiz.score}%</strong></span>
+                           </div>
+                         )}
+
                          <Button variant="pill" onClick={() => navigate(`/courses/${courseId}/quizzes/${selectedQuiz._id}/take`)}>
-                            Take Quiz Now
+                            {selectedQuiz.isCompleted ? t('quizPage.retakeBtn') : t('learning.quiz.takeNow')}
                          </Button>
                       </div>
                     ) : selectedLesson ? (
@@ -601,6 +653,7 @@ const Learning: React.FC = () => {
                         ></iframe>
                       ) : (
                         <video 
+                          key={selectedLessonId || 'video-player'}
                           ref={videoRef}
                           controls 
                           autoPlay
@@ -615,7 +668,7 @@ const Learning: React.FC = () => {
                       )
                     ) : (
                       <div className="w-full h-full flex items-center justify-center opacity-60">
-                         <p className="text-white">No content selected</p>
+                         <p className="text-white">{t('learning.noContent')}</p>
                       </div>
                     )}
                   </div>
@@ -629,7 +682,7 @@ const Learning: React.FC = () => {
                           className="flex items-center gap-2 text-sm font-medium text-indigo-500 hover:text-indigo-400"
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-                          Add Bookmark at Current Time
+                          {t('learning.bookmark.add')}
                         </button>
                       </div>
                       {showBookmarkInput && (
@@ -638,16 +691,16 @@ const Learning: React.FC = () => {
                             type="text" 
                             value={bookmarkNote}
                             onChange={(e) => setBookmarkNote(e.target.value)}
-                            placeholder="Note for this bookmark..."
+                            placeholder={t('learning.bookmark.placeholder')}
                             className="flex-1 bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                           />
-                          <Button onClick={handleAddBookmark} disabled={!bookmarkNote.trim() || addBookmarkMutation.isPending}>Save</Button>
+                          <Button onClick={handleAddBookmark} disabled={!bookmarkNote.trim() || addBookmarkMutation.isPending}>{t('common.save')}</Button>
                         </div>
                       )}
                       {/* List Bookmarks */}
                       {(progressInfo?.bookmarks?.filter((b: any) => b.lesson === selectedLessonId)?.length || 0) > 0 && (
                         <div className="mt-2 space-y-2">
-                          <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Bookmarks</h4>
+                          <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('learning.bookmark.title')}</h4>
                           <div className="space-y-2">
                             {progressInfo?.bookmarks?.filter((b: any) => b.lesson === selectedLessonId).map((bookmark: any, idx: number) => (
                               <div key={idx} className="flex items-center gap-3 text-sm bg-slate-100 dark:bg-white/5 px-3 py-2 rounded-lg">
@@ -669,8 +722,8 @@ const Learning: React.FC = () => {
                   {/* Lesson Metadata */}
                   <div className="flex items-start justify-between gap-6 pb-8 border-b border-[#EAEAEA] dark:border-white/10">
                     <div>
-                      <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{selectedQuiz ? selectedQuiz.title : (selectedLesson?.title || 'No content selected')}</h1>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{selectedQuiz ? 'Quiz' : 'Lesson'}</p>
+                      <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{selectedQuiz ? lv(selectedQuiz.title) : (lv(selectedLesson?.title) || t('learning.noContent'))}</h1>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{selectedQuiz ? t('common.quiz') : t('common.lesson')}</p>
                     </div>
                     {!selectedQuiz && (
                       <button 
@@ -678,33 +731,218 @@ const Learning: React.FC = () => {
                         disabled={markCompleteMutation.isPending || (selectedLessonId ? completedLessons.includes(selectedLessonId) : false)}
                         className="shrink-0 rounded-md bg-[#111111] dark:bg-white px-5 py-2.5 text-sm font-medium text-white dark:text-[#111111] transition-transform active:scale-95 hover:bg-slate-800 dark:hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {selectedLessonId && completedLessons.includes(selectedLessonId) ? 'Completed' : 'Mark Complete'}
+                        {selectedLessonId && completedLessons.includes(selectedLessonId) ? t('learning.completed') : t('learning.markComplete')}
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Notion-style Notes Editor */}
-                <div className="flex flex-col gap-4 mt-2">
-                  <h2 className="text-3xl font-bold tracking-tight text-slate-300 dark:text-slate-700 select-none">Notes</h2>
-                  <textarea
-                    value={notes}
-                    onChange={(event) => setNotes(event.target.value)}
-                    placeholder="Start typing your notes..."
-                    className="w-full min-h-[100px] resize-none bg-transparent border-none outline-none text-base leading-relaxed text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:ring-0 p-0"
-                  />
+                {/* Interactive Studio Tabs under Video */}
+                <div className="flex flex-col gap-6 mt-4">
+                  <div className="flex items-center gap-2 border-b border-[#EAEAEA] dark:border-white/10 pb-px">
+                    <button
+                      onClick={() => setActiveTab('discussion')}
+                      className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all ${
+                        activeTab === 'discussion'
+                          ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                          : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+                      }`}
+                    >
+                      <span>{t('learning.discussion.title', 'Thảo luận & Hỏi đáp')}</span>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-400">
+                        {discussions.length}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('notes')}
+                      className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all ${
+                        activeTab === 'notes'
+                          ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                          : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+                      }`}
+                    >
+                      <span>{t('learning.notes', 'Ghi chú cá nhân')}</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('resources')}
+                      className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all ${
+                        activeTab === 'resources'
+                          ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                          : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+                      }`}
+                    >
+                      <span>{t('learning.resources', 'Tài liệu đính kèm')}</span>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-400">
+                        {resources.length}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Tab Content: Discussion */}
+                  {activeTab === 'discussion' && (
+                    <div className="flex flex-col gap-6">
+                      {/* Input */}
+                      <div className="flex gap-4">
+                        <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center font-bold shrink-0 uppercase overflow-hidden">
+                          {user?.avatar ? <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" /> : user?.name?.charAt(0)}
+                        </div>
+                        <div className="flex-1 flex flex-col gap-3">
+                          <textarea 
+                            value={discussionText}
+                            onChange={(e) => setDiscussionText(e.target.value)}
+                            placeholder={t('learning.discussion.askPrompt', 'Đặt câu hỏi hoặc thảo luận về bài giảng này...')} 
+                            className="w-full min-h-[90px] resize-none bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                          />
+                          <div className="flex justify-end">
+                            <button 
+                              onClick={handlePostDiscussion}
+                              disabled={createDiscussionMutation.isPending || !discussionText.trim()}
+                              className="px-5 py-2 bg-[#111111] dark:bg-white text-white dark:text-[#111111] text-sm font-medium rounded-lg hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors disabled:opacity-50"
+                            >
+                              {t('learning.discussion.postBtn', 'Đăng câu hỏi')}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Comments List */}
+                      <div className="flex flex-col gap-4 mt-2">
+                        {discussions.length === 0 ? (
+                          <div className="text-center py-8 text-slate-400 text-sm">
+                            Chưa có thảo luận nào cho bài giảng này. Hãy là người đầu tiên đặt câu hỏi!
+                          </div>
+                        ) : (
+                          discussions.map((discussion) => (
+                            <div key={discussion._id} className="flex flex-col gap-3 bg-white dark:bg-[#1A1A1A] border border-slate-200/80 dark:border-white/5 rounded-2xl p-4">
+                              <div className="flex gap-3">
+                                <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 bg-slate-200">
+                                  {discussion.author?.avatar ? (
+                                    <img src={discussion.author.avatar} alt="User" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center font-bold text-slate-500 bg-slate-300">
+                                      {discussion.author?.name?.charAt(0).toUpperCase()}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex flex-col gap-1 w-full">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-sm text-slate-900 dark:text-white">{discussion.author?.name}</span>
+                                    <span className="text-xs text-slate-500">{new Date(discussion.createdAt).toLocaleDateString()}</span>
+                                    {discussion.author?.role === 'teacher' && <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full">{t('learning.discussion.instructorTag', 'Giảng viên')}</span>}
+                                  </div>
+                                  <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                                    {discussion.content}
+                                  </p>
+                                  <div className="flex items-center gap-4 mt-1 text-xs font-medium text-slate-500">
+                                    <button 
+                                      onClick={() => setExpandedDiscussionId(expandedDiscussionId === discussion._id ? null : discussion._id)}
+                                      className="hover:text-indigo-500 transition-colors"
+                                    >
+                                      {expandedDiscussionId === discussion._id ? t('learning.discussion.hideReplies', 'Ẩn phản hồi') : t('learning.discussion.reply', 'Trả lời')}
+                                    </button>
+                                    <span className="flex items-center gap-1 text-slate-400">
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                                      {discussion.commentsCount}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {expandedDiscussionId === discussion._id && (
+                                <div className="ml-12 pl-3 border-l-2 border-slate-100 dark:border-slate-800 flex flex-col gap-4 pt-2">
+                                  {comments.map((comment) => (
+                                    <div key={comment._id} className="flex gap-3">
+                                      <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 bg-slate-200">
+                                        {comment.author?.avatar ? (
+                                          <img src={comment.author.avatar} alt="User" className="w-full h-full object-cover" />
+                                        ) : (
+                                          <div className="w-full h-full flex items-center justify-center font-bold text-slate-500 bg-slate-300 text-xs">
+                                            {comment.author?.name?.charAt(0).toUpperCase()}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="flex flex-col gap-1 w-full">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-semibold text-xs text-slate-900 dark:text-white">{comment.author?.name}</span>
+                                          <span className="text-[10px] text-slate-500">{new Date(comment.createdAt).toLocaleDateString()}</span>
+                                          {comment.author?.role === 'teacher' && <span className="text-[9px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">{t('learning.discussion.instructorTag', 'Giảng viên')}</span>}
+                                        </div>
+                                        <p className="text-xs text-slate-600 dark:text-slate-300">{comment.content}</p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  
+                                  <div className="flex gap-2 mt-1">
+                                    <input 
+                                      type="text" 
+                                      value={commentText}
+                                      onChange={(e) => setCommentText(e.target.value)}
+                                      placeholder={t('learning.discussion.replyPlaceholder', 'Viết phản hồi...')}
+                                      className="flex-1 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500"
+                                    />
+                                    <button 
+                                      onClick={() => handlePostComment(discussion._id)}
+                                      disabled={!commentText.trim() || addCommentMutation.isPending}
+                                      className="px-3 py-1.5 bg-indigo-500 text-white text-xs font-medium rounded-lg hover:bg-indigo-600 transition-colors disabled:opacity-50"
+                                    >
+                                      {t('learning.discussion.reply', 'Gửi')}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tab Content: Notes */}
+                  {activeTab === 'notes' && (
+                    <div className="flex flex-col gap-4">
+                      <div className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">{t('learning.notes', 'Ghi chú cá nhân')}</h3>
+                          <span className="text-xs text-slate-400">Tự động đồng bộ</span>
+                        </div>
+                        <textarea
+                          value={notes}
+                          onChange={(event) => setNotes(event.target.value)}
+                          placeholder={t('learning.notesPlaceholder', 'Bắt đầu gõ ghi chú của bạn...')}
+                          className="w-full min-h-[140px] resize-none bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-4 text-sm leading-relaxed text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tab Content: Resources */}
+                  {activeTab === 'resources' && (
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {resources.map((res) => (
+                        <div key={res.title} className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1A1A1A] flex items-center justify-between shadow-sm">
+                          <div>
+                            <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{res.title}</h4>
+                            <span className="text-xs font-mono text-indigo-500 uppercase">{res.type}</span>
+                          </div>
+                          <button className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 hover:text-indigo-600 transition-colors">
+                            Tải về
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
           </div>
 
           {/* Right Column (Curriculum) */}
-          <div className="lg:col-span-4 flex flex-col gap-10 lg:sticky lg:top-24">
+          <div className="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-20">
             
             {/* Ultra-minimal Progress */}
             <div>
               <div className="flex items-center justify-between text-xs font-semibold tracking-widest uppercase mb-3 text-slate-500">
-                <span>Progress</span>
+                <span>{t('learning.progress', 'Tiến độ')}</span>
                 <span>{progressPercent}%</span>
               </div>
               <div className="h-[2px] w-full bg-[#EAEAEA] dark:bg-white/10 rounded-full overflow-hidden">
@@ -727,7 +965,7 @@ const Learning: React.FC = () => {
                       className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 rounded-xl text-sm font-semibold border border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
                     >
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                      View Certificate
+                      {t('learning.certificate.viewBtn', 'Xem chứng chỉ')}
                     </a>
                   ) : (
                     <button
@@ -736,7 +974,7 @@ const Learning: React.FC = () => {
                       className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-semibold border border-amber-200 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
-                      {claimCertificateMutation.isPending ? 'Đang tạo chứng chỉ...' : 'Nhận chứng chỉ'}
+                      {claimCertificateMutation.isPending ? t('learning.certificate.generating', 'Đang tạo...') : t('learning.certificate.claimBtn', 'Nhận chứng chỉ')}
                     </button>
                   )}
                   {claimCertificateMutation.isError && (
@@ -748,14 +986,14 @@ const Learning: React.FC = () => {
               )}
             </div>
 
-            {/* Typography-driven Curriculum */}
-            <div className="flex flex-col bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-sm sticky top-24">
-              <div className="pt-6 pb-6 border-b border-[#EAEAEA] dark:border-white/10">
+            {/* Typography-driven Curriculum with Independent Scroll */}
+            <div className="flex flex-col bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-2xl p-5 shadow-sm max-h-[calc(100vh-12rem)] overflow-y-auto custom-scrollbar pr-1">
+              <div className="pt-2 pb-5 border-b border-[#EAEAEA] dark:border-white/10">
                 <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
-                  Curriculum
+                  {t('learning.curriculum', 'Nội dung khóa học')}
                 </h3>
                 {lessons.length === 0 ? (
-                  <p className="text-sm text-slate-500">No lessons available.</p>
+                  <p className="text-sm text-slate-500">{t('learning.noLessons', 'Không có bài học nào.')}</p>
                 ) : (
                   <div className="flex flex-col gap-2">
                     {groupedLessons.map((group, gIdx) => {
@@ -777,11 +1015,20 @@ const Learning: React.FC = () => {
                                 return (
                                   <button
                                     key={lesson._id}
-                                    onClick={() => { setSelectedLessonId(lesson._id); setSelectedQuizId(null); setSelectedAssignmentId(null); }}
-                                    className={`group flex items-center justify-between py-2 px-2 rounded-md text-left w-full transition-colors ${isActive ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'}`}
+                                    onClick={() => {
+                                      if (courseId && selectedLessonId && videoRef.current && videoRef.current.currentTime > 0) {
+                                        progressApi.updateVideoProgress(courseId, selectedLessonId, videoRef.current.currentTime).catch(err => {
+                                          console.error('Failed to save progress on lesson switch:', err);
+                                        });
+                                      }
+                                      setSelectedLessonId(lesson._id); 
+                                      setSelectedQuizId(null); 
+                                      setSelectedAssignmentId(null); 
+                                    }}
+                                    className={`group flex items-start justify-between py-2 px-2.5 rounded-md text-left w-full transition-colors ${isActive ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'}`}
                                   >
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                                    <div className="flex items-start gap-3 w-full">
+                                      <div className="w-4 h-4 shrink-0 flex items-center justify-center mt-0.5">
                                         {isCompleted ? (
                                           <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
                                         ) : isActive ? (
@@ -790,39 +1037,57 @@ const Learning: React.FC = () => {
                                           <span className="text-[10px] text-slate-400">{index + 1}</span>
                                         )}
                                       </div>
-                                      <span className="text-sm line-clamp-1">{lesson.title}</span>
+                                      <span className="text-sm line-clamp-2 leading-snug break-words flex-1" title={lv(lesson.title)}>{lv(lesson.title)}</span>
                                     </div>
                                   </button>
-                                )
+                                );
                               })}
                             </div>
                           )}
                         </div>
-                      )
+                      );
                     })}
                   </div>
                 )}
               </div>
 
               {quizzes.length > 0 && (
-                <div className="pt-6 pb-6 border-b border-[#EAEAEA] dark:border-white/10">
+                <div className="pt-5 pb-5 border-b border-[#EAEAEA] dark:border-white/10">
                   <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
-                    Assessments
+                    {t('learning.assessments', 'Bài kiểm tra')}
                   </h3>
                   <div className="flex flex-col gap-1">
                     {quizzes.map((quiz: any) => {
                       const isActive = quiz._id === selectedQuizId;
+                      const isCompleted = Boolean(quiz.isCompleted);
                       return (
                         <button
                           key={quiz._id}
                           onClick={() => { setSelectedQuizId(quiz._id); setSelectedLessonId(null); setSelectedAssignmentId(null); }}
-                          className={`group flex items-center justify-between py-2 text-left w-full transition-colors ${isActive ? 'text-[#111111] dark:text-white font-medium' : 'text-slate-600 dark:text-slate-400 hover:text-[#111111] dark:hover:text-white'}`}
+                          className={`group flex items-start justify-between py-2 px-2.5 rounded-md text-left w-full transition-colors ${isActive ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-[#111111] dark:hover:text-white'}`}
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-4 h-4 shrink-0 flex items-center justify-center text-slate-400">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                          <div className="flex items-start gap-3 w-full">
+                            <div className="w-4 h-4 shrink-0 flex items-center justify-center mt-0.5">
+                              {isCompleted ? (
+                                <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
+                              ) : (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                              )}
                             </div>
-                            <span className="text-sm line-clamp-1">{quiz.title}</span>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm line-clamp-2 leading-snug break-words" title={lv(quiz.title)}>{lv(quiz.title)}</span>
+                              <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                                <span>{quiz.questionCount ?? quiz.totalQuestions ?? 0} {t('learning.questions', 'câu')}</span>
+                                {quiz.isCompleted && (
+                                  <>
+                                    <span>•</span>
+                                    <span className={quiz.isPassed ? 'text-emerald-500 font-semibold' : 'text-rose-500 font-semibold'}>
+                                      {quiz.scorePercentage ?? quiz.score}%
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </button>
                       );
@@ -832,9 +1097,9 @@ const Learning: React.FC = () => {
               )}
 
               {assignments.length > 0 && (
-                <div className="pt-6 pb-6 border-b border-[#EAEAEA] dark:border-white/10">
+                <div className="pt-5 pb-5 border-b border-[#EAEAEA] dark:border-white/10">
                   <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
-                    Assignments
+                    {t('learning.assignments', 'Bài tập về nhà')}
                   </h3>
                   <div className="flex flex-col gap-1">
                     {assignments.map((assignment: any) => {
@@ -843,13 +1108,13 @@ const Learning: React.FC = () => {
                         <button
                           key={assignment._id}
                           onClick={() => { setSelectedAssignmentId(assignment._id); setSelectedLessonId(null); setSelectedQuizId(null); }}
-                          className={`group flex items-center justify-between py-2 text-left w-full transition-colors ${isActive ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-[#111111] dark:hover:text-white'}`}
+                          className={`group flex items-start justify-between py-2 px-2.5 rounded-md text-left w-full transition-colors ${isActive ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-[#111111] dark:hover:text-white'}`}
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-4 h-4 shrink-0 flex items-center justify-center text-slate-400">
+                          <div className="flex items-start gap-3 w-full">
+                            <div className="w-4 h-4 shrink-0 flex items-center justify-center text-slate-400 mt-0.5">
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                             </div>
-                            <span className="text-sm line-clamp-1">{assignment.title}</span>
+                            <span className="text-sm line-clamp-2 leading-snug break-words flex-1" title={lv(assignment.title)}>{lv(assignment.title)}</span>
                           </div>
                         </button>
                       );
@@ -858,22 +1123,26 @@ const Learning: React.FC = () => {
                 </div>
               )}
 
-              <div className="pt-6 pb-6 border-b border-[#EAEAEA] dark:border-white/10">
+              <div className="pt-5 pb-2">
                 <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
-                  Random Practice
+                  {t('learning.randomPractice', 'Luyện tập ngẫu nhiên')}
                 </h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Number of Questions</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">{t('learning.numQuestions', 'Số lượng câu hỏi')}</label>
                     <select
                       value={practiceLimit}
                       onChange={(e) => setPracticeLimit(Number(e.target.value))}
-                      className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                      className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
                     >
-                      <option value={5}>5 Questions</option>
-                      <option value={10}>10 Questions</option>
-                      <option value={15}>15 Questions</option>
-                      <option value={20}>20 Questions</option>
+                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={5}>5 {t('learning.questions', 'câu hỏi')}</option>
+                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={10}>10 {t('learning.questions', 'câu hỏi')}</option>
+                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={15}>15 {t('learning.questions', 'câu hỏi')}</option>
+                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={20}>20 {t('learning.questions', 'câu hỏi')}</option>
+                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={25}>25 {t('learning.questions', 'câu hỏi')}</option>
+                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={30}>30 {t('learning.questions', 'câu hỏi')}</option>
+                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={40}>40 {t('learning.questions', 'câu hỏi')}</option>
+                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={50}>50 {t('learning.questions', 'câu hỏi')}</option>
                     </select>
                   </div>
                   <button
@@ -881,158 +1150,27 @@ const Learning: React.FC = () => {
                     className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl font-semibold text-sm hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                    Start Practice Quiz
+                    {t('learning.startPractice', 'Bắt đầu luyện tập')}
                   </button>
                 </div>
-              </div>
-            </div>
-
-            {/* Resources minimal list */}
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">Resources</h3>
-              <div className="flex flex-col gap-2">
-                {resources.map((res) => (
-                  <a key={res.title} href="#" className="flex items-center justify-between group py-1">
-                    <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-[#111111] dark:group-hover:text-white transition-colors underline decoration-slate-300 dark:decoration-slate-700 underline-offset-4">{res.title}</span>
-                    <span className="text-[10px] font-mono text-slate-400 uppercase">{res.type}</span>
-                  </a>
-                ))}
               </div>
             </div>
 
           </div>
         </div>
-
-        {/* Discussion / Q&A Section (Full Width) */}
-        {!selectedQuiz && (
-          <div className="flex flex-col gap-8 pt-8 border-t border-[#EAEAEA] dark:border-white/10 w-full mt-12">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Discussion</h2>
-              <span className="text-sm font-medium text-slate-500">{discussions.length} Discussions</span>
-            </div>
-            
-            {/* Input */}
-            <div className="flex gap-4">
-              <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center font-bold shrink-0 uppercase overflow-hidden">
-                {user?.avatar ? <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" /> : user?.name?.charAt(0)}
-              </div>
-              <div className="flex-1 flex flex-col gap-3">
-                <textarea 
-                  value={discussionText}
-                  onChange={(e) => setDiscussionText(e.target.value)}
-                  placeholder="Ask a question or share an insight..." 
-                  className="w-full min-h-[100px] resize-none bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-                />
-                <div className="flex justify-end">
-                  <button 
-                    onClick={handlePostDiscussion}
-                    disabled={createDiscussionMutation.isPending || !discussionText.trim()}
-                    className="px-5 py-2 bg-[#111111] dark:bg-white text-white dark:text-[#111111] text-sm font-medium rounded-lg hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors disabled:opacity-50"
-                  >
-                    Post Discussion
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Comments List */}
-            <div className="flex flex-col gap-8 mt-4">
-              {discussions.map((discussion) => (
-                <div key={discussion._id} className="flex flex-col gap-4">
-                  <div className="flex gap-4">
-                    <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-slate-200">
-                      {discussion.author?.avatar ? (
-                        <img src={discussion.author.avatar} alt="User" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center font-bold text-slate-500 bg-slate-300">
-                          {discussion.author?.name?.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-1.5 w-full">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-slate-900 dark:text-white">{discussion.author?.name}</span>
-                        <span className="text-xs text-slate-500">{new Date(discussion.createdAt).toLocaleDateString()}</span>
-                        {discussion.author?.role === 'teacher' && <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Instructor</span>}
-                      </div>
-                      <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                        {discussion.content}
-                      </p>
-                      <div className="flex items-center gap-4 mt-1 text-xs font-medium text-slate-500">
-                        <button 
-                          onClick={() => setExpandedDiscussionId(expandedDiscussionId === discussion._id ? null : discussion._id)}
-                          className="hover:text-indigo-500 transition-colors"
-                        >
-                          {expandedDiscussionId === discussion._id ? 'Hide Replies' : 'Reply'}
-                        </button>
-                        <span className="flex items-center gap-1 text-slate-400">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
-                          {discussion.commentsCount}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {expandedDiscussionId === discussion._id && (
-                    <div className="ml-14 pl-4 border-l-2 border-slate-100 dark:border-slate-800 flex flex-col gap-6">
-                      {comments.map((comment) => (
-                        <div key={comment._id} className="flex gap-3">
-                          <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-slate-200">
-                            {comment.author?.avatar ? (
-                              <img src={comment.author.avatar} alt="User" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center font-bold text-slate-500 bg-slate-300 text-xs">
-                                {comment.author?.name?.charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex flex-col gap-1 w-full">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-sm text-slate-900 dark:text-white">{comment.author?.name}</span>
-                              <span className="text-xs text-slate-500">{new Date(comment.createdAt).toLocaleDateString()}</span>
-                              {comment.author?.role === 'teacher' && <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Instructor</span>}
-                            </div>
-                            <p className="text-sm text-slate-600 dark:text-slate-300">{comment.content}</p>
-                          </div>
-                        </div>
-                      ))}
-                      
-                      <div className="flex gap-3 mt-2">
-                        <input 
-                          type="text" 
-                          value={commentText}
-                          onChange={(e) => setCommentText(e.target.value)}
-                          placeholder="Write a reply..."
-                          className="flex-1 bg-slate-50 dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <button 
-                          onClick={() => handlePostComment(discussion._id)}
-                          disabled={!commentText.trim() || addCommentMutation.isPending}
-                          className="px-4 py-2 bg-indigo-500 text-white text-sm font-medium rounded-lg hover:bg-indigo-600 transition-colors disabled:opacity-50"
-                        >
-                          Reply
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       <Toast
         visible={showAchievement}
-        title="Lesson completed"
-        message="Progress saved. Continue to the next module."
+        title={t('learning.toast.lessonCompleted')}
+        message={t('learning.toast.lessonCompleted')}
         variant="success"
         position="bottom-right"
       />
       <Toast
         visible={showCertSuccess}
-        title="Chứng chỉ đã sẵn sàng!"
-        message="Chứng chỉ hoàn thành khóa học của bạn đã được tạo thành công."
+        title={t('learning.certificate.readyTitle')}
+        message={t('learning.certificate.readyMsg')}
         variant="success"
         position="bottom-right"
       />

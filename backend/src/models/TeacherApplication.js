@@ -32,6 +32,7 @@ const teacherApplicationSchema = new mongoose.Schema({
 
 // Tối ưu hóa truy vấn các đơn ứng tuyển chưa duyệt
 teacherApplicationSchema.index({ status: 1 });
+teacherApplicationSchema.index({ status: 1, createdAt: -1 });
 teacherApplicationSchema.index({ student: 1 });
 
 module.exports = mongoose.model('TeacherApplication', teacherApplicationSchema);

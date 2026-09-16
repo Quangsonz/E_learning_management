@@ -26,13 +26,12 @@ class QuizController {
   });
 
   getQuizForTake = catchAsync(async (req, res, next) => {
-    const data = await quizService.getQuizForStudent(req.params.quizId);
+    const data = await quizService.getQuizForStudent(req.params.quizId, req.user);
     res.status(200).json({ status: 'success', data });
   });
 
   submitQuiz = catchAsync(async (req, res, next) => {
-    // client gửi lên mảng answers: [{ questionId, selectedOptionId }]
-    const result = await quizService.submitQuiz(req.params.quizId, req.body.answers, req.user);
+    const result = await quizService.submitQuiz(req.params.quizId, req.body.answers || req.body, req.user);
     
     res.status(200).json({ 
       status: 'success', 
@@ -41,19 +40,25 @@ class QuizController {
     });
   });
 
+  getQuizResults = catchAsync(async (req, res, next) => {
+    const result = await quizService.getQuizResults(req.params.quizId, req.user);
+    res.status(200).json({ status: 'success', data: { result } });
+  });
+
   generateSmartQuiz = catchAsync(async (req, res, next) => {
     const data = await quizService.generateSmartQuiz(req.params.courseId, req.user, req.query.limit);
     res.status(200).json({ status: 'success', data });
   });
 
   submitSmartQuiz = catchAsync(async (req, res, next) => {
-    const result = await quizService.submitSmartQuiz(req.params.courseId, req.body.answers, req.user);
+    const result = await quizService.submitSmartQuiz(req.params.courseId, req.body, req.user);
     res.status(200).json({
       status: 'success',
       message: result.isPassed ? 'Chúc mừng bạn đã vượt qua bài ôn tập!' : 'Bạn cần cố gắng hơn!',
       data: { result }
     });
   });
+
 
   addLessonQuestion = catchAsync(async (req, res, next) => {
     const question = await quizService.addLessonQuestion(req.params.lessonId, req.body, req.user);

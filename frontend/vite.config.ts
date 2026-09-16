@@ -33,6 +33,7 @@ export default defineConfig(({ mode }) => ({
           vendor: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
           ui: ['framer-motion', 'lucide-react'],
           stripe: ['@stripe/stripe-js', '@stripe/react-stripe-js'],
+          charts: ['recharts'],
         }
       }
     }

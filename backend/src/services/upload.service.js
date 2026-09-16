@@ -37,8 +37,24 @@ class UploadService {
     const result = await this.uploadStream(fileBuffer, 'video', 'elearning/videos');
     return {
       url: result.secure_url,
-      duration: result.duration, // Lấy được độ dài của video
+      publicId: result.public_id,
+      duration: Math.round(result.duration || 0),
     };
+  }
+
+  /**
+   * Xóa file video trên Cloudinary dựa trên public_id
+   * @param {String} publicId 
+   */
+  async deleteVideo(publicId) {
+    if (!publicId) return null;
+    try {
+      const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
+      return result;
+    } catch (error) {
+      console.error(`[Cloudinary Cleanup Error] Không thể xóa video public_id "${publicId}":`, error.message);
+      return null;
+    }
   }
 
   async uploadRawFile(fileBuffer) {

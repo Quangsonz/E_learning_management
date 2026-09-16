@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import AuthLayout from '../../components/auth/AuthLayout';
 import AuthField from '../../components/auth/AuthField';
-
 import { useToast } from '../../contexts/ToastContext';
 
 const Login: React.FC = () => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorState, setErrorState] = useState('');
@@ -26,33 +27,32 @@ const Login: React.FC = () => {
     if (params.get('expired') === 'true') {
       // Đợi component mount hoàn toàn rồi hiển thị thông báo
       setTimeout(() => {
-        error('Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại.', 'Phiên hết hạn');
+        error(t('auth.toast.sessionExpired'), t('auth.login.sessionExpiredTitle'));
       }, 100);
       navigate(location.pathname, { replace: true });
     }
-  }, [location, error, navigate]);
-
+  }, [location, error, navigate, t]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setErrorState('Vui lòng nhập email và mật khẩu.');
-      error('Vui lòng nhập email và mật khẩu.', 'Đăng nhập thất bại');
+      setErrorState(t('auth.validation.emailPasswordRequired'));
+      error(t('auth.validation.emailPasswordRequired'), t('auth.login.failedTitle'));
       return;
     }
     setErrorState('');
     setLoading(true);
     try {
       await login({ email, password });
-      success('Đăng nhập thành công! Đang chuyển hướng...', 'Chào mừng trở lại');
+      success(t('auth.toast.loginSuccess'), t('auth.login.welcomeBack'));
       navigate(from, { replace: true });
     } catch (err: any) {
       const msg =
         err.response?.data?.message ||
         err.message ||
-        'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
+        t('auth.login.loginFailed');
       setErrorState(msg);
-      error(msg, 'Đăng nhập thất bại');
+      error(msg, t('auth.login.failedTitle'));
     } finally {
       setLoading(false);
     }
@@ -60,18 +60,18 @@ const Login: React.FC = () => {
 
   return (
     <AuthLayout
-      badge="Welcome Back"
-      headline="Welcome back, let's keep the momentum going."
-      description="Sign in to access your learning space, track your progress, and continue your courses."
+      badge={t('auth.login.badge')}
+      headline={t('auth.login.headline')}
+      description={t('auth.login.desc')}
       bannerLabel=""
       bannerTitle=""
       bannerDescription=""
       highlights={[]}
       footer={
         <p className="text-center text-sm text-slate-400 mt-6">
-          New here?{' '}
+          {t('auth.login.newHere')}{' '}
           <Link className="font-semibold text-sky-400 hover:text-sky-300 transition-colors" to="/register">
-            Create an account
+            {t('auth.login.createAccount')}
           </Link>
         </p>
       }
@@ -94,7 +94,7 @@ const Login: React.FC = () => {
         )}
 
         <AuthField
-          label="Email address"
+          label={t('auth.login.emailLabel')}
           type="email"
           placeholder="you@school.com"
           autoComplete="email"
@@ -102,7 +102,7 @@ const Login: React.FC = () => {
           onChange={(e) => setEmail(e.target.value)}
         />
         <AuthField
-          label="Password"
+          label={t('auth.login.passwordLabel')}
           type="password"
           placeholder="Enter your password"
           autoComplete="current-password"
@@ -129,13 +129,13 @@ const Login: React.FC = () => {
                 />
               </svg>
             </div>
-            Remember me
+            {t('auth.login.rememberMe')}
           </label>
           <Link
             className="text-sm font-semibold text-sky-400 hover:text-sky-300 transition-colors"
             to="/forgot-password"
           >
-            Forgot password?
+            {t('auth.login.forgotPassword')}
           </Link>
         </div>
 
@@ -150,16 +150,16 @@ const Login: React.FC = () => {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              Signing in...
+              {t('auth.login.submitting')}
             </span>
           ) : (
-            'Sign in'
+            t('auth.login.submit')
           )}
         </button>
 
         <div className="flex items-center gap-4 text-xs uppercase tracking-[0.2em] text-slate-500 mt-8 mb-4">
           <span className="h-px flex-1 bg-white/10" />
-          or continue with
+          {t('auth.login.orContinueWith')}
           <span className="h-px flex-1 bg-white/10" />
         </div>
 

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
   PageShell,
   SectionLead,
@@ -14,6 +15,7 @@ import { courseApi } from '../services/course.api';
 import { Star, Clock, BookOpen, Sparkles, Heart } from 'lucide-react';
 
 import { useToast } from '../contexts/ToastContext';
+import { useLocalizedValue } from '../utils/localized';
 
 type Course = {
   id: string;
@@ -67,6 +69,7 @@ const categoryAccent: Record<string, string> = {
 const DEFAULT_ACCENT = 'from-indigo-500 to-violet-400';
 
 const WishlistCourseCard: React.FC<{ course: Course; onRemove: (id: string) => void }> = ({ course, onRemove }) => {
+  const { t, i18n } = useTranslation();
   const [thumbLoaded, setThumbLoaded] = useState(false);
   const navigate = useNavigate();
 
@@ -85,6 +88,7 @@ const WishlistCourseCard: React.FC<{ course: Course; onRemove: (id: string) => v
             src={course.image}
             alt={course.title}
             loading="lazy"
+            decoding="async"
             onLoad={() => setThumbLoaded(true)}
             className={`h-full w-full object-cover transition duration-700 group-hover:scale-[1.04] ${thumbLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
@@ -102,7 +106,7 @@ const WishlistCourseCard: React.FC<{ course: Course; onRemove: (id: string) => v
           type="button"
           onClick={() => onRemove(course.id)}
           className="absolute right-4 top-4 w-8 h-8 rounded-full bg-slate-950/60 backdrop-blur-md text-white/80 hover:text-rose-500 flex items-center justify-center transition-colors shadow-lg z-20"
-          title="Gỡ khỏi danh sách yêu thích"
+          title={t('wishlist.removeSuccess', 'Gỡ khỏi danh sách yêu thích')}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="3 6 5 6 21 6"></polyline>
@@ -155,11 +159,11 @@ const WishlistCourseCard: React.FC<{ course: Course; onRemove: (id: string) => v
         <div className="flex items-center justify-between border-t border-slate-100 dark:border-white/5 pt-3 mt-1 shrink-0">
           <div className="flex flex-col">
             <span className="text-lg font-black text-slate-900 dark:text-white">
-              {course.price === 0 ? 'Miễn phí' : `${Number(course.price || 0).toLocaleString('vi-VN')}đ`}
+              {course.price === 0 ? t('wishlist.free') : `${Number(course.price || 0).toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}đ`}
             </span>
             {course.discountPercentage > 0 ? (
               <span className="text-xs text-slate-400 line-through">
-                {Number(course.estimatedPrice || 0).toLocaleString('vi-VN')}đ
+                {Number(course.estimatedPrice || 0).toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}đ
               </span>
             ) : null}
           </div>
@@ -168,7 +172,7 @@ const WishlistCourseCard: React.FC<{ course: Course; onRemove: (id: string) => v
             onClick={() => navigate(`/checkout/${course.id}`)}
             className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold rounded-xl transition-all shadow-md hover:shadow-indigo-500/25 active:scale-95 shrink-0"
           >
-            Đăng ký ngay
+            {t('wishlist.enrollBtn')}
           </button>
         </div>
       </div>
@@ -177,6 +181,8 @@ const WishlistCourseCard: React.FC<{ course: Course; onRemove: (id: string) => v
 };
 
 const Wishlist: React.FC = () => {
+  const { t, i18n } = useTranslation();
+  const lv = useLocalizedValue();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   
@@ -198,7 +204,7 @@ const Wishlist: React.FC = () => {
     mutationFn: (id: string) => userApi.toggleWishlist(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wishlist'] });
-      successToast('Đã gỡ khóa học khỏi danh sách yêu thích thành công.', 'Đã gỡ');
+      successToast(t('wishlist.removeSuccess'), t('wishlist.removedTitle'));
     }
   });
 
@@ -206,23 +212,26 @@ const Wishlist: React.FC = () => {
     removeMutation.mutate(id);
   };
 
-  const transformCourse = (course: any): Course => ({
-    id: course._id,
-    title: course.title,
-    teacher: course.instructor?.name || 'Giảng viên LMS',
-    role: course.instructor?.role || 'Instructor',
-    category: course.category?.name || 'General',
-    rating: course.averageRating || 5.0,
-    ratingCount: '0',
-    duration: '12.5 giờ',
-    progress: 0,
-    lessons: '24 bài học',
-    accent: categoryAccent[course.category?.name || 'General'] || DEFAULT_ACCENT,
-    image: course.thumbnailUrl || makeThumbnail(course.category?.name || 'Course'),
-    price: Number(course.price) || 0,
-    estimatedPrice: Number(course.estimatedPrice || course.price) || 0,
-    discountPercentage: Number(course.discountPercentage) || 0
-  });
+  const transformCourse = (course: any): Course => {
+    const catName = lv(course.category?.name) || 'General';
+    return {
+      id: course._id,
+      title: lv(course.title),
+      teacher: course.instructor?.name || 'Instructor',
+      role: course.instructor?.role || 'Instructor',
+      category: catName,
+      rating: course.averageRating || 5.0,
+      ratingCount: '0',
+      duration: '12.5h',
+      progress: 0,
+      lessons: '24 lessons',
+      accent: categoryAccent[catName] || DEFAULT_ACCENT,
+      image: course.thumbnailUrl || makeThumbnail(catName),
+      price: Number(course.price) || 0,
+      estimatedPrice: Number(course.estimatedPrice || course.price) || 0,
+      discountPercentage: Number(course.discountPercentage) || 0
+    };
+  };
 
   const wishlistCourses: Course[] = useMemo(() => {
     if (!wishlistData?.data?.wishlist) return [];
@@ -240,21 +249,21 @@ const Wishlist: React.FC = () => {
         {/* Header */}
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-bold uppercase tracking-wider mb-3">
-            <Heart size={14} fill="currentColor" /> Personal Collection
+            <Heart size={14} fill="currentColor" /> {t('wishlist.badge')}
           </div>
           <h1 className="text-4xl lg:text-5xl font-black tracking-tight text-slate-900 dark:text-white mb-3">
-            Danh sách Yêu thích
+            {t('wishlist.title')}
           </h1>
           <p className="text-base text-slate-500 dark:text-slate-400 max-w-2xl">
-            Quản lý các khóa học bạn đã lưu. Đăng ký ngay hôm nay để bắt đầu nâng cao kỹ năng nghề nghiệp.
+            {t('wishlist.desc')}
           </p>
         </div>
 
         {/* 1. Wishlist Section */}
         <section className="space-y-6">
           <SectionLead 
-            label="Khóa học đã lưu" 
-            title={`${wishlistCourses.length} khóa học trong danh sách`} 
+            label={t('wishlist.savedCourses')} 
+            title={t('wishlist.coursesCount', { count: wishlistCourses.length })} 
             size="md" 
           />
           
@@ -268,12 +277,12 @@ const Wishlist: React.FC = () => {
             </div>
           ) : (
             <EmptyState
-              title="Danh sách yêu thích đang trống"
-              message="Bạn chưa lưu khóa học nào vào danh sách yêu thích. Khám phá các khóa học nổi bật ngay bên dưới để bắt đầu học tập."
+              title={t('wishlist.emptyTitle')}
+              message={t('wishlist.emptyMsg')}
               action={
                 <Link to="/courses">
                   <Button variant="pill" className="flex items-center gap-2">
-                    <Sparkles size={16} /> Khám phá danh mục khóa học
+                    <Sparkles size={16} /> {t('wishlist.exploreBtn')}
                   </Button>
                 </Link>
               }
@@ -281,23 +290,23 @@ const Wishlist: React.FC = () => {
           )}
         </section>
 
-        {/* 2. Recommended Courses Section ("Gợi ý dành riêng cho bạn") */}
+        {/* 2. Recommended Courses Section */}
         <section className="mt-8 pt-12 border-t border-slate-200 dark:border-white/10 space-y-8">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
               <div className="inline-flex items-center gap-2 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider mb-2">
-                <Sparkles size={16} /> Course Recommendations
+                <Sparkles size={16} /> {t('wishlist.recommendationsBadge')}
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-                Gợi ý dành riêng cho bạn
+                {t('wishlist.recommendationsTitle')}
               </h2>
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                Các khóa học được học viên đánh giá cao nhất trong hệ thống tuần này.
+                {t('wishlist.recommendationsDesc')}
               </p>
             </div>
 
             <Link to="/courses">
-              <Button variant="outline" size="sm">Xem tất cả khóa học →</Button>
+              <Button variant="outline" size="sm">{t('wishlist.viewAll')}</Button>
             </Link>
           </div>
 
@@ -312,7 +321,7 @@ const Wishlist: React.FC = () => {
                 >
                   <div className="relative aspect-video overflow-hidden bg-slate-800">
                     <Link to={`/courses/${course.id}`}>
-                      <img src={course.image} alt={course.title} className="w-full h-full object-cover transition duration-500 group-hover:scale-105" />
+                      <img src={course.image} alt={course.title} loading="lazy" decoding="async" className="w-full h-full object-cover transition duration-500 group-hover:scale-105" />
                     </Link>
                     <div className="absolute left-3 top-3 text-[10px] font-black uppercase text-white bg-black/60 px-2 py-1 rounded-full">
                       {course.category}
@@ -336,13 +345,13 @@ const Wishlist: React.FC = () => {
 
                     <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-white/5">
                       <span className="font-black text-sm text-slate-900 dark:text-white">
-                        {course.price === 0 ? 'Miễn phí' : `${course.price.toLocaleString('vi-VN')}đ`}
+                        {course.price === 0 ? t('wishlist.free') : `${course.price.toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}đ`}
                       </span>
                       <button
                         onClick={() => navigate(`/checkout/${course.id}`)}
                         className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors"
                       >
-                        Đăng ký
+                        {t('wishlist.enrollBtn')}
                       </button>
                     </div>
                   </div>

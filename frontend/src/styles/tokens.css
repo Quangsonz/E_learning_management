@@ -43,6 +43,8 @@
 
   /* ── Background & Surface ───────────────────────────── */
   --color-bg:           #F4F6FB;
+  --color-surface:      rgba(255, 255, 255, 0.85);
+  --color-surface-2:    #FFFFFF;
   --color-surface-50:   #FFFFFF;
   --color-surface-100:  rgba(255,255,255,0.82);
   --color-surface-200:  #FFFFFF;
@@ -52,10 +54,16 @@
   --color-border-light: rgba(255,255,255,0.72);
 
   /* ── Text ───────────────────────────────────────────── */
+  --color-text:         #0F172A;
   --color-text-default: #0F172A;
   --color-text-muted:   #475569;
   --color-muted-400:    #94A3B8;
   --color-muted-500:    #475569;
+
+  /* ── Scrollbar ──────────────────────────────────────── */
+  --scrollbar-thumb:       rgba(148, 163, 184, 0.45);
+  --scrollbar-thumb-hover: rgba(99, 102, 241, 0.7);
+  --scrollbar-track:       transparent;
 
   /* ── Glass ──────────────────────────────────────────── */
   --glass-bg:           rgba(255,255,255,0.72);
@@ -153,6 +161,8 @@
 /* ── Dark Theme Overrides ─────────────────────────────── */
 .dark {
   --color-bg:           #0A1020;
+  --color-surface:      rgba(20,28,44,0.72);
+  --color-surface-2:    rgba(18,26,40,0.88);
   --color-surface-50:   rgba(22,30,46,0.95);
   --color-surface-100:  rgba(20,28,44,0.72);
   --color-surface-200:  rgba(18,26,40,0.88);
@@ -161,10 +171,16 @@
   --color-border:       rgba(255,255,255,0.07);
   --color-border-light: rgba(255,255,255,0.06);
 
+  --color-text:         #E2EAF4;
   --color-text-default: #E2EAF4;
   --color-text-muted:   #94A3B8;
   --color-muted-400:    #64748B;
   --color-muted-500:    #94A3B8;
+
+  /* ── Scrollbar ──────────────────────────────────────── */
+  --scrollbar-thumb:       rgba(255, 255, 255, 0.16);
+  --scrollbar-thumb-hover: rgba(129, 140, 248, 0.7);
+  --scrollbar-track:       transparent;
 
   --glass-bg:           rgba(255,255,255,0.04);
   --glass-bg-strong:    rgba(255,255,255,0.08);

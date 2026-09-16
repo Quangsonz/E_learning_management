@@ -4,6 +4,7 @@ import { quizApi } from '../../services/quiz.api';
 import { Button, Modal, EmptyState, ConfirmModal } from '../ui';
 import { Input } from '../ui/Input';
 import { QuestionManager } from './QuestionManager';
+import { useLocalizedValue } from '../../utils/localized';
 
 type QuizManagerProps = {
   courseId: string;
@@ -12,6 +13,7 @@ type QuizManagerProps = {
 };
 
 export const QuizManager: React.FC<QuizManagerProps> = ({ courseId, courseTitle, onClose }) => {
+  const lv = useLocalizedValue();
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -127,8 +129,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ courseId, courseTitle,
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-medium text-slate-500">{index + 1}</span>
                     <div>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{quiz.title}</p>
-                      <p className="text-xs text-slate-500">Pass: {quiz.passingScore}% • {quiz.timeLimit ? `${quiz.timeLimit} mins` : 'No limit'}</p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{lv(quiz.title)}</p>
+                      <p className="text-xs text-slate-500">Pass: {quiz.passingScore}% • {quiz.timeLimit ? `${quiz.timeLimit} mins` : 'No limit'}{quiz.questionCount !== undefined ? ` • ${quiz.questionCount} questions` : ''}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -140,7 +142,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ courseId, courseTitle,
                       className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
                       onClick={() => {
                         setEditingQuizId(quiz._id);
-                        setTitle(quiz.title);
+                        setTitle(lv(quiz.title));
                         setPassingScore(quiz.passingScore.toString());
                         setTimeLimit(quiz.timeLimit ? quiz.timeLimit.toString() : '');
                         setFormOpen(true);
@@ -156,7 +158,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ courseId, courseTitle,
                       type="button"
                       className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
                       onClick={() => {
-                        setDeleteTarget({ id: quiz._id, title: quiz.title });
+                        setDeleteTarget({ id: quiz._id, title: lv(quiz.title) });
                       }}
                       title="Delete Quiz"
                     >

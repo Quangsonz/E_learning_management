@@ -15,6 +15,7 @@ const paymentRoutes = require('./payment.routes');
 const discussionRoutes = require('./discussion.routes');
 const adminRoutes = require('./admin.routes');
 const assignmentRoutes = require('./assignment.routes');
+const searchRoutes = require('./search.routes');
 
 const router = express.Router();
 
@@ -22,6 +23,7 @@ router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/admin', adminRoutes);
 router.use('/categories', categoryRoutes);
+router.use('/search', searchRoutes);
 
 // Nested routes with specific subpaths MUST be mounted before /courses
 router.use('/courses/:courseId/lessons/:lessonId/discussions', discussionRoutes);

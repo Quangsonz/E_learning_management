@@ -1,8 +1,11 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { userApi } from '../../services/user.api';
+import { useLocalizedValue } from '../../utils/localized';
 
 interface WishlistDrawerProps {
   isOpen: boolean;
@@ -10,6 +13,8 @@ interface WishlistDrawerProps {
 }
 
 export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
+  const lv = useLocalizedValue();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -28,7 +33,7 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({ isOpen, onClose 
 
   const wishlist = wishlistData?.data?.wishlist || [];
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -38,7 +43,7 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({ isOpen, onClose 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm"
           />
 
           {/* Drawer Window */}
@@ -47,7 +52,7 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({ isOpen, onClose 
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-white dark:bg-[#111111] shadow-2xl border-l border-slate-200 dark:border-white/5 flex flex-col"
+            className="fixed right-0 top-0 bottom-0 z-[1000] w-full max-w-md bg-white dark:bg-[#111111] shadow-2xl border-l border-slate-200 dark:border-white/5 flex flex-col"
           >
             {/* Header */}
             <div className="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
@@ -58,9 +63,9 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({ isOpen, onClose 
                     <circle cx="20" cy="21" r="1"></circle>
                     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
                   </svg>
-                  Khóa học đã lưu ({wishlist.length})
+                  {t('wishlist.savedCourses', 'Khóa học đã lưu')} ({wishlist.length})
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">Danh sách yêu thích của bạn</p>
+                <p className="text-xs text-slate-400 mt-0.5">{t('wishlist.favoriteList', 'Danh sách yêu thích của bạn')}</p>
               </div>
               <button
                 onClick={onClose}
@@ -95,7 +100,7 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({ isOpen, onClose 
                       {/* Image */}
                       <div className="w-20 h-14 bg-slate-800 rounded-lg overflow-hidden shrink-0 relative">
                         {course.thumbnailUrl ? (
-                          <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover" />
+                          <img src={course.thumbnailUrl} alt={lv(course.title)} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full bg-indigo-900/50 flex items-center justify-center text-[10px] font-black text-white">Course</div>
                         )}
@@ -112,9 +117,9 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({ isOpen, onClose 
                           onClick={() => { onClose(); navigate(`/courses/${course._id}`); }}
                           className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white line-clamp-1 hover:text-indigo-500 cursor-pointer transition-colors"
                         >
-                          {course.title}
+                          {lv(course.title)}
                         </h4>
-                        <p className="text-[11px] text-slate-400 mt-0.5 truncate">{course.instructor?.name || 'Giảng viên'}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5 truncate">{course.instructor?.name || t('common.instructor', 'Giảng viên')}</p>
                         
                         {/* Price */}
                         <div className="flex items-baseline gap-2 mt-1">
@@ -133,7 +138,7 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({ isOpen, onClose 
                       <button
                         onClick={() => removeMutation.mutate(course._id)}
                         className="absolute right-3 top-3 w-7 h-7 rounded-full bg-slate-200/50 dark:bg-white/5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 flex items-center justify-center transition-colors"
-                        title="Xóa"
+                        title={t('common.delete', 'Xóa')}
                       >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <polyline points="3 6 5 6 21 6"></polyline>
@@ -146,7 +151,7 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({ isOpen, onClose 
                         onClick={() => { onClose(); navigate(`/checkout/${course._id}`); }}
                         className="absolute right-3 bottom-3 text-[10px] font-black text-indigo-600 dark:text-indigo-400 hover:underline"
                       >
-                        Đăng ký →
+                        {t('common.enroll', 'Đăng ký')} →
                       </button>
                     </div>
                   );
@@ -160,8 +165,8 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({ isOpen, onClose 
                       <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
                     </svg>
                   </div>
-                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Danh sách trống</h4>
-                  <p className="text-xs text-slate-400 max-w-[200px] mt-1.5 leading-relaxed">Bạn chưa lưu bất kỳ khóa học nào vào danh sách yêu thích.</p>
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{t('wishlist.emptyTitle', 'Danh sách trống')}</h4>
+                  <p className="text-xs text-slate-400 max-w-[200px] mt-1.5 leading-relaxed">{t('wishlist.emptyDesc', 'Bạn chưa lưu bất kỳ khóa học nào vào danh sách yêu thích.')}</p>
                 </div>
               )}
             </div>
@@ -173,13 +178,14 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({ isOpen, onClose 
                   onClick={() => { onClose(); navigate('/'); }}
                   className="w-full h-12 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm rounded-2xl shadow-lg shadow-indigo-500/10 transition-all flex items-center justify-center gap-2 active:scale-98"
                 >
-                  Tiếp tục khám phá khóa học
+                  {t('wishlist.exploreMore', 'Tiếp tục khám phá khóa học')}
                 </button>
               </div>
             )}
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };

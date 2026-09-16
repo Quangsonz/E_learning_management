@@ -7,7 +7,8 @@ export {
   InsightCallout,
   LiveIndicator,
   MetricsSurface,
-  SectionLead
+  SectionLead,
+  HeroBackgroundSlideshow
 } from './CanvasPrimitives';
 export type { ActivityItem, MetricItem } from './CanvasPrimitives';
 export { Button } from './Button';

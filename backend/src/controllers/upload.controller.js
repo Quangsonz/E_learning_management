@@ -29,6 +29,7 @@ class UploadController {
       status: 'success',
       data: {
         url: result.url,
+        publicId: result.publicId,
         duration: result.duration,
       },
     });

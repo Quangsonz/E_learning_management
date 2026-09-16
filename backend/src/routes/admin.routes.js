@@ -23,6 +23,9 @@ router.post('/payouts/request', requireRole('teacher'), adminController.requestP
 // ==========================================
 router.use(requireRole('admin'));
 
+// Thống kê nhanh các tác vụ đang chờ duyệt (Pending Counts cho Action Center)
+router.get('/pending-counts', adminController.getPendingCounts);
+
 // Quản lý đơn ứng tuyển giảng viên
 router.get('/teacher-applications', adminController.getTeacherApplications);
 router.post('/teacher-applications/:id/action', auditMiddleware.logAdminAction('TEACHER_APPLICATION_PROCESS', 'TeacherApplication'), adminController.processTeacherApplication);

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { quizApi } from '../../services/quiz.api';
 import { Button, Modal, EmptyState } from '../ui';
 import { Input } from '../ui/Input';
+import { useLocalizedValue } from '../../utils/localized';
 
 type LessonQuestionManagerProps = {
   lessonId: string;
@@ -11,6 +12,7 @@ type LessonQuestionManagerProps = {
 };
 
 export const LessonQuestionManager: React.FC<LessonQuestionManagerProps> = ({ lessonId, lessonTitle, onClose }) => {
+  const lv = useLocalizedValue();
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [text, setText] = useState('');
@@ -26,7 +28,7 @@ export const LessonQuestionManager: React.FC<LessonQuestionManagerProps> = ({ le
     queryFn: () => quizApi.getLessonQuestions(lessonId)
   });
 
-  const questions = data?.data?.questions || [];
+  const questions = data?.data?.data?.questions || data?.data?.questions || [];
 
   const createMutation = useMutation({
     mutationFn: (data: any) => quizApi.addLessonQuestion(lessonId, data),
@@ -151,7 +153,7 @@ export const LessonQuestionManager: React.FC<LessonQuestionManagerProps> = ({ le
                 <div className="flex gap-3">
                   <span className="text-sm font-bold text-slate-500">{index + 1}.</span>
                   <div>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{q.text}</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{lv(q.text)}</p>
                     <p className="text-xs text-slate-500 mt-1">{q.points} points • {q.options.length} options</p>
                   </div>
                 </div>

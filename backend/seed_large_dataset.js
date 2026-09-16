@@ -119,8 +119,9 @@ async function seedLargeDataset() {
       Certificate.deleteMany({})
     ]);
 
-    // 2. Hash default password
-    const hashedPassword = await bcrypt.hash('password123', 10);
+    // 2. Hash default password (cấu hình qua SEED_DEFAULT_PASSWORD hoặc mặc định dev)
+    const defaultPassword = process.env.SEED_DEFAULT_PASSWORD || 'password123';
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
     // 3. Create Admin
     console.log('👤 Creating Admin user...');

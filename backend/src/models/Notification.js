@@ -30,6 +30,7 @@ const notificationSchema = new mongoose.Schema({
 
 // Tối ưu hóa truy vấn lấy thông báo chưa đọc của 1 user cụ thể
 notificationSchema.index({ recipient: 1, isRead: 1 });
+notificationSchema.index({ recipient: 1, createdAt: -1 }); // Lấy thông báo mới nhất của user
 notificationSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

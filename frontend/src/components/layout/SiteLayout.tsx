@@ -7,8 +7,11 @@ import { useSocket } from '../../hooks/useSocket';
 import clsx from 'clsx';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { userApi } from '../../services/user.api';
-import { CommandPalette } from '../ui/CommandPalette';
 import { WishlistDrawer } from './WishlistDrawer';
+
+const CommandPalette = React.lazy(() => 
+  import('../ui/CommandPalette').then(m => ({ default: m.CommandPalette }))
+);
 
 import { useTranslation } from 'react-i18next';
 
@@ -90,10 +93,17 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { notifications, unreadCount, setUnreadCount } = useSocket(useQueryClient());
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  const toggleLanguage = () => {
+    const nextLang = i18n.language === 'vi' ? 'en' : 'vi';
+    i18n.changeLanguage(nextLang);
+    localStorage.setItem('language', nextLang);
+  };
 
   const translatedSidebarItems = sidebarItems.map(item => ({
     ...item,
@@ -122,13 +132,51 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [location.pathname]);
 
+  // Smart auto-hide floating header on scroll down, show on scroll up
+  const [isNavVisible, setIsNavVisible] = useState(true);
+
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+          const diff = currentScrollY - lastScrollY;
+          if (currentScrollY < 60) {
+            setIsNavVisible(true);
+          } else if (diff > 15 && currentScrollY > 90) {
+            // Scrolling down -> hide navbar & close popups
+            setIsNavVisible(false);
+            setProfileOpen(false);
+            setNotificationsOpen(false);
+          } else if (diff < -20) {
+            // Scrolling up with intent -> show navbar
+            setIsNavVisible(true);
+          }
+          lastScrollY = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   // Keyboard handler
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(prev => !prev);
+      } else if (e.key === 'Escape') {
         setProfileOpen(false);
         setMobileOpen(false);
         setNotificationsOpen(false);
+        setIsSearchOpen(false);
       }
     };
     document.addEventListener('keydown', handler);
@@ -145,7 +193,9 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     <div className="flex flex-col min-h-[100dvh] bg-[#FBFBFA] dark:bg-[#080808] transition-colors duration-300 relative selection:bg-indigo-500/30 w-full max-w-[100vw]">
       
       {/* ── Fluid Island Desktop Nav ─────────────────────── */}
-      <header className="fixed top-6 left-1/2 -translate-x-1/2 z-50 hidden md:flex items-center gap-3 p-2 rounded-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-black/5 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+      <header className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 hidden md:flex items-center gap-3 p-2 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-black/5 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out transform ${
+        isNavVisible ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-28 opacity-0 pointer-events-none'
+      }`}>
         <div className="pl-4 pr-3 border-r border-slate-200 dark:border-white/10 flex items-center">
           <Link to="/home" className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 text-white font-bold tracking-tighter text-base">
             E
@@ -161,6 +211,17 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </LayoutGroup>
 
         <div className="pl-3 pr-2 border-l border-slate-200 dark:border-white/10 flex items-center gap-2">
+          <button
+            onClick={() => setIsSearchOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100/80 dark:bg-white/10 hover:bg-slate-200/80 dark:hover:bg-white/15 text-slate-600 dark:text-slate-300 text-xs transition-colors border border-slate-200/50 dark:border-white/5"
+            title="Search (⌘K)"
+            aria-label="Search"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <span className="hidden lg:inline font-medium">{t('common.search', 'Tìm kiếm')}</span>
+            <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono font-bold bg-white dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded text-slate-500 dark:text-slate-400">⌘K</kbd>
+          </button>
+
           <button
             onClick={() => setWishlistOpen(true)}
             className="relative w-10 h-10 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
@@ -224,6 +285,17 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               )}
             </AnimatePresence>
           </div>
+
+          <button
+            onClick={toggleLanguage}
+            className="h-9 px-3 flex items-center justify-center gap-1 rounded-full text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors border border-slate-200/80 dark:border-white/10"
+            title={i18n.language === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'}
+            aria-label="Toggle language"
+          >
+            <span className={i18n.language === 'vi' ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-slate-400'}>VI</span>
+            <span className="text-slate-300 dark:text-slate-600 text-[10px]">/</span>
+            <span className={i18n.language === 'en' ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-slate-400'}>EN</span>
+          </button>
 
           <button
             onClick={toggleTheme}
@@ -290,7 +362,14 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <Link to="/home" className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 text-white font-bold tracking-tighter text-sm">
           E
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsSearchOpen(true)}
+            className="relative w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white transition-colors"
+            aria-label="Search"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </button>
           <button
             onClick={() => setWishlistOpen(true)}
             className="relative w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300"
@@ -305,6 +384,16 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {wishlistCount}
               </span>
             )}
+          </button>
+          <button
+            onClick={toggleLanguage}
+            className="h-8 px-2 flex items-center justify-center gap-0.5 rounded-full text-[11px] font-bold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10"
+            title={i18n.language === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'}
+            aria-label="Toggle language"
+          >
+            <span className={i18n.language === 'vi' ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-slate-400'}>VI</span>
+            <span className="text-slate-300 dark:text-slate-600 text-[9px]">/</span>
+            <span className={i18n.language === 'en' ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-slate-400'}>EN</span>
           </button>
           <button onClick={toggleTheme} className="w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300">
             {theme === 'dark' ? '☀️' : '🌙'}
@@ -366,13 +455,17 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </AnimatePresence>
 
       {/* ── Main Content ──────────────────────────────────── */}
-      <main className="flex-1 w-full min-w-0 relative z-0">
-        <CommandPalette />
+      <main className="flex-1 w-full min-w-0 relative">
+        {isSearchOpen && (
+          <React.Suspense fallback={null}>
+            <CommandPalette isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+          </React.Suspense>
+        )}
         {children}
       </main>
 
       {/* ── High-End Footer ────────────────────────────────────────── */}
-      <footer className="mt-24 border-t border-slate-200/50 dark:border-white/10 relative z-0 bg-white/40 dark:bg-black/20 backdrop-blur-xl">
+      <footer className="mt-24 border-t border-slate-200/50 dark:border-white/10 relative bg-white/40 dark:bg-black/20 backdrop-blur-xl">
         {/* Subtle mesh background for the footer */}
         <div className="absolute inset-0 z-0 pointer-events-none opacity-30 dark:opacity-20 overflow-hidden mix-blend-multiply dark:mix-blend-screen">
           <div className="absolute -bottom-[50%] -left-[10%] w-[50%] h-[100%] rounded-full bg-indigo-500/20 blur-[120px]" />

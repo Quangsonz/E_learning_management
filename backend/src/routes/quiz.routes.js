@@ -3,6 +3,8 @@ const quizController = require('../controllers/quiz.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
 const { requireRole } = require('../middlewares/roleMiddleware');
 const permissionMiddleware = require('../middlewares/permissionMiddleware');
+const validate = require('../middlewares/validate.middleware');
+const quizValidation = require('../validations/quiz.validation');
 
 const router = express.Router({ mergeParams: true });
 
@@ -92,15 +94,17 @@ router.use(authMiddleware.protect);
  *       201:
  *         description: Thêm câu hỏi thành công
  */
-router.get('/:quizId/take', quizController.getQuizForTake);
-router.post('/:quizId/submit', quizController.submitQuiz);
+router.get('/:quizId/take', validate(quizValidation.quizIdParam), quizController.getQuizForTake);
+router.post('/:quizId/submit', validate(quizValidation.submitQuiz), quizController.submitQuiz);
+router.get('/:quizId/results', validate(quizValidation.quizIdParam), quizController.getQuizResults);
 
 // Smart Quiz Routes
 router.get('/courses/:courseId/smart-quiz/generate', quizController.generateSmartQuiz);
 router.post('/courses/:courseId/smart-quiz/submit', quizController.submitSmartQuiz);
 
+
 router.use(requireRole('admin', 'teacher'));
-router.post('/', permissionMiddleware.requirePermission('create_quiz'), quizController.createQuiz);
+router.post('/', permissionMiddleware.requirePermission('create_quiz'), validate(quizValidation.createQuiz), quizController.createQuiz);
 router.post('/:quizId/questions', permissionMiddleware.requirePermission('create_quiz'), quizController.addQuestion);
 router.get('/:quizId/questions', quizController.getQuestionsForTeacher);
 

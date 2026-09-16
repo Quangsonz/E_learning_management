@@ -15,6 +15,7 @@ import {
 } from '../components/ui';
 import { progressApi } from '../services/progress.api';
 import { certificateApi, Certificate } from '../services/certificate.api';
+import { useLocalizedValue } from '../utils/localized';
 import { 
   Play, 
   BookOpen, 
@@ -31,6 +32,7 @@ const MotionDiv = motion.div as unknown as React.FC<React.PropsWithChildren<Reac
 
 const MyLearning: React.FC = () => {
   const { t } = useTranslation();
+  const lv = useLocalizedValue();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'all' | 'ongoing' | 'completed'>('all');
 
@@ -51,9 +53,9 @@ const MyLearning: React.FC = () => {
   const certificates: Certificate[] = Array.isArray(certificatesData) ? certificatesData : [];
 
   const catalogMetrics = [
-    { label: t('learning.metrics.total'), value: `${stats?.totalEnrolled || 0} khóa học` },
-    { label: t('learning.metrics.ongoing'), value: `${stats?.ongoingCourses || 0} đang học` },
-    { label: t('learning.metrics.completed'), value: `${stats?.completedCourses || 0} đã xong` },
+    { label: t('myLearning.metrics.total'), value: `${stats?.totalEnrolled || 0} ${t('myLearning.metrics.coursesUnit')}` },
+    { label: t('myLearning.metrics.ongoing'), value: `${stats?.ongoingCourses || 0} ${t('myLearning.metrics.ongoingUnit')}` },
+    { label: t('myLearning.metrics.completed'), value: `${stats?.completedCourses || 0} ${t('myLearning.metrics.completedUnit')}` },
   ];
 
   // Most recently accessed/ongoing course for the Hero Continue Card
@@ -84,12 +86,12 @@ const MyLearning: React.FC = () => {
         <CanvasHero
           badge={
             <div className="badge inline-flex items-center gap-1.5">
-              <GraduationCap size={14} /> {t('learning.title')}
+              <GraduationCap size={14} /> {t('myLearning.title')}
             </div>
           }
-          eyebrow={t('learning.eyebrow')}
-          title="Hành trình học tập của bạn"
-          description="Theo dõi tiến độ học tập, chinh phục các mục tiêu tuần và nhận chứng chỉ hoàn thành."
+          eyebrow={t('myLearning.eyebrow')}
+          title={t('myLearning.heroTitle')}
+          description={t('myLearning.heroDesc')}
           glow="cool"
         />
 
@@ -107,15 +109,17 @@ const MyLearning: React.FC = () => {
                 <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 blur-[90px] rounded-full pointer-events-none" />
 
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-400 mb-4">
-                  <Sparkles size={14} /> Thẻ học tiếp gần nhất
+                  <Sparkles size={14} /> {t('myLearning.recentCard')}
                 </div>
 
                 <div className="grid md:grid-cols-[220px_1fr] gap-6 items-center">
                   {/* Thumbnail */}
                   <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-slate-800 shadow-md group shrink-0">
                     <img 
-                      src={heroCourse.thumbnailUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(heroCourse.title)}&background=random`} 
-                      alt={heroCourse.title}
+                      src={heroCourse.thumbnailUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(lv(heroCourse.title))}&background=random`} 
+                      alt={lv(heroCourse.title)}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover transition duration-500 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-slate-950/40 flex items-center justify-center">
@@ -132,18 +136,18 @@ const MyLearning: React.FC = () => {
                   <div className="space-y-3 min-w-0">
                     <div className="flex items-center gap-2 text-xs font-semibold text-indigo-300">
                       <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/30">
-                        {heroCourseProgress.progressPercentage >= 100 ? 'Đã hoàn thành' : 'Đang học dở'}
+                        {heroCourseProgress.progressPercentage >= 100 ? t('myLearning.statusCompleted') : t('myLearning.statusInProgress')}
                       </span>
-                      <span>• Tiến độ: {heroCourseProgress.progressPercentage}%</span>
+                      <span>• {t('myLearning.progressPercent', { percent: heroCourseProgress.progressPercentage })}</span>
                     </div>
 
                     <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white line-clamp-2">
-                      {heroCourse.title}
+                      {lv(heroCourse.title)}
                     </h2>
 
                     <p className="text-xs text-slate-300 flex items-center gap-2">
                       <Clock size={13} className="text-indigo-400" />
-                      <span>Bài học tiếp theo: <strong className="text-white">Bài giảng chi tiết & Bài thực hành</strong></span>
+                      <span>{t('myLearning.nextLesson')} <strong className="text-white">{t('myLearning.nextLessonDefault')}</strong></span>
                     </p>
 
                     {/* Progress Bar */}
@@ -163,7 +167,7 @@ const MyLearning: React.FC = () => {
                         onClick={() => navigate(`/courses/${heroCourse._id}/learn`)}
                         className="bg-white text-indigo-950 hover:bg-slate-100 font-bold text-xs px-6 py-2.5 shadow-lg flex items-center gap-2"
                       >
-                        <Play size={14} fill="currentColor" /> Học tiếp ngay →
+                        <Play size={14} fill="currentColor" /> {t('myLearning.continueNow')}
                       </Button>
                     </div>
                   </div>
@@ -174,7 +178,7 @@ const MyLearning: React.FC = () => {
             {/* 2. COURSE CATALOG SECTION WITH FILTER TABS */}
             <section className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <SectionLead label={t('learning.enrolled')} title="Danh sách khóa học" size="md" />
+                <SectionLead label={t('myLearning.enrolled')} title={t('myLearning.courseList')} size="md" />
 
                 {/* Filter Tabs */}
                 <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 p-1 rounded-xl text-xs font-bold">
@@ -188,7 +192,7 @@ const MyLearning: React.FC = () => {
                           : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
-                      {tab === 'all' ? 'Tất cả' : tab === 'ongoing' ? 'Đang học' : 'Đã xong'}
+                      {tab === 'all' ? t('myLearning.tabAll') : tab === 'ongoing' ? t('myLearning.tabOngoing') : t('myLearning.tabCompleted')}
                     </button>
                   ))}
                 </div>
@@ -215,8 +219,10 @@ const MyLearning: React.FC = () => {
                         <div className="relative aspect-video overflow-hidden bg-slate-800 shrink-0">
                           <Link to={`/courses/${course._id}/learn`}>
                             <img
-                              src={course.thumbnailUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(course.title)}&background=random`}
-                              alt={course.title}
+                              src={course.thumbnailUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(lv(course.title))}&background=random`}
+                              alt={lv(course.title)}
+                              loading="lazy"
+                              decoding="async"
                               className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                             />
                           </Link>
@@ -227,7 +233,7 @@ const MyLearning: React.FC = () => {
                             <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full text-white shadow-md ${
                               isDone ? 'bg-emerald-500' : 'bg-indigo-600'
                             }`}>
-                              {isDone ? 'Hoàn thành' : 'Đang học'}
+                              {isDone ? t('myLearning.statusCompleted') : t('myLearning.statusInProgress')}
                             </span>
                           </div>
                         </div>
@@ -236,12 +242,12 @@ const MyLearning: React.FC = () => {
                         <div className="p-5 flex flex-col justify-between flex-1 gap-4">
                           <div className="space-y-2">
                             <Link to={`/courses/${course._id}/learn`} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                              <h3 className="line-clamp-2 text-base font-bold text-slate-900 dark:text-white leading-snug">{course.title}</h3>
+                              <h3 className="line-clamp-2 text-base font-bold text-slate-900 dark:text-white leading-snug">{lv(course.title)}</h3>
                             </Link>
 
                             <p className="text-xs text-slate-500 flex items-center gap-1.5">
                               <BookOpen size={13} />
-                              <span>{isDone ? 'Đã hoàn thành 100% bài học' : 'Bài giảng tiếp theo sẵn sàng'}</span>
+                              <span>{isDone ? t('myLearning.completed100') : t('myLearning.nextLessonReady')}</span>
                             </p>
                           </div>
 
@@ -249,7 +255,7 @@ const MyLearning: React.FC = () => {
                           <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-white/5">
                             <div className="space-y-1">
                               <div className="flex justify-between text-xs font-semibold text-slate-500">
-                                <span>Tiến độ</span>
+                                <span>{t('myLearning.progress')}</span>
                                 <span className="text-slate-900 dark:text-white font-bold">{progress.progressPercentage}%</span>
                               </div>
                               <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -269,7 +275,7 @@ const MyLearning: React.FC = () => {
                               }`}
                             >
                               {isDone ? <BookOpen size={14} /> : <Play size={14} fill="currentColor" />}
-                              {isDone ? 'Ôn tập lại bài giảng' : 'Tiếp tục bài học'}
+                              {isDone ? t('myLearning.reviewCourse') : t('myLearning.continueCourse')}
                             </button>
                           </div>
                         </div>
@@ -279,8 +285,8 @@ const MyLearning: React.FC = () => {
                 </div>
               ) : (
                 <EmptyState
-                  title="Không tìm thấy khóa học phù hợp"
-                  message="Bạn chưa đăng ký hoặc chưa có khóa học nào thuộc trạng thái này."
+                  title={t('myLearning.noCourseMatching')}
+                  message={t('myLearning.noCourseMatchingDesc')}
                 />
               )}
             </section>
@@ -294,20 +300,20 @@ const MyLearning: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-amber-500 font-black text-sm">
                   <Flame size={20} fill="currentColor" />
-                  <span>Chuỗi 4 ngày học!</span>
+                  <span>{t('myLearning.streakDays', { days: 4 })}</span>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded-md">Mục tiêu</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 dark:bg-white/5 px-2 py-1 rounded-md">{t('myLearning.goalBadge')}</span>
               </div>
 
               <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 dark:text-white text-base">Mục tiêu học tuần này</h4>
-                <p className="text-xs text-slate-500">Hoàn thành ít nhất 3 bài giảng mỗi tuần để duy trì phong độ xuất sắc.</p>
+                <h4 className="font-bold text-slate-900 dark:text-white text-base">{t('myLearning.weeklyGoalTitle')}</h4>
+                <p className="text-xs text-slate-500">{t('myLearning.weeklyGoalDesc')}</p>
               </div>
 
               <div className="space-y-2 pt-1">
                 <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
-                  <span>Tiến độ mục tiêu</span>
-                  <span className="text-indigo-600 dark:text-indigo-400">2 / 3 bài học</span>
+                  <span>{t('myLearning.goalProgress')}</span>
+                  <span className="text-indigo-600 dark:text-indigo-400">{t('myLearning.lessonsProgress', { current: 2, target: 3 })}</span>
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                   <div className="h-full bg-gradient-to-r from-amber-500 to-indigo-600 rounded-full" style={{ width: '66%' }} />
@@ -316,7 +322,7 @@ const MyLearning: React.FC = () => {
 
               <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-2">
                 <Sparkles size={16} className="shrink-0" />
-                <span>Bạn sắp hoàn thành mục tiêu tuần! Hãy học tiếp 1 bài nữa.</span>
+                <span>{t('myLearning.goalEncourage')}</span>
               </div>
             </GlassPanel>
 
@@ -324,9 +330,9 @@ const MyLearning: React.FC = () => {
             <GlassPanel padding="lg" className="border border-slate-200 dark:border-white/10 space-y-5">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
-                  <Award className="text-indigo-500" size={20} /> Chứng chỉ đã đạt
+                  <Award className="text-indigo-500" size={20} /> {t('myLearning.certificatesEarned')}
                 </h3>
-                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{certificates.length} đã cấp</span>
+                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{t('myLearning.certificatesIssued', { count: certificates.length })}</span>
               </div>
 
               {isCertLoading ? (
@@ -347,10 +353,10 @@ const MyLearning: React.FC = () => {
                         </div>
                         <div className="min-w-0">
                           <h4 className="font-bold text-xs text-slate-900 dark:text-white truncate">
-                            {typeof cert.course === 'object' ? cert.course.title : 'Khóa học hoàn thành'}
+                            {typeof cert.course === 'object' ? lv(cert.course.title) : t('myLearning.statusCompleted')}
                           </h4>
                           <p className="text-[10px] text-slate-400">
-                            Cấp ngày: {new Date(cert.issueDate || cert.createdAt).toLocaleDateString()}
+                            {t('myLearning.issuedDate')} {new Date(cert.issueDate || cert.createdAt).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
@@ -358,7 +364,7 @@ const MyLearning: React.FC = () => {
                       <button
                         onClick={() => navigate(`/certificates/verify/${cert.certificateId}`)}
                         className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 shrink-0 transition-colors"
-                        title="Xem & Kiểm tra chứng chỉ"
+                        title={t('myLearning.verifyCert')}
                       >
                         <ExternalLink size={16} />
                       </button>
@@ -368,8 +374,8 @@ const MyLearning: React.FC = () => {
               ) : (
                 <div className="text-center py-6 border border-dashed border-slate-200 dark:border-white/10 rounded-xl space-y-2">
                   <Trophy className="mx-auto text-slate-300 dark:text-slate-600" size={32} />
-                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">Chưa có chứng chỉ nào</p>
-                  <p className="text-[11px] text-slate-400 px-4">Hoàn thành 100% nội dung một khóa học để tự động nhận chứng chỉ PDF chuẩn QR code.</p>
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">{t('myLearning.noCertificates')}</p>
+                  <p className="text-[11px] text-slate-400 px-4">{t('myLearning.noCertificatesDesc')}</p>
                 </div>
               )}
             </GlassPanel>

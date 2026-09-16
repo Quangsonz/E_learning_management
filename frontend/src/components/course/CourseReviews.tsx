@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { reviewApi, Review } from '../../services/review.api';
 import { Button, SectionLead } from '../ui';
 
@@ -11,6 +12,7 @@ interface CourseReviewsProps {
 }
 
 export const CourseReviews: React.FC<CourseReviewsProps> = ({ courseId, isEnrolled, isInstructor, reviewsData }) => {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [reviewFormOpen, setReviewFormOpen] = useState(false);
   const [rating, setRating] = useState(5);
@@ -42,7 +44,7 @@ export const CourseReviews: React.FC<CourseReviewsProps> = ({ courseId, isEnroll
   return (
     <section>
       <div className="flex items-end justify-between mb-6">
-        <SectionLead label="Testimonials" title="Student Reviews" className="mb-0" />
+        <SectionLead label={t('course.testimonials', 'Testimonials')} title={t('course.reviews', 'Student Reviews')} className="mb-0" />
         <div className="text-right">
           <div className="text-3xl font-bold text-slate-900 dark:text-white">{reviewsData?.data?.averageRating?.toFixed(1) || '0.0'}</div>
           <div className="flex items-center text-amber-500 mt-1">
@@ -59,11 +61,11 @@ export const CourseReviews: React.FC<CourseReviewsProps> = ({ courseId, isEnroll
         <div className="mb-8">
           {!reviewFormOpen ? (
             <Button variant="outline" onClick={() => setReviewFormOpen(true)}>
-              Write a Review
+              {t('course.writeReview', 'Write a Review')}
             </Button>
           ) : (
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 space-y-4">
-              <h4 className="font-semibold text-slate-900 dark:text-white">Your Rating</h4>
+              <h4 className="font-semibold text-slate-900 dark:text-white">{t('course.yourRating', 'Your Rating')}</h4>
               <div className="flex gap-2 text-amber-400">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button key={star} type="button" onClick={() => setRating(star)} className="focus:outline-none transition-transform hover:scale-110">
@@ -76,16 +78,16 @@ export const CourseReviews: React.FC<CourseReviewsProps> = ({ courseId, isEnroll
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Tell us about your experience with this course..."
+                placeholder={t('course.reviewPlaceholder', 'Tell us about your experience with this course...')}
                 className="w-full min-h-[100px] resize-none rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-4 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
               <div className="flex justify-end gap-3">
-                <Button variant="ghost" onClick={() => setReviewFormOpen(false)}>Cancel</Button>
+                <Button variant="ghost" onClick={() => setReviewFormOpen(false)}>{t('common.cancel', 'Cancel')}</Button>
                 <Button 
                   onClick={() => submitReviewMutation.mutate({ rating, comment })}
                   disabled={!comment.trim() || submitReviewMutation.isPending}
                 >
-                  {submitReviewMutation.isPending ? 'Submitting...' : 'Submit Review'}
+                  {submitReviewMutation.isPending ? t('course.submittingReview', 'Submitting...') : t('course.submitReview', 'Submit Review')}
                 </Button>
               </div>
               {submitReviewMutation.isError && (
@@ -121,14 +123,14 @@ export const CourseReviews: React.FC<CourseReviewsProps> = ({ courseId, isEnroll
 
             {review.instructorReply && (
               <div className="mt-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-white/5">
-                <div className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Instructor Reply</div>
+                <div className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">{t('course.instructorReply', 'Instructor Reply')}</div>
                 <p className="text-sm text-slate-700 dark:text-slate-300">"{review.instructorReply}"</p>
               </div>
             )}
 
             {isInstructor && !review.instructorReply && replyingTo !== review._id && (
               <div className="mt-4">
-                <Button variant="outline" size="sm" onClick={() => setReplyingTo(review._id)}>Reply</Button>
+                <Button variant="outline" size="sm" onClick={() => setReplyingTo(review._id)}>{t('course.replyReview', 'Reply')}</Button>
               </div>
             )}
 
@@ -137,17 +139,17 @@ export const CourseReviews: React.FC<CourseReviewsProps> = ({ courseId, isEnroll
                 <textarea
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Write your reply..."
+                  placeholder={t('course.replyPlaceholder', 'Write your reply...')}
                   className="w-full min-h-[80px] resize-none rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 />
                 <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => { setReplyingTo(null); setReplyText(''); }}>Cancel</Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setReplyingTo(null); setReplyText(''); }}>{t('common.cancel', 'Cancel')}</Button>
                   <Button 
                     size="sm"
                     onClick={() => submitReplyMutation.mutate({ reviewId: review._id, text: replyText })}
                     disabled={!replyText.trim() || submitReplyMutation.isPending}
                   >
-                    {submitReplyMutation.isPending ? 'Saving...' : 'Submit Reply'}
+                    {submitReplyMutation.isPending ? t('course.savingReply', 'Saving...') : t('course.submitReply', 'Submit Reply')}
                   </Button>
                 </div>
               </div>

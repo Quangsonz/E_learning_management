@@ -1,10 +1,10 @@
-import React from 'react';
-import { MotionProps, motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { MotionProps, motion, AnimatePresence } from 'framer-motion';
 import { staggerContainer, staggerItem } from '../../animations/motionVariants';
 
 export type MetricItem = {
   label: string;
-  value: string;
+  value: React.ReactNode;
   delta?: string;
 };
 
@@ -43,10 +43,56 @@ export const AmbientGlow: React.FC<{ variant?: 'default' | 'warm' | 'cool' }> = 
   );
 };
 
-const HeroBackgroundSlideshow = () => {
+const HERO_SLIDESHOW_IMAGES = [
+  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=2070&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=2070&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1501504905252-473c47e087f8?q=80&w=2074&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=2072&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2064&auto=format&fit=crop'
+];
+
+export const HeroBackgroundSlideshow: React.FC<{ 
+  maskVariant?: 'radial' | 'fade-bottom' | 'both'; 
+  className?: string;
+}> = ({ maskVariant = 'both', className = '' }) => {
+  const [currentIdx, setCurrentIdx] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentIdx((prev) => (prev + 1) % HERO_SLIDESHOW_IMAGES.length);
+    }, 2000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const maskStyleClass = maskVariant === 'fade-bottom'
+    ? '[mask-image:linear-gradient(to_bottom,black_40%,transparent_100%)]'
+    : maskVariant === 'radial'
+    ? '[mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_85%)]'
+    : '[mask-image:radial-gradient(ellipse_at_top,black_55%,transparent_92%),linear-gradient(to_bottom,black_50%,transparent_98%)]';
+
   return (
-    <div className="absolute -inset-x-10 -inset-y-16 z-0 overflow-hidden pointer-events-none opacity-30 dark:opacity-20 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_75%)]">
-      <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 via-sky-400/20 to-purple-500/20 blur-2xl" />
+    <div className={`absolute -inset-x-8 -inset-y-12 z-0 overflow-hidden pointer-events-none rounded-3xl ${maskStyleClass} ${className}`}>
+      {/* Background Image Crossfade every 2s */}
+      <AnimatePresence mode="popLayout">
+        <motion.img
+          key={currentIdx}
+          src={HERO_SLIDESHOW_IMAGES[currentIdx]}
+          initial={{ opacity: 0, scale: 1.04 }}
+          animate={{ opacity: 0.18, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.98 }}
+          transition={{ duration: 0.9, ease: 'easeInOut' }}
+          className="absolute inset-0 w-full h-full object-cover mix-blend-luminosity dark:mix-blend-screen dark:opacity-[0.14] filter saturate-[0.8] contrast-[1.05] blur-[1px]"
+          alt=""
+          aria-hidden="true"
+        />
+      </AnimatePresence>
+
+      {/* Contrast Overlay to keep text perfectly crisp */}
+      <div className="absolute inset-0 bg-gradient-to-r from-white/80 via-white/40 to-transparent dark:from-[#080d18]/85 dark:via-[#080d18]/50 dark:to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/10 via-sky-400/10 to-purple-500/10 blur-3xl" />
     </div>
   );
 };

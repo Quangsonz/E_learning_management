@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence, MotionProps } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { fadeUp } from '../../animations/motionVariants';
 import { Button } from './Button';
 
@@ -9,9 +10,13 @@ const MotionDiv = motion.div as unknown as React.FC<
 
 /* ── Loading Screen ─────────────────────────────────────── */
 export const LoadingScreen: React.FC<{ title?: string; message?: string }> = ({
-  title = 'Loading workspace',
-  message = 'Preparing your learning experience...'
+  title,
+  message
 }) => {
+  const { t } = useTranslation();
+  const displayTitle = title || t('common.loadingWorkspace');
+  const displayMessage = message || t('common.preparingExperience');
+
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4 py-16">
       <MotionDiv
@@ -30,9 +35,9 @@ export const LoadingScreen: React.FC<{ title?: string; message?: string }> = ({
 
           <div className="min-w-0 flex-1 space-y-4">
             <div>
-              <p className="section-label">Loading</p>
-              <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-slate-950">{title}</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{message}</p>
+              <p className="section-label">{t('common.loading')}</p>
+              <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-slate-950">{displayTitle}</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-500">{displayMessage}</p>
             </div>
 
             {/* Skeleton progress bars */}
@@ -50,18 +55,21 @@ export const LoadingScreen: React.FC<{ title?: string; message?: string }> = ({
 
 /* ── Inline Loader ──────────────────────────────────────── */
 export const InlineLoader: React.FC<{ label?: string; size?: 'sm' | 'md' }> = ({
-  label = 'Loading...',
+  label,
   size = 'md'
-}) => (
-  <div
-    className={`flex items-center justify-center gap-3 text-slate-400 ${size === 'sm' ? 'py-6 text-xs' : 'py-12 text-sm'}`}
-    role="status"
-    aria-live="polite"
-  >
-    <span className={`spinner ${size === 'sm' ? 'spinner-sm' : ''}`} aria-hidden="true" />
-    <span>{label}</span>
-  </div>
-);
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div
+      className={`flex items-center justify-center gap-3 text-slate-400 ${size === 'sm' ? 'py-6 text-xs' : 'py-12 text-sm'}`}
+      role="status"
+      aria-live="polite"
+    >
+      <span className={`spinner ${size === 'sm' ? 'spinner-sm' : ''}`} aria-hidden="true" />
+      <span>{label || t('common.loading')}</span>
+    </div>
+  );
+};
 
 /* ── Skeleton Line ──────────────────────────────────────── */
 export const SkeletonLine: React.FC<{ className?: string }> = ({

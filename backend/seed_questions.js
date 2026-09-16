@@ -16,18 +16,23 @@ const run = async () => {
 
     for (let i = 0; i < lessons.length; i++) {
       const lesson = lessons[i];
-      console.log(`Generating questions for lesson ${i+1}/${lessons.length}: "${lesson.title}"...`);
+      const lessonTitleVi = typeof lesson.title === 'object' ? (lesson.title.vi || lesson.title.en) : lesson.title;
+      const lessonTitleEn = typeof lesson.title === 'object' ? (lesson.title.en || lesson.title.vi) : lesson.title;
+      console.log(`Generating questions for lesson ${i+1}/${lessons.length}: "${lessonTitleVi}"...`);
 
       const questionsToInsert = [];
 
       for (let qNum = 1; qNum <= 50; qNum++) {
         // Multiple choice question template
-        const questionText = `[Review Q${qNum}] Trắc nghiệm bài học: "${lesson.title}" - Câu hỏi ${qNum}?`;
+        const questionText = {
+          vi: `[Ôn tập Q${qNum}] Trắc nghiệm bài học: "${lessonTitleVi}" - Câu hỏi ${qNum}?`,
+          en: `[Review Q${qNum}] Quiz for lesson: "${lessonTitleEn}" - Question ${qNum}?`
+        };
         const options = [
-          { text: `Đáp án A cho câu hỏi ôn tập thứ ${qNum}`, isCorrect: true },
-          { text: `Đáp án B cho câu hỏi ôn tập thứ ${qNum}`, isCorrect: false },
-          { text: `Đáp án C cho câu hỏi ôn tập thứ ${qNum}`, isCorrect: false },
-          { text: `Đáp án D cho câu hỏi ôn tập thứ ${qNum}`, isCorrect: false }
+          { text: { vi: `Đáp án A cho câu hỏi ôn tập thứ ${qNum}`, en: `Option A for review question #${qNum}` }, isCorrect: true },
+          { text: { vi: `Đáp án B cho câu hỏi ôn tập thứ ${qNum}`, en: `Option B for review question #${qNum}` }, isCorrect: false },
+          { text: { vi: `Đáp án C cho câu hỏi ôn tập thứ ${qNum}`, en: `Option C for review question #${qNum}` }, isCorrect: false },
+          { text: { vi: `Đáp án D cho câu hỏi ôn tập thứ ${qNum}`, en: `Option D for review question #${qNum}` }, isCorrect: false }
         ];
 
         // Shuffle options so the correct answer is randomized (A, B, C, or D)
@@ -38,7 +43,10 @@ const run = async () => {
           text: questionText,
           points: 10,
           options: shuffledOptions,
-          explanation: `Giải thích chi tiết cho câu hỏi ôn tập số ${qNum} của bài học "${lesson.title}".`
+          explanation: {
+            vi: `Giải thích chi tiết cho câu hỏi ôn tập số ${qNum} của bài học "${lessonTitleVi}".`,
+            en: `Detailed explanation for question #${qNum} of lesson "${lessonTitleEn}".`
+          }
         });
       }
 

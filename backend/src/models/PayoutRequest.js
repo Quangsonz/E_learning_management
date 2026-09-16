@@ -30,6 +30,7 @@ const payoutRequestSchema = new mongoose.Schema({
 
 // Tối ưu hóa truy vấn các yêu cầu rút tiền chưa xử lý
 payoutRequestSchema.index({ status: 1 });
+payoutRequestSchema.index({ status: 1, createdAt: -1 });
 payoutRequestSchema.index({ instructor: 1 });
 
 module.exports = mongoose.model('PayoutRequest', payoutRequestSchema);

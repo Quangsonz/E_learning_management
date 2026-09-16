@@ -3,6 +3,8 @@ const userController = require('../controllers/user.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
 const { requireRole } = require('../middlewares/roleMiddleware');
 const { requirePermission } = require('../middlewares/permissionMiddleware');
+const validate = require('../middlewares/validate.middleware');
+const userValidation = require('../validations/user.validation');
 
 const router = express.Router();
 
@@ -64,7 +66,7 @@ router.get('/me', userController.getMe, userController.getUser);
  *       200:
  *         description: Cập nhật thành công
  */
-router.patch('/updateMe', userController.updateMe);
+router.patch('/updateMe', validate(userValidation.updateMe), userController.updateMe);
 
 /**
  * @swagger
@@ -95,7 +97,7 @@ router.patch('/updateMe', userController.updateMe);
  *       401:
  *         description: Mật khẩu hiện tại không chính xác
  */
-router.patch('/changePassword', userController.changePassword);
+router.patch('/changePassword', validate(userValidation.changePassword), userController.changePassword);
 
 // ==========================================
 // API CHO TEACHER & ADMIN
@@ -144,7 +146,7 @@ router.use(requirePermission('manage_users'));
  */
 const auditMiddleware = require('../middlewares/auditLog.middleware');
 
-router.post('/', auditMiddleware.logAdminAction('USER_CREATE', 'User'), userController.createUser);
+router.post('/', validate(userValidation.createUser), auditMiddleware.logAdminAction('USER_CREATE', 'User'), userController.createUser);
 
 /**
  * @swagger
@@ -167,11 +169,11 @@ router.post('/', auditMiddleware.logAdminAction('USER_CREATE', 'User'), userCont
  */
 router
   .route('/:id')
-  .get(userController.getUser)
-  .patch(auditMiddleware.logAdminAction('USER_UPDATE', 'User'), userController.updateUser)
-  .delete(auditMiddleware.logAdminAction('USER_DELETE', 'User'), userController.deleteUser);
+  .get(validate(userValidation.userIdParam), userController.getUser)
+  .patch(validate(userValidation.updateUser), auditMiddleware.logAdminAction('USER_UPDATE', 'User'), userController.updateUser)
+  .delete(validate(userValidation.userIdParam), auditMiddleware.logAdminAction('USER_DELETE', 'User'), userController.deleteUser);
 
 // Toggle suspend/activate user
-router.patch('/:id/toggle-active', auditMiddleware.logAdminAction('USER_TOGGLE_ACTIVE', 'User'), userController.toggleUserActive);
+router.patch('/:id/toggle-active', validate(userValidation.userIdParam), auditMiddleware.logAdminAction('USER_TOGGLE_ACTIVE', 'User'), userController.toggleUserActive);
 
 module.exports = router;

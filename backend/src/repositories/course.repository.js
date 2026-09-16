@@ -33,7 +33,15 @@ class CourseRepository extends BaseRepository {
    * thay vì N+1 queries riêng lẻ cho từng khóa học.
    */
   async findPaginatedWithStats(query = {}, skip = 0, limit = 10, sortStr = '-createdAt') {
-    const total = await this.model.countDocuments(query);
+    const matchQuery = { ...query };
+    if (matchQuery.instructor && mongoose.Types.ObjectId.isValid(matchQuery.instructor)) {
+      matchQuery.instructor = new mongoose.Types.ObjectId(matchQuery.instructor);
+    }
+    if (matchQuery.category && mongoose.Types.ObjectId.isValid(matchQuery.category)) {
+      matchQuery.category = new mongoose.Types.ObjectId(matchQuery.category);
+    }
+
+    const total = await this.model.countDocuments(matchQuery);
 
     // Chuyển sortStr (e.g. '-createdAt') sang MongoDB sort object
     const sortObj = {};
@@ -41,7 +49,7 @@ class CourseRepository extends BaseRepository {
     sortObj[sortField] = sortStr.startsWith('-') ? -1 : 1;
 
     const data = await this.model.aggregate([
-      { $match: query },
+      { $match: matchQuery },
       { $sort: sortObj },
       { $skip: skip },
       { $limit: limit },

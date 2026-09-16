@@ -6,13 +6,19 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export const axiosInstance = axios.create({
   baseURL: API_BASE,
-  headers: { 'Content-Type': 'application/json' }
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 15000
 });
 
 axiosInstance.interceptors.request.use((config) => {
   const state = store.getState();
   const token = state.auth.accessToken;
   if (token && config.headers) config.headers.Authorization = `Bearer ${token}`;
+  
+  const currentLang = localStorage.getItem('language') || 'vi';
+  if (config.headers) {
+    config.headers['Accept-Language'] = currentLang;
+  }
   return config;
 });
 

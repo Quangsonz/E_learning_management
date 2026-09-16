@@ -18,7 +18,10 @@ class CategoryService {
   async createCategory(categoryData) {
     // Tự động tạo slug nếu chưa có
     if (!categoryData.slug) {
-      categoryData.slug = slugify(categoryData.name, { lower: true, strict: true });
+      const nameStr = typeof categoryData.name === 'object' && categoryData.name !== null
+        ? (categoryData.name.en || categoryData.name.vi || Object.values(categoryData.name)[0] || '')
+        : String(categoryData.name || '');
+      categoryData.slug = slugify(nameStr, { lower: true, strict: true });
     }
 
     // Kiểm tra trùng lặp slug
@@ -32,7 +35,10 @@ class CategoryService {
 
   async updateCategory(id, updateData) {
     if (updateData.name && !updateData.slug) {
-      updateData.slug = slugify(updateData.name, { lower: true, strict: true });
+      const nameStr = typeof updateData.name === 'object' && updateData.name !== null
+        ? (updateData.name.en || updateData.name.vi || Object.values(updateData.name)[0] || '')
+        : String(updateData.name || '');
+      updateData.slug = slugify(nameStr, { lower: true, strict: true });
     }
 
     const category = await categoryRepository.updateById(id, updateData);
@@ -43,11 +49,15 @@ class CategoryService {
   }
 
   async deleteCategory(id) {
+    require('../models/Course');
     const mongoose = require('mongoose');
-    const courseCount = await mongoose.model('Course').countDocuments({ category: id });
-    if (courseCount > 0) {
-      throw new AppError(`Không thể xóa danh mục này vì đang có ${courseCount} khóa học đang sử dụng. Vui lòng chuyển danh mục cho các khóa học trước khi xóa.`, 400);
+    if (id && mongoose.Types.ObjectId.isValid(id)) {
+      const courseCount = await mongoose.model('Course').countDocuments({ category: id });
+      if (courseCount > 0) {
+        throw new AppError(`Không thể xóa danh mục này vì đang có ${courseCount} khóa học đang sử dụng. Vui lòng chuyển danh mục cho các khóa học trước khi xóa.`, 400);
+      }
     }
+
 
     const category = await categoryRepository.deleteById(id);
     if (!category) {

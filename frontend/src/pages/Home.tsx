@@ -6,22 +6,42 @@ import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { enrollmentApi } from '../services/enrollment.api';
 import { courseApi, CourseData } from '../services/course.api';
+import { categoryApi, Category } from '../services/category.api';
 import { selectIsAuthenticated, selectCurrentUser } from '../store/slices/authSlice';
+import { useLocalizedValue } from '../utils/localized';
 
 // =====================================================================
-// CONSTANTS
+// CONSTANTS & HELPERS
 // =====================================================================
 
-const CATEGORIES = [
-  { emoji: '💻', key: 'home.categories.programming', color: 'from-blue-600/20 to-blue-500/10 border-blue-500/30 text-blue-400' },
-  { emoji: '🎨', key: 'home.categories.design', color: 'from-pink-600/20 to-pink-500/10 border-pink-500/30 text-pink-400' },
-  { emoji: '📊', key: 'home.categories.dataScience', color: 'from-violet-600/20 to-violet-500/10 border-violet-500/30 text-violet-400' },
-  { emoji: '🚀', key: 'home.categories.business', color: 'from-amber-600/20 to-amber-500/10 border-amber-500/30 text-amber-400' },
-  { emoji: '🌐', key: 'home.categories.marketing', color: 'from-emerald-600/20 to-emerald-500/10 border-emerald-500/30 text-emerald-400' },
-  { emoji: '🤖', key: 'home.categories.ai', color: 'from-cyan-600/20 to-cyan-500/10 border-cyan-500/30 text-cyan-400' },
-  { emoji: '📷', key: 'home.categories.photography', color: 'from-rose-600/20 to-rose-500/10 border-rose-500/30 text-rose-400' },
-  { emoji: '🎵', key: 'home.categories.music', color: 'from-orange-600/20 to-orange-500/10 border-orange-500/30 text-orange-400' },
-];
+const CATEGORY_EMOJI_MAP: Record<string, string> = {
+  'web-development': '💻',
+  'data-science-and-ai': '🤖',
+  'mobile-app-development': '📱',
+  'cloud-and-devops': '☁️',
+  'cyber-security': '🛡️',
+  'uiux-design': '🎨',
+  'digital-marketing': '🌐',
+  'business-and-management': '🚀',
+  'database-administration': '🗄️',
+  'game-development': '🎮',
+};
+
+function getCategoryEmoji(slug?: string, name?: string): string {
+  if (slug && CATEGORY_EMOJI_MAP[slug]) return CATEGORY_EMOJI_MAP[slug];
+  const lower = (slug || name || '').toLowerCase();
+  if (lower.includes('web')) return '💻';
+  if (lower.includes('data') || lower.includes('ai') || lower.includes('dữ liệu')) return '🤖';
+  if (lower.includes('mobile') || lower.includes('app') || lower.includes('di động')) return '📱';
+  if (lower.includes('cloud') || lower.includes('devops') || lower.includes('đám mây')) return '☁️';
+  if (lower.includes('security') || lower.includes('cyber') || lower.includes('bảo mật') || lower.includes('an ninh')) return '🛡️';
+  if (lower.includes('design') || lower.includes('ui') || lower.includes('ux') || lower.includes('thiết kế')) return '🎨';
+  if (lower.includes('market') || lower.includes('seo') || lower.includes('tiếp thị')) return '🌐';
+  if (lower.includes('business') || lower.includes('manage') || lower.includes('kinh doanh') || lower.includes('quản lý')) return '🚀';
+  if (lower.includes('database') || lower.includes('sql') || lower.includes('cơ sở dữ liệu')) return '🗄️';
+  if (lower.includes('game') || lower.includes('trò chơi')) return '🎮';
+  return '📚';
+}
 
 const TESTIMONIALS = [
   {
@@ -53,7 +73,12 @@ const TESTIMONIALS = [
 const HERO_IMAGES = [
   'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=2070&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2071&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=2070&auto=format&fit=crop'
+  'https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=2070&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1501504905252-473c47e087f8?q=80&w=2074&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=2070&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=2070&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=2072&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1513258496099-48168024aec0?q=80&w=2070&auto=format&fit=crop'
 ];
 
 // =====================================================================
@@ -122,83 +147,137 @@ const AnimatedStat = ({ value, suffix, label }: { value: number; suffix: string;
 
   return (
     <div ref={ref} className="flex flex-col items-center text-center px-8">
-      <span className="text-5xl lg:text-6xl font-black text-white tabular-nums">
+      <span className="text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tabular-nums">
         {display.toLocaleString()}{suffix}
       </span>
-      <span className="mt-2 text-base text-slate-400 font-medium">{label}</span>
+      <span className="mt-2 text-base text-slate-600 dark:text-slate-400 font-medium">{label}</span>
     </div>
   );
 };
 
-const CourseCard = ({ course }: { course: CourseData }) => {
+const CourseCard = React.memo(({ course }: { course: CourseData }) => {
   const navigate = useNavigate();
+  const lv = useLocalizedValue();
+  const { t } = useTranslation();
   const originalPrice = course.discountPercentage && course.discountPercentage > 0 && course.estimatedPrice ? course.estimatedPrice : null;
   return (
     <motion.div
       whileHover={{ y: -8 }}
-      className="group relative flex flex-col bg-white dark:bg-[#111111] border border-slate-200 dark:border-white/5 rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 h-[340px]"
+      className="group relative flex flex-col justify-between bg-white dark:bg-[#111111] border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 min-h-[380px] h-full"
       onClick={() => navigate(`/courses/${course._id}`)}
     >
-      {/* Thumbnail */}
-      <div className="relative aspect-video overflow-hidden bg-slate-800">
-        {course.thumbnailUrl ? (
-          <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-900/50 to-slate-900">
-            <svg className="w-12 h-12 text-indigo-400/40" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
-            </svg>
+      <div>
+        {/* Thumbnail */}
+        <div className="relative aspect-video overflow-hidden bg-slate-800">
+          {course.thumbnailUrl ? (
+            <img src={course.thumbnailUrl} alt={lv(course.title)} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-900/50 to-slate-900">
+              <svg className="w-12 h-12 text-indigo-400/40" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
+              </svg>
+            </div>
+          )}
+          {course.price === 0 ? (
+            <div className="absolute top-3 left-3 bg-emerald-500 text-white text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wide">Free</div>
+          ) : course.discountPercentage && course.discountPercentage > 0 ? (
+            <div className="absolute top-3 left-3 bg-rose-500 text-white text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wide">-{course.discountPercentage}%</div>
+          ) : null}
+        </div>
+
+        {/* Content */}
+        <div className="p-5 space-y-3">
+          {course.category && (
+            <span className="text-xs font-bold uppercase tracking-widest text-orange-400 bg-orange-400/10 px-2.5 py-1 rounded-full w-fit inline-block">
+              {lv(course.category.name)}
+            </span>
+          )}
+          <h3 className="font-bold text-slate-900 dark:text-white leading-snug line-clamp-2 text-[15px] group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors">
+            {lv(course.title)}
+          </h3>
+          <div className="flex items-center gap-2 pt-1">
+            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] font-black text-white shrink-0">
+              {course.instructor?.name?.[0] || 'T'}
+            </div>
+            <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{course.instructor?.name || 'Instructor'}</span>
           </div>
-        )}
-        {course.price === 0 ? (
-          <div className="absolute top-3 left-3 bg-emerald-500 text-white text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wide">Free</div>
-        ) : course.discountPercentage && course.discountPercentage > 0 ? (
-          <div className="absolute top-3 left-3 bg-rose-500 text-white text-xs font-black px-2.5 py-1 rounded-full uppercase tracking-wide">-{course.discountPercentage}%</div>
-        ) : null}
+          <div className="flex items-center gap-1.5">
+            <StarRating rating={Math.round(course.averageRating || 5)} />
+            <span className="text-xs font-bold text-amber-500">{(course.averageRating || 4.8).toFixed(1)}</span>
+          </div>
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="flex flex-col flex-1 p-5 gap-3">
-        {course.category && (
-          <span className="text-xs font-bold uppercase tracking-widest text-orange-400 bg-orange-400/10 px-2.5 py-1 rounded-full w-fit">
-            {course.category.name}
-          </span>
-        )}
-        <h3 className="font-bold text-slate-900 dark:text-white leading-snug line-clamp-2 text-[15px] group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors">
-          {course.title}
-        </h3>
-        <div className="flex items-center gap-2 mt-auto">
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] font-black text-white">
-            {course.instructor?.name?.[0] || 'T'}
-          </div>
-          <span className="text-xs text-slate-400 truncate">{course.instructor?.name || 'Instructor'}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <StarRating rating={Math.round(course.averageRating || 4)} />
-          <span className="text-sm font-bold text-amber-400">{(course.averageRating || 4.8).toFixed(1)}</span>
-        </div>
-        <div className="flex items-center justify-between mt-1">
-          <div className="flex items-center gap-2">
-            {course.price === 0 ? (
-              <span className="text-xl font-black text-emerald-400">Free</span>
-            ) : (
-              <>
-                {originalPrice && <span className="text-sm text-slate-500 line-through">{Number(originalPrice).toLocaleString('vi-VN')}đ</span>}
-                <span className="text-xl font-black text-slate-900 dark:text-white">{Number(course.price || 0).toLocaleString('vi-VN')}đ</span>
-              </>
+      {/* Footer Price & Action */}
+      <div className="p-5 pt-0 mt-auto">
+        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-white/5 gap-2">
+          <div className="flex flex-col min-w-0">
+            {originalPrice && (
+              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 line-through leading-none mb-1">
+                {Number(originalPrice).toLocaleString('vi-VN')}đ
+              </span>
             )}
+            <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight">
+              {course.price === 0 ? 'Free' : `${Number(course.price || 0).toLocaleString('vi-VN')}đ`}
+            </span>
           </div>
           <button
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-colors"
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl whitespace-nowrap shrink-0 transition-all shadow-sm hover:shadow hover:scale-105 active:scale-95"
             onClick={(e) => { e.stopPropagation(); navigate(`/courses/${course._id}`); }}
           >
-            Enroll
+            {t('common.enroll', 'Đăng ký')}
           </button>
         </div>
       </div>
     </motion.div>
   );
-};
+});
+
+const HeroBackgroundSlider = React.memo(() => {
+  const [currentBgIndex, setCurrentBgIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentBgIndex((prev) => (prev + 1) % HERO_IMAGES.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_85%)]">
+      <AnimatePresence mode="popLayout">
+        <motion.img
+          key={currentBgIndex}
+          src={HERO_IMAGES[currentBgIndex]}
+          initial={{ opacity: 0, scale: 1.05 }}
+          animate={{ opacity: 0.22, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.98 }}
+          transition={{ duration: 0.8, ease: "easeInOut" }}
+          className="absolute inset-0 w-full h-full object-cover mix-blend-luminosity dark:mix-blend-screen dark:opacity-[0.16] filter saturate-[0.85] contrast-[1.05]"
+          alt="Background"
+          loading="lazy"
+          decoding="async"
+        />
+      </AnimatePresence>
+    </div>
+  );
+});
+
+const FlashSaleCountdown = React.memo(() => {
+  const { t } = useTranslation();
+  const [saleEnd] = useState(() => new Date(Date.now() + 23 * 3600000 + 59 * 60000 + 59000));
+  const countdown = useCountdown(saleEnd);
+
+  return (
+    <div className="flex items-center gap-3">
+      <CountdownBlock value={countdown.hours} label={t('home.flashSale.hours')} />
+      <span className="text-2xl font-black text-white/60 mb-4">:</span>
+      <CountdownBlock value={countdown.minutes} label={t('home.flashSale.minutes')} />
+      <span className="text-2xl font-black text-white/60 mb-4">:</span>
+      <CountdownBlock value={countdown.seconds} label={t('home.flashSale.seconds')} />
+    </div>
+  );
+});
 
 // =====================================================================
 // MAIN HOME COMPONENT
@@ -209,28 +288,25 @@ const Home: React.FC = () => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const user = useSelector(selectCurrentUser);
   const { t } = useTranslation();
+  const lv = useLocalizedValue();
 
-  // Sale countdown — 23:59:59 from page load
-  const [saleEnd] = useState(() => new Date(Date.now() + 23 * 3600000 + 59 * 60000 + 59000));
-  const countdown = useCountdown(saleEnd);
+  // Fetch real categories from database
+  const { data: categoryData, isLoading: categoriesLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => categoryApi.getAllCategories(),
+    staleTime: 1000 * 60 * 30,
+  });
+  const categories: Category[] = categoryData?.data?.categories || [];
 
-  // Active category filter
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-
-  // Background slider
-  const [currentBgIndex, setCurrentBgIndex] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentBgIndex((prev) => (prev + 1) % HERO_IMAGES.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+  // Active category filter (stores category _id, null = all)
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const activeCategory = categories.find((c) => c._id === activeCategoryId);
+  const activeCategoryName = activeCategory ? lv(activeCategory.name) : null;
 
   // Fetch public courses
   const { data: coursesData, isLoading: coursesLoading } = useQuery({
-    queryKey: ['home-courses', activeCategory],
-    queryFn: () => courseApi.getAllCourses({ status: 'published', limit: 8, ...(activeCategory ? { category: activeCategory } : {}) }),
+    queryKey: ['home-courses', activeCategoryId],
+    queryFn: () => courseApi.getAllCourses({ status: 'published', limit: 8, ...(activeCategoryId ? { category: activeCategoryId } : {}) }),
     staleTime: 60000,
   });
 
@@ -259,21 +335,8 @@ const Home: React.FC = () => {
           HERO SECTION
       ================================================================ */}
       <section className="relative min-h-[92vh] flex items-center overflow-hidden">
-        {/* Animated Image Slider Background */}
-        <div className="absolute inset-0 z-0">
-          <AnimatePresence>
-            <motion.img
-              key={currentBgIndex}
-              src={HERO_IMAGES[currentBgIndex]}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.15 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1.5, ease: "easeInOut" }}
-              className="absolute inset-0 w-full h-full object-cover mix-blend-luminosity dark:opacity-[0.05]"
-              alt="Background"
-            />
-          </AnimatePresence>
-        </div>
+        {/* Animated Image Slider Background every 4s */}
+        <HeroBackgroundSlider />
 
         {/* Background gradient blobs */}
         <div className="absolute inset-0 pointer-events-none">
@@ -345,14 +408,14 @@ const Home: React.FC = () => {
                     className="flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg text-white border border-white/20 hover:bg-white/10 transition-all duration-200 backdrop-blur-sm"
                   >
                     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                    <span>Tiếp tục học</span>
+                    <span>{t('home.hero.resumeBtn')}</span>
                   </button>
                 ) : (
                   <button
                     onClick={() => navigate('/register')}
                     className="flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg text-white border border-white/20 hover:bg-white/10 transition-all duration-200 backdrop-blur-sm"
                   >
-                    <span>Đăng ký miễn phí</span>
+                    <span>{t('home.hero.freeSignupBtn')}</span>
                     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
                   </button>
                 )}
@@ -365,7 +428,7 @@ const Home: React.FC = () => {
                 transition={{ delay: 0.5 }}
                 className="flex flex-wrap gap-3 mt-8"
               >
-                {['✓ Truy cập trọn đời', '✓ Chứng chỉ hoàn thành', '✓ Hỗ trợ 24/7'].map(text => (
+                {[t('home.hero.trustPills.lifetime'), t('home.hero.trustPills.certificate'), t('home.hero.trustPills.support')].map(text => (
                   <span key={text} className="text-sm text-slate-400 font-medium">{text}</span>
                 ))}
               </motion.div>
@@ -381,46 +444,46 @@ const Home: React.FC = () => {
               {/* Card Stack */}
               <div className="relative h-[520px]">
                 {/* Card 1 — top right */}
-                <div className="absolute top-0 right-0 w-[280px] bg-[#161b2e] border border-indigo-500/30 rounded-2xl p-5 shadow-[0_20px_60px_rgba(99,102,241,0.2)]">
+                <div className="absolute top-0 right-0 w-[280px] bg-white dark:bg-[#161b2e] border border-slate-200 dark:border-indigo-500/30 rounded-2xl p-5 shadow-xl dark:shadow-[0_20px_60px_rgba(99,102,241,0.2)]">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-xl">💻</div>
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-xl shadow-sm">💻</div>
                     <div>
-                      <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Programming</p>
-                      <p className="text-sm font-bold text-white">Python Mastery</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Programming</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">Python Mastery</p>
                     </div>
                   </div>
-                  <div className="w-full bg-slate-700 rounded-full h-1.5 mb-2">
+                  <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 mb-2">
                     <div className="bg-gradient-to-r from-blue-500 to-cyan-500 h-1.5 rounded-full" style={{width:'72%'}} />
                   </div>
-                  <p className="text-xs text-slate-400">72% hoàn thành</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{t('home.hero.cards.percentComplete')}</p>
                 </div>
 
                 {/* Card 2 — middle left */}
-                <div className="absolute top-[160px] left-0 w-[260px] bg-[#1a1625] border border-pink-500/30 rounded-2xl p-5 shadow-[0_20px_60px_rgba(236,72,153,0.15)]">
+                <div className="absolute top-[160px] left-0 w-[260px] bg-white dark:bg-[#1a1625] border border-slate-200 dark:border-pink-500/30 rounded-2xl p-5 shadow-xl dark:shadow-[0_20px_60px_rgba(236,72,153,0.15)]">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-xl">🎨</div>
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-xl shadow-sm">🎨</div>
                     <div>
-                      <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Design</p>
-                      <p className="text-sm font-bold text-white">UI/UX Masterclass</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Design</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">UI/UX Masterclass</p>
                     </div>
                   </div>
                   <StarRating rating={5} />
-                  <p className="text-xs text-slate-400 mt-1">4.9 · 2.4k đánh giá</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('home.hero.cards.reviews')}</p>
                 </div>
 
                 {/* Card 3 — bottom right */}
-                <div className="absolute bottom-0 right-0 w-[270px] bg-[#131a2e] border border-violet-500/30 rounded-2xl p-5 shadow-[0_20px_60px_rgba(139,92,246,0.15)]">
+                <div className="absolute bottom-0 right-0 w-[270px] bg-white dark:bg-[#131a2e] border border-slate-200 dark:border-violet-500/30 rounded-2xl p-5 shadow-xl dark:shadow-[0_20px_60px_rgba(139,92,246,0.15)]">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-xl">📊</div>
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-xl shadow-sm">📊</div>
                     <div>
-                      <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Data Science</p>
-                      <p className="text-sm font-bold text-white">ML & Deep Learning</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Data Science</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">ML & Deep Learning</p>
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-slate-400 text-sm line-through">2.400.000đ</span>
-                    <span className="text-xl font-black text-white">900.000đ</span>
-                    <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">-61%</span>
+                    <span className="text-xl font-black text-slate-900 dark:text-white">900.000đ</span>
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">-61%</span>
                   </div>
                 </div>
 
@@ -460,19 +523,13 @@ const Home: React.FC = () => {
               </div>
 
               {/* Countdown */}
-              <div className="flex items-center gap-3">
-                <CountdownBlock value={countdown.hours} label={t('home.flashSale.hours')} />
-                <span className="text-2xl font-black text-white/60 mb-4">:</span>
-                <CountdownBlock value={countdown.minutes} label={t('home.flashSale.minutes')} />
-                <span className="text-2xl font-black text-white/60 mb-4">:</span>
-                <CountdownBlock value={countdown.seconds} label={t('home.flashSale.seconds')} />
-              </div>
+              <FlashSaleCountdown />
 
               <button
                 onClick={() => navigate('/courses')}
                 className="flex-shrink-0 px-8 py-4 bg-white rounded-2xl font-black text-red-600 hover:bg-orange-50 transition-colors shadow-lg text-lg active:scale-95"
               >
-                Nhận ưu đãi ngay →
+                {t('home.flashSale.claimBtn')}
               </button>
             </div>
           </motion.div>
@@ -496,32 +553,48 @@ const Home: React.FC = () => {
         </motion.div>
         <div className="flex flex-wrap gap-3">
           <button
-            onClick={() => setActiveCategory(null)}
-            className={`px-5 py-2.5 rounded-full font-bold text-sm border transition-all ${!activeCategory ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]' : 'border-white/10 text-slate-400 hover:border-white/30 hover:text-white'}`}
+            onClick={() => setActiveCategoryId(null)}
+            className={`px-5 py-2.5 rounded-full font-bold text-sm border transition-all hover:-translate-y-0.5 active:scale-95 ${
+              !activeCategoryId
+                ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]'
+                : 'bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-400 hover:border-indigo-500/50 hover:text-indigo-600 dark:hover:text-white shadow-sm'
+            }`}
           >
             {t('home.categories.all')}
           </button>
-          {CATEGORIES.map((c) => (
-            <button
-              key={c.key}
-              onClick={() => setActiveCategory(t(c.key))}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm border transition-all hover:-translate-y-1 ${
-                activeCategory === t(c.key)
-                  ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]'
-                  : 'bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:border-indigo-500/50 hover:text-indigo-500 dark:hover:text-white'
-              }`}
-            >
-              <span>{c.emoji}</span>
-              <span>{t(c.key)}</span>
-            </button>
-          ))}
+          {categoriesLoading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-10 w-28 rounded-full bg-slate-200/70 dark:bg-white/5 animate-pulse"
+                />
+              ))
+            : categories.map((c) => {
+                const isSelected = activeCategoryId === c._id;
+                const catName = lv(c.name);
+                const emoji = getCategoryEmoji(c.slug, catName);
+                return (
+                  <button
+                    key={c._id}
+                    onClick={() => setActiveCategoryId(isSelected ? null : c._id)}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm border transition-all hover:-translate-y-0.5 active:scale-95 ${
+                      isSelected
+                        ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]'
+                        : 'bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:border-indigo-500/50 hover:text-indigo-600 dark:hover:text-white shadow-sm'
+                    }`}
+                  >
+                    <span>{emoji}</span>
+                    <span>{catName}</span>
+                  </button>
+                );
+              })}
         </div>
       </section>
 
       {/* ================================================================
           TRENDING COURSES
       ================================================================ */}
-      {!activeCategory && trendingCourses.length > 0 && (
+      {!activeCategoryId && trendingCourses.length > 0 && (
         <section className="pb-16 max-w-[1400px] mx-auto px-6 lg:px-12">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -530,8 +603,8 @@ const Home: React.FC = () => {
             className="flex items-end justify-between mb-8"
           >
             <div>
-              <p className="text-orange-400 text-sm font-bold uppercase tracking-widest mb-2">Đang thịnh hành</p>
-              <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">Top Khóa học Nổi bật 🚀</h2>
+              <p className="text-orange-400 text-sm font-bold uppercase tracking-widest mb-2">{t('home.trending.badge')}</p>
+              <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">{t('home.trending.title')}</h2>
             </div>
           </motion.div>
           <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -547,7 +620,7 @@ const Home: React.FC = () => {
       {/* ================================================================
           RECOMMENDED FOR YOU
       ================================================================ */}
-      {!activeCategory && recommendedCourses.length > 0 && (
+      {!activeCategoryId && recommendedCourses.length > 0 && (
         <section className="pb-16 max-w-[1400px] mx-auto px-6 lg:px-12">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -582,10 +655,10 @@ const Home: React.FC = () => {
         >
           <div>
             <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-2">
-              {activeCategory ? activeCategory : t('home.sections.exploreAll')}
+              {activeCategoryName ? activeCategoryName : t('home.sections.exploreAll')}
             </p>
-            <h2 className="text-3xl md:text-4xl font-black text-white">
-              {activeCategory ? `${t('home.sections.courseWord')} ${activeCategory}` : t('home.sections.allNewCourses')}
+            <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">
+              {activeCategoryName ? `${t('home.sections.courseWord')} ${activeCategoryName}` : t('home.sections.allNewCourses')}
             </h2>
           </div>
           <button
@@ -600,12 +673,12 @@ const Home: React.FC = () => {
         {coursesLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="bg-[#161b22] rounded-2xl overflow-hidden animate-pulse">
-                <div className="aspect-video bg-slate-700/50" />
+              <div key={i} className="bg-slate-100 dark:bg-[#161b22] border border-slate-200 dark:border-white/5 rounded-2xl overflow-hidden animate-pulse">
+                <div className="aspect-video bg-slate-200 dark:bg-slate-700/50" />
                 <div className="p-5 space-y-3">
-                  <div className="h-3 bg-slate-700/50 rounded-full w-1/3" />
-                  <div className="h-4 bg-slate-700/50 rounded-full" />
-                  <div className="h-4 bg-slate-700/50 rounded-full w-3/4" />
+                  <div className="h-3 bg-slate-200 dark:bg-slate-700/50 rounded-full w-1/3" />
+                  <div className="h-4 bg-slate-200 dark:bg-slate-700/50 rounded-full" />
+                  <div className="h-4 bg-slate-200 dark:bg-slate-700/50 rounded-full w-3/4" />
                 </div>
               </div>
             ))}
@@ -614,7 +687,11 @@ const Home: React.FC = () => {
           <div className="text-center py-24 text-slate-500">
             <p className="text-5xl mb-4">📚</p>
             <p className="text-xl font-bold">{t('home.sections.noCourses')}</p>
-            <p className="text-sm mt-2">{t('home.sections.instructorPrep')}</p>
+            <p className="text-sm mt-2">
+              {activeCategoryName
+                ? `${t('home.sections.instructorPrep')} (${activeCategoryName})`
+                : t('home.sections.instructorPrep')}
+            </p>
           </div>
         ) : (
           <motion.div
@@ -658,7 +735,7 @@ const Home: React.FC = () => {
             <div className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar">
               {enrollments.slice(0, 4).map((enr: any, i: number) => {
                 const courseId = enr.course?._id || enr.course;
-                const title = enr.course?.title || 'Khóa học';
+                const title = lv(enr.course?.title) || t('home.sections.courseWord');
                 return (
                   <motion.div
                     key={enr._id || i}
@@ -666,18 +743,18 @@ const Home: React.FC = () => {
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.1 }}
-                    className="flex-shrink-0 w-[320px] bg-[#161b22] border border-white/[0.06] rounded-2xl p-6 hover:border-indigo-500/30 transition-all group"
+                    className="flex-shrink-0 w-[320px] bg-white dark:bg-[#161b22] border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-indigo-500/30 transition-all group"
                   >
                     <div className="flex items-center justify-between mb-5">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-2xl">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-2xl shadow-md">
                         📚
                       </div>
-                      <span className="text-xs font-bold text-indigo-400 bg-indigo-400/10 px-3 py-1 rounded-full">{t('home.sections.learningTag')}</span>
+                      <span className="text-xs font-bold text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-400/10 border border-indigo-200/50 dark:border-transparent px-3 py-1 rounded-full">{t('home.sections.learningTag')}</span>
                     </div>
-                    <h3 className="font-bold text-white text-base leading-snug mb-4 line-clamp-2">{title}</h3>
+                    <h3 className="font-bold text-slate-900 dark:text-white text-base leading-snug mb-4 line-clamp-2">{title}</h3>
                     <button
                       onClick={() => navigate(`/courses/${courseId}/learn`)}
-                      className="w-full flex items-center justify-between px-5 py-3 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 rounded-xl text-sm font-bold text-indigo-300 transition-all group-hover:border-indigo-400/50"
+                      className="w-full flex items-center justify-between px-5 py-3 bg-indigo-50 dark:bg-indigo-600/20 hover:bg-indigo-100 dark:hover:bg-indigo-600/40 border border-indigo-200 dark:border-indigo-500/30 rounded-xl text-sm font-bold text-indigo-600 dark:text-indigo-300 transition-all group-hover:border-indigo-400/50"
                     >
                       <span>{t('home.sections.continueLearning')}</span>
                       <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -693,9 +770,9 @@ const Home: React.FC = () => {
       {/* ================================================================
           STATS
       ================================================================ */}
-      <section className="py-20 border-t border-b border-white/[0.06]">
+      <section className="py-20 border-t border-b border-slate-200 dark:border-white/[0.06]">
         <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
-          <div className="flex flex-col md:flex-row items-center justify-center divide-y md:divide-y-0 md:divide-x divide-white/10 gap-0">
+          <div className="flex flex-col md:flex-row items-center justify-center divide-y md:divide-y-0 md:divide-x divide-slate-200 dark:divide-white/10 gap-0">
             <AnimatedStat value={50000} suffix="+" label={t('home.stats.students')} />
             <AnimatedStat value={200} suffix="+" label={t('home.stats.instructors')} />
             <AnimatedStat value={98} suffix="%" label={t('home.stats.rating')} />
@@ -725,20 +802,20 @@ const Home: React.FC = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-50px' }}
               transition={{ duration: 0.5, delay: i * 0.1 }}
-              className="relative bg-[#161b22] border border-white/[0.06] rounded-2xl p-7 hover:border-white/15 transition-colors"
+              className="relative bg-white dark:bg-[#161b22] border border-slate-200 dark:border-white/[0.06] rounded-2xl p-7 shadow-sm hover:shadow-md dark:hover:border-white/15 transition-all"
             >
               {/* Quote mark */}
-              <div className="text-5xl text-white/10 font-black leading-none mb-3">"</div>
-              <p className="text-slate-300 leading-relaxed text-[15px] mb-6">
+              <div className="text-5xl text-slate-200 dark:text-white/10 font-black leading-none mb-3">"</div>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-[15px] mb-6">
                 {t(item.quoteKey)}
               </p>
               <div className="flex items-center gap-4 mt-auto">
-                <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${item.color} flex items-center justify-center text-xs font-black text-white`}>
+                <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${item.color} flex items-center justify-center text-xs font-black text-white shadow-sm`}>
                   {item.avatar}
                 </div>
                 <div>
-                  <p className="font-bold text-white text-sm">{item.name}</p>
-                  <p className="text-xs text-slate-500">{t(item.roleKey)}</p>
+                  <p className="font-bold text-slate-900 dark:text-white text-sm">{item.name}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{t(item.roleKey)}</p>
                 </div>
                 <div className="ml-auto">
                   <StarRating rating={item.rating} />
@@ -767,27 +844,27 @@ const Home: React.FC = () => {
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] bg-indigo-600/20 blur-[80px] rounded-full" />
 
           <div className="relative z-10">
-            <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-4">Bắt đầu ngay hôm nay</p>
-            <h2 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white mb-6 leading-tight">
-              Đầu tư vào bản thân —<br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">bắt đầu ngay hôm nay.</span>
+            <p className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-4">{t('home.cta.badge')}</p>
+            <h2 className="text-4xl md:text-6xl font-black text-white mb-6 leading-tight">
+              {t('home.cta.title1')}<br/>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">{t('home.cta.title2')}</span>
             </h2>
             <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-10">
-              Hàng trăm khóa học đang chờ bạn. Không cần kinh nghiệm, không cần thẻ tín dụng để thử.
+              {t('home.cta.desc')}
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <button
                 onClick={() => navigate('/courses')}
                 className="px-10 py-5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-2xl font-black text-xl text-white shadow-[0_0_40px_rgba(99,102,241,0.4)] hover:shadow-[0_0_60px_rgba(99,102,241,0.6)] transition-all active:scale-95"
               >
-                Bắt đầu học miễn phí
+                {t('home.cta.startFreeBtn')}
               </button>
               {!isAuthenticated && (
                 <button
                   onClick={() => navigate('/login')}
                   className="px-10 py-5 rounded-2xl font-bold text-xl text-white border border-white/20 hover:bg-white/10 transition-all"
                 >
-                  Đăng nhập
+                  {t('home.cta.loginBtn')}
                 </button>
               )}
             </div>
