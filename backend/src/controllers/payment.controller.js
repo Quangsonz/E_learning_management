@@ -78,9 +78,12 @@ class PaymentController {
       );
 
       if (order && userId && courseId) {
-        // Auto enroll user
+        // Auto enroll user with trusted payment flag and existing order id
         try {
-          await enrollmentService.enrollCourse(courseId, { id: userId, _id: userId });
+          await enrollmentService.enrollCourse(courseId, { id: userId, _id: userId }, {
+            isFromPayment: true,
+            existingOrderId: order._id
+          });
         } catch (err) {
           console.error('[Stripe Webhook] Auto-enrollment failed:', err);
           await AuditLog.create({
@@ -109,8 +112,12 @@ class PaymentController {
       return next(new AppError('Không tìm thấy khóa học này', 404));
     }
 
-    // Cho phép dùng số tiền thử nghiệm (ví dụ 1000đ) hoặc giá gốc của khóa học
-    const amount = testAmount && Number(testAmount) > 0 ? Number(testAmount) : (Number(course.price) || 0);
+    // Chỉ cho phép testAmount trong môi trường development hoặc khi có cấu hình ENABLE_MOCK_PAYMENTS
+    const isMockAllowed = process.env.ENABLE_MOCK_PAYMENTS === 'true' || process.env.NODE_ENV !== 'production';
+    const amount = (isMockAllowed && testAmount && Number(testAmount) > 0)
+      ? Number(testAmount)
+      : (Number(course.price) || 0);
+
     const transferContent = `EL${courseId.toString().slice(-6).toUpperCase()}${req.user._id.toString().slice(-4).toUpperCase()}`;
     
     const bankId = process.env.VIETQR_BANK_ID || 'MB';
@@ -154,6 +161,12 @@ class PaymentController {
    * Xác nhận thanh toán mã QR -> Cập nhật Order paid & tự động ghi danh
    */
   confirmQRPayment = catchAsync(async (req, res, next) => {
+    // Chỉ cho phép client xác nhận thanh toán trực tiếp khi ở môi trường development/test hoặc có cờ ENABLE_MOCK_PAYMENTS
+    const isMockAllowed = process.env.ENABLE_MOCK_PAYMENTS === 'true' || process.env.NODE_ENV !== 'production';
+    if (!isMockAllowed) {
+      return next(new AppError('Xác nhận thanh toán tự động phía client bị vô hiệu hóa trong môi trường Production. Cần xác thực qua Webhook ngân hàng.', 403));
+    }
+
     const { courseId } = req.body;
     const course = await Course.findById(courseId);
 
@@ -179,8 +192,11 @@ class PaymentController {
       });
     }
 
-    // Tự động ghi danh vào khóa học
-    await enrollmentService.enrollCourse(courseId, req.user);
+    // Tự động ghi danh vào khóa học với cờ payment trusted
+    await enrollmentService.enrollCourse(courseId, req.user, {
+      isFromPayment: true,
+      existingOrderId: order._id
+    });
 
     res.status(200).json({
       status: 'success',

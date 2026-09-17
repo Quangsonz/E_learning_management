@@ -6,10 +6,12 @@ const { requirePermission } = require('../middlewares/permissionMiddleware');
 const validate = require('../middlewares/validate.middleware');
 const courseValidation = require('../validations/course.validation');
 const lessonRoutes = require('./lesson.routes');
+const moduleRoutes = require('./module.routes');
 
 const router = express.Router();
 
-// Tích hợp Nested Route cho bài giảng: GET /api/courses/:courseId/lessons
+// Tích hợp Nested Route cho module và bài giảng
+router.use('/:courseId/modules', moduleRoutes);
 router.use('/:courseId/lessons', lessonRoutes);
 
 // Tích hợp Nested Route cho bài quiz
@@ -18,11 +20,12 @@ router.get('/:courseId/quizzes', authMiddleware.optionalProtect, quizController.
 
 // Tích hợp Review routes
 const reviewController = require('../controllers/review.controller');
-router.get('/:courseId/reviews', reviewController.getCourseReviews);
-router.post('/:courseId/reviews', authMiddleware.protect, reviewController.createReview);
-router.patch('/:courseId/reviews/:id/reply', authMiddleware.protect, requireRole('teacher', 'admin'), reviewController.replyToReview);
-router.patch('/:courseId/reviews/:id', authMiddleware.protect, reviewController.updateReview);
-router.delete('/:courseId/reviews/:id', authMiddleware.protect, reviewController.deleteReview);
+const reviewValidation = require('../validations/review.validation');
+router.get('/:courseId/reviews', validate(reviewValidation.getCourseReviews), reviewController.getCourseReviews);
+router.post('/:courseId/reviews', authMiddleware.protect, validate(reviewValidation.createReview), reviewController.createReview);
+router.patch('/:courseId/reviews/:id/reply', authMiddleware.protect, requireRole('teacher', 'admin'), validate(reviewValidation.replyToReview), reviewController.replyToReview);
+router.patch('/:courseId/reviews/:id', authMiddleware.protect, validate(reviewValidation.updateReview), reviewController.updateReview);
+router.delete('/:courseId/reviews/:id', authMiddleware.protect, validate(reviewValidation.deleteReview), reviewController.deleteReview);
 
 
 router.get('/recommendations', authMiddleware.optionalProtect, courseController.getRecommendations);

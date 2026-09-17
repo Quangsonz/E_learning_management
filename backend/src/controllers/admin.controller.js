@@ -212,20 +212,51 @@ class AdminController {
       return next(new AppError('Vui lòng cung cấp đầy đủ thông tin số tiền rút và tài khoản ngân hàng.', 400));
     }
 
-    if (amount < 50000) {
+    const requestedAmount = Number(amount);
+    if (isNaN(requestedAmount) || requestedAmount < 50000) {
       return next(new AppError('Số tiền rút tối thiểu là 50,000đ.', 400));
+    }
+
+    const Order = require('../models/Order');
+    const mongoose = require('mongoose');
+    const teacherId = req.user._id || req.user.id;
+
+    // 1. Tính tổng doanh thu các khóa học thuộc giảng viên
+    const courseIds = await Course.distinct('_id', { instructor: teacherId });
+    const orderAgg = await Order.aggregate([
+      { $match: { course: { $in: courseIds }, status: 'paid' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const totalEarned = orderAgg[0]?.total || 0;
+
+    // 2. Tính tổng số tiền đã rút hoặc đang chờ duyệt
+    const payoutAgg = await PayoutRequest.aggregate([
+      { 
+        $match: { 
+          instructor: new mongoose.Types.ObjectId(teacherId.toString()), 
+          status: { $in: ['completed', 'pending'] } 
+        } 
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const totalRequested = payoutAgg[0]?.total || 0;
+
+    const availableBalance = totalEarned - totalRequested;
+
+    if (requestedAmount > availableBalance) {
+      return next(new AppError(`Số tiền rút (${requestedAmount.toLocaleString('vi-VN')}đ) vượt quá số dư khả dụng (${availableBalance.toLocaleString('vi-VN')}đ).`, 400));
     }
 
     const payout = await PayoutRequest.create({
       instructor: req.user.id,
-      amount,
+      amount: requestedAmount,
       bankInfo
     });
 
     res.status(201).json({
       status: 'success',
       message: 'Yêu cầu rút tiền của bạn đã được ghi nhận và đang chờ xử lý.',
-      data: { payout }
+      data: { payout, availableBalance: availableBalance - requestedAmount }
     });
   });
 

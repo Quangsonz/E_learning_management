@@ -16,6 +16,12 @@ class ProgressService {
       throw new AppError('Không tìm thấy khóa học', 404);
     }
 
+    // 1b. Kiểm tra bài giảng có thuộc khóa học này không
+    const lesson = await lessonRepository.findOne({ _id: lessonId, course: courseId });
+    if (!lesson) {
+      throw new AppError('Bài giảng không tồn tại trong khóa học này', 404, 'LESSON_NOT_FOUND');
+    }
+
     // 2. Kiểm tra xem học viên có đăng ký khóa học hay không (trừ admin/giảng viên)
     const isTeacherOrAdmin = user?.role === 'admin' || user?.role === 'teacher';
     if (!isTeacherOrAdmin) {
@@ -164,6 +170,11 @@ class ProgressService {
     const studentId = typeof userId === 'string' ? userId : (userId?.id || userId?._id || '').toString();
     if (!studentId) throw new AppError('Xác thực học viên không hợp lệ', 401);
 
+    const lesson = await lessonRepository.findOne({ _id: lessonId, course: courseId });
+    if (!lesson) {
+      throw new AppError('Bài giảng không tồn tại trong khóa học này', 404, 'LESSON_NOT_FOUND');
+    }
+
     const key = `videoProgress.${lessonId}`;
     const progress = await progressRepository.model.findOneAndUpdate(
       { student: studentId, course: courseId },
@@ -182,6 +193,11 @@ class ProgressService {
   async addBookmark(courseId, lessonId, userId, time, note) {
     const studentId = typeof userId === 'string' ? userId : (userId?.id || userId?._id || '').toString();
     if (!studentId) throw new AppError('Xác thực học viên không hợp lệ', 401);
+
+    const lesson = await lessonRepository.findOne({ _id: lessonId, course: courseId });
+    if (!lesson) {
+      throw new AppError('Bài giảng không tồn tại trong khóa học này', 404, 'LESSON_NOT_FOUND');
+    }
 
     let progress = await progressRepository.findByStudentAndCourse(studentId, courseId);
     if (!progress) {

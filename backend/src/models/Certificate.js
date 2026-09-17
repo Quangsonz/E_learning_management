@@ -34,4 +34,7 @@ const certificateSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Đảm bảo mỗi học viên chỉ được cấp 1 chứng chỉ duy nhất cho mỗi khóa học
+certificateSchema.index({ student: 1, course: 1 }, { unique: true });
+
 module.exports = mongoose.model('Certificate', certificateSchema);

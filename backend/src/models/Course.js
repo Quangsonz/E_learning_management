@@ -45,7 +45,7 @@ courseSchema.pre('save', function() {
 courseSchema.pre(/^find/, function() {
   this.populate({
     path: 'instructor',
-    select: 'name email role avatar'
+    select: 'name role avatar'
   }).populate({
     path: 'category',
     select: 'name slug'
@@ -57,6 +57,7 @@ courseSchema.pre('findOneAndDelete', async function() {
   const doc = await this.model.findOne(this.getQuery());
   if (doc) {
     const courseId = doc._id;
+    const Module = mongoose.model('Module');
     const Lesson = mongoose.model('Lesson');
     const Progress = mongoose.model('Progress');
     const Quiz = mongoose.model('Quiz');
@@ -66,6 +67,9 @@ courseSchema.pre('findOneAndDelete', async function() {
     const Certificate = mongoose.model('Certificate');
     const Question = mongoose.model('Question');
     const Result = mongoose.model('Result');
+
+    // Xóa modules của khóa học
+    await Module.deleteMany({ course: courseId });
 
     // Tìm và xóa quizzes cùng kết quả + câu hỏi của nó
     const quizzes = await Quiz.find({ course: courseId });

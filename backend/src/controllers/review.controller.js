@@ -28,7 +28,7 @@ class ReviewController {
   });
 
   updateReview = catchAsync(async (req, res, next) => {
-    const review = await reviewService.updateReview(req.params.id, req.user._id, req.body);
+    const review = await reviewService.updateReview(req.params.id, req.user, req.body);
     res.status(200).json({
       status: 'success',
       data: { review }
@@ -36,7 +36,7 @@ class ReviewController {
   });
 
   deleteReview = catchAsync(async (req, res, next) => {
-    await reviewService.deleteReview(req.params.id, req.user._id);
+    await reviewService.deleteReview(req.params.id, req.user);
     res.status(204).json({
       status: 'success',
       data: null

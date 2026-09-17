@@ -11,7 +11,7 @@ class DiscussionController {
   createDiscussion = catchAsync(async (req, res, next) => {
     const { courseId, lessonId } = req.params;
     const { content } = req.body;
-    const discussion = await discussionService.createDiscussion(courseId, lessonId, req.user.id, content);
+    const discussion = await discussionService.createDiscussion(courseId, lessonId, req.user.id, content, req.user);
     res.status(201).json({ status: 'success', data: { discussion } });
   });
 
@@ -24,7 +24,7 @@ class DiscussionController {
   addComment = catchAsync(async (req, res, next) => {
     const { discussionId } = req.params;
     const { content } = req.body;
-    const comment = await discussionService.addComment(discussionId, req.user.id, content);
+    const comment = await discussionService.addComment(discussionId, req.user.id, content, req.user);
     res.status(201).json({ status: 'success', data: { comment } });
   });
 

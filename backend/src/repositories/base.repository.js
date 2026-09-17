@@ -19,6 +19,10 @@ class BaseRepository {
     return await this.model.find(query);
   }
 
+  async countDocuments(query = {}) {
+    return await this.model.countDocuments(query);
+  }
+
   async findOneAndUpdate(query, data, options = { new: true, runValidators: true }) {
     return await this.model.findOneAndUpdate(query, data, options);
   }

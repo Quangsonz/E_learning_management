@@ -6,7 +6,7 @@ const AppError = require('../utils/appError');
 const Order = require('../models/Order');
 
 class EnrollmentService {
-  async enrollCourse(courseId, user) {
+  async enrollCourse(courseId, user, options = {}) {
     const course = await courseRepository.findById(courseId);
     if (!course) {
       throw new AppError('Không tìm thấy khóa học', 404);
@@ -18,26 +18,44 @@ class EnrollmentService {
       throw new AppError('Bạn đã đăng ký khóa học này rồi!', 400);
     }
 
-    // Xác định trạng thái thanh toán
-    // Tạm thời bỏ qua cổng thanh toán, mặc định cho phép học viên truy cập ngay (completed)
-    const paymentStatus = 'completed';
+    // 3. Xác định trạng thái thanh toán & Kiểm tra quyền ghi danh
+    const coursePrice = Number(course.price) || 0;
+    const isFree = coursePrice === 0;
+    const isTrustedPayment = options.isFromPayment === true;
+
+    // Nếu khóa học có phí và không phải được gọi từ payment webhook/controller đã xác thực
+    if (!isFree && !isTrustedPayment) {
+      const existingPaidOrder = await Order.findOne({
+        user: user.id,
+        course: courseId,
+        status: 'paid'
+      });
+      if (!existingPaidOrder) {
+        throw new AppError('Khóa học này yêu cầu thanh toán trước khi đăng ký!', 402, 'PAYMENT_REQUIRED');
+      }
+    }
 
     const enrollmentData = {
       student: user.id,
       course: courseId,
-      paymentStatus
+      paymentStatus: 'completed'
     };
 
     const newEnrollment = await enrollmentRepository.create(enrollmentData);
 
-    // 4. Persist Order document for revenue tracking (works for both mock and real payments)
-    await Order.create({
-      user: user.id,
-      course: courseId,
-      amount: course.price || 0,
-      currency: 'vnd',
-      status: 'paid'
-    });
+    // 4. Persist Order document chỉ khi chưa có Order từ trước (tránh duplicate với Stripe/VietQR)
+    if (!options.existingOrderId) {
+      const existingOrder = await Order.findOne({ user: user.id, course: courseId, status: 'paid' });
+      if (!existingOrder) {
+        await Order.create({
+          user: user.id,
+          course: courseId,
+          amount: coursePrice,
+          currency: 'vnd',
+          status: 'paid'
+        });
+      }
+    }
 
     // 5. Khởi tạo Tiến độ học tập (Progress)
     await progressRepository.create({

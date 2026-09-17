@@ -75,6 +75,16 @@ class CourseRepository extends BaseRepository {
         }
       },
       { $unwind: { path: '$instructor', preserveNullAndEmptyArrays: true } },
+      // Đếm số modules thuộc khóa học
+      {
+        $lookup: {
+          from: 'modules',
+          localField: '_id',
+          foreignField: 'course',
+          as: '_modules',
+          pipeline: [{ $project: { _id: 1 } }]
+        }
+      },
       // Đếm số bài giảng thuộc khóa học (chỉ lấy _id để tối ưu bộ nhớ)
       {
         $lookup: {
@@ -108,12 +118,13 @@ class CourseRepository extends BaseRepository {
       },
       {
         $addFields: {
+          modulesCount: { $size: '$_modules' },
           lessonsCount: { $size: '$_lessons' },
           studentsCount: { $size: '$_enrollments' }
         }
       },
       // Loại bỏ các field trung gian không cần trả về
-      { $project: { _lessons: 0, _enrollments: 0 } }
+      { $project: { _modules: 0, _lessons: 0, _enrollments: 0 } }
     ]);
 
     return { total, data };

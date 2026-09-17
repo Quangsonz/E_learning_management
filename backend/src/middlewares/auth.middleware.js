@@ -39,8 +39,13 @@ exports.protect = catchAsync(async (req, res, next) => {
   }
 
   // 4) Kiểm tra tài khoản có bị tạm ngưng (suspend) không
-  if (!currentUser.isActive) {
+  if (currentUser.isActive === false) {
     return next(new AppError('Tài khoản của bạn đã bị tạm ngưng. Vui lòng liên hệ Quản trị viên.', 403));
+  }
+
+  // 5) Kiểm tra nếu user đổi mật khẩu sau khi token được cấp
+  if (currentUser.changedPasswordAfter && currentUser.changedPasswordAfter(decoded.iat)) {
+    return next(new AppError('Mật khẩu vừa thay đổi. Vui lòng đăng nhập lại!', 401));
   }
 
   // Cấp quyền truy cập, gắn thông tin user vào request
@@ -66,7 +71,7 @@ exports.optionalProtect = catchAsync(async (req, res, next) => {
   try {
     const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
     const currentUser = await User.findById(decoded.id);
-    if (currentUser) {
+    if (currentUser && currentUser.isActive && (!currentUser.changedPasswordAfter || !currentUser.changedPasswordAfter(decoded.iat))) {
       req.user = currentUser;
     }
   } catch (err) {

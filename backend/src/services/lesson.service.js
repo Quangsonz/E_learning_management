@@ -1,4 +1,5 @@
 const lessonRepository = require('../repositories/lesson.repository');
+const moduleRepository = require('../repositories/module.repository');
 const courseRepository = require('../repositories/course.repository');
 const AppError = require('../utils/appError');
 const enrollmentRepository = require('../repositories/enrollment.repository');
@@ -38,10 +39,13 @@ class LessonService {
     const lessons = await lessonRepository.findByCourseId(courseId);
 
     if (!hasFullAccess) {
-      // Chỉ trả về curriculum, giấu videoUrl
+      // Chỉ giấu videoUrl đối với các bài học KHÔNG PHẢI là học thử miễn phí (Free Preview)
       return lessons.map(lesson => {
         const doc = { ...lesson };
-        delete doc.videoUrl;
+        if (!doc.isFreePreview && !doc.isPreview) {
+          delete doc.videoUrl;
+          delete doc.videoPublicId;
+        }
         return doc;
       });
     }
@@ -83,7 +87,10 @@ class LessonService {
     
     if (!hasFullAccess) {
       const doc = lesson.toObject ? lesson.toObject() : { ...lesson };
-      delete doc.videoUrl;
+      if (!doc.isFreePreview && !doc.isPreview) {
+        delete doc.videoUrl;
+        delete doc.videoPublicId;
+      }
       return doc;
     }
     
@@ -107,6 +114,27 @@ class LessonService {
 
     lessonData.course = courseId;
 
+    // Xác thực module và đảm bảo lesson luôn thuộc đúng Module
+    const targetModuleId = lessonData.moduleId || lessonData.module;
+    if (targetModuleId) {
+      const foundModule = await moduleRepository.findOne({ _id: targetModuleId, course: courseId });
+      if (!foundModule) {
+        throw new AppError('Chương học không tồn tại hoặc không thuộc khóa học này', 400);
+      }
+      lessonData.module = targetModuleId;
+    } else {
+      // Nếu không truyền module, tìm module đầu tiên của khóa học hoặc tạo default module
+      let defaultModule = await moduleRepository.findOne({ course: courseId });
+      if (!defaultModule) {
+        defaultModule = await moduleRepository.create({
+          course: courseId,
+          title: 'Chương 1: Giới thiệu & Tổng quan',
+          order: 1
+        });
+      }
+      lessonData.module = defaultModule._id;
+    }
+
     // Tự động phát hiện provider nếu chưa có
     const isYouTube = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/i.test(lessonData.videoUrl || '');
     if (!lessonData.provider) {
@@ -116,10 +144,14 @@ class LessonService {
       lessonData.videoPublicId = null;
     }
 
-    // Tự động gán order nếu không truyền (lấy số bài giảng hiện có + 1)
-    if (!lessonData.order) {
-      const lessons = await lessonRepository.find({ course: courseId });
-      lessonData.order = lessons.length + 1;
+    // Tự động gán order nếu không truyền (lấy số bài giảng hiện có trong module + 1)
+    if (lessonData.order === undefined || lessonData.order === null) {
+      const lessonsInModule = await lessonRepository.find({ module: lessonData.module });
+      lessonData.order = lessonsInModule.length + 1;
+    }
+
+    if (lessonData.isFreePreview === undefined && lessonData.isPreview !== undefined) {
+      lessonData.isFreePreview = Boolean(lessonData.isPreview);
     }
 
     return await lessonRepository.create(lessonData);
@@ -141,6 +173,17 @@ class LessonService {
     const existingLesson = await lessonRepository.findOne({ _id: id, course: courseId });
     if (!existingLesson) throw new AppError('Không tìm thấy bài giảng', 404);
 
+    // Xác thực chuyển module nếu có truyền moduleId hoặc module
+    if (updateData.moduleId || updateData.module) {
+      const targetModuleId = updateData.moduleId || updateData.module;
+      const foundModule = await moduleRepository.findOne({ _id: targetModuleId, course: courseId });
+      if (!foundModule) {
+        throw new AppError('Chương học đích không tồn tại hoặc không thuộc khóa học này', 400);
+      }
+      updateData.module = targetModuleId;
+      delete updateData.moduleId;
+    }
+
     // Tự động phát hiện provider nếu URL thay đổi
     if (updateData.videoUrl && !updateData.provider) {
       const isYouTube = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/i.test(updateData.videoUrl);
@@ -148,6 +191,10 @@ class LessonService {
       if (isYouTube) {
         updateData.videoPublicId = null;
       }
+    }
+
+    if (updateData.isFreePreview === undefined && updateData.isPreview !== undefined) {
+      updateData.isFreePreview = Boolean(updateData.isPreview);
     }
 
     // 1. Cập nhật dữ liệu vào MongoDB trước
@@ -209,14 +256,19 @@ class LessonService {
       throw new AppError('Bạn không có quyền sửa khóa học này', 403);
     }
 
-    // Bulk update orders
-    // We expect orderedLessons to be an array of { id, order }
-    const bulkOps = orderedLessons.map((item) => ({
-      updateOne: {
-        filter: { _id: item.id, course: courseId },
-        update: { order: item.order }
+    // Bulk update orders & modules (hỗ trợ cả reorder trong module và move giữa các module)
+    const bulkOps = orderedLessons.map((item) => {
+      const updateFields = { order: item.order };
+      if (item.moduleId || item.module) {
+        updateFields.module = item.moduleId || item.module;
       }
-    }));
+      return {
+        updateOne: {
+          filter: { _id: item.id, course: courseId },
+          update: updateFields
+        }
+      };
+    });
 
     if (bulkOps.length > 0) {
       await lessonRepository.bulkWrite(bulkOps);

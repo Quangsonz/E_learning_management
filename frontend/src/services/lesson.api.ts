@@ -2,15 +2,19 @@ import { axiosInstance } from './axios';
 
 export type Lesson = {
   _id: string;
-  title: string;
+  title: string | { vi?: string; en?: string };
   videoUrl: string;
   videoPublicId?: string | null;
   provider?: 'cloudinary' | 'youtube';
   duration: number;
   order: number;
   course: string;
-  createdAt: string;
-  updatedAt: string;
+  module?: string;
+  moduleId?: string;
+  isFreePreview?: boolean;
+  isPreview?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type LessonResponse = {
@@ -39,12 +43,12 @@ export const lessonApi = {
     return response.data;
   },
 
-  createLesson: async (courseId: string, data: Partial<Lesson>): Promise<LessonResponse> => {
+  createLesson: async (courseId: string, data: Partial<Lesson> & { moduleId?: string }): Promise<LessonResponse> => {
     const response = await axiosInstance.post(`/courses/${courseId}/lessons`, data);
     return response.data;
   },
 
-  updateLesson: async (courseId: string, lessonId: string, data: Partial<Lesson>): Promise<LessonResponse> => {
+  updateLesson: async (courseId: string, lessonId: string, data: Partial<Lesson> & { moduleId?: string }): Promise<LessonResponse> => {
     const response = await axiosInstance.patch(`/courses/${courseId}/lessons/${lessonId}`, data);
     return response.data;
   },
@@ -53,7 +57,7 @@ export const lessonApi = {
     await axiosInstance.delete(`/courses/${courseId}/lessons/${lessonId}`);
   },
 
-  reorderLessons: async (courseId: string, lessons: { id: string; order: number }[]): Promise<{ status: string; message: string }> => {
+  reorderLessons: async (courseId: string, lessons: { id: string; order: number; moduleId?: string; module?: string }[]): Promise<{ status: string; message: string }> => {
     const response = await axiosInstance.patch(`/courses/${courseId}/lessons/reorder`, { lessons });
     return response.data;
   }

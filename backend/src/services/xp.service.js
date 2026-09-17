@@ -52,6 +52,18 @@ class XPService {
     return { xp: user.xp, level: user.level, leveledUp: newLevel > oldLevel };
   }
 
+  async deductXP(userId, amount) {
+    if (!amount || amount <= 0) return;
+    const user = await User.findById(userId);
+    if (!user) return;
+
+    user.xp = Math.max(0, (user.xp || 0) - amount);
+    user.level = this.calculateLevel(user.xp);
+
+    await user.save({ validateBeforeSave: false });
+    return { xp: user.xp, level: user.level };
+  }
+
   async awardBadge(userId, badgeKey) {
     const user = await User.findById(userId);
     if (!user) return;

@@ -23,7 +23,7 @@ class UploadController {
       return next(new AppError('Vui lòng chọn 1 file video', 400));
     }
 
-    const result = await uploadService.uploadVideo(req.file.buffer);
+    const result = await uploadService.uploadVideo(req.file);
 
     res.status(200).json({
       status: 'success',

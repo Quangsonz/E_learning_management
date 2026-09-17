@@ -2,12 +2,14 @@ const mongoose = require('mongoose');
 
 const lessonSchema = new mongoose.Schema({
   course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
+  module: { type: mongoose.Schema.Types.ObjectId, ref: 'Module', index: true },
   title: { type: mongoose.Schema.Types.Mixed, required: true },
   videoUrl: { type: String, required: true },
   videoPublicId: { type: String, default: null },
   provider: { type: String, enum: ['cloudinary', 'youtube'], default: 'cloudinary' },
   duration: { type: Number, default: 0 }, // Giây
-  order: { type: Number, required: true } // Thứ tự sắp xếp trong khóa học
+  order: { type: Number, required: true }, // Thứ tự sắp xếp trong module/khóa học
+  isFreePreview: { type: Boolean, default: false } // Cho phép học thử miễn phí mà không cần ghi danh
 }, { timestamps: true });
 
 // Pre-save hook: tự động phát hiện provider nếu chưa được chỉ định
@@ -21,8 +23,10 @@ lessonSchema.pre('save', function() {
   }
 });
 
-// Sắp xếp bài học nhanh chóng khi hiển thị theo khóa
+// Sắp xếp bài học nhanh chóng khi hiển thị theo khóa và theo module
 lessonSchema.index({ course: 1, order: 1 });
+lessonSchema.index({ module: 1, order: 1 });
+lessonSchema.index({ course: 1, module: 1, order: 1 });
 lessonSchema.index({ 'title.vi': 1 });
 lessonSchema.index({ 'title.en': 1 });
 lessonSchema.index({ title: 1 });

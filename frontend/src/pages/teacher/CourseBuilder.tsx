@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../contexts/AuthContext';
 import { useLocalizedValue } from '../../utils/localized';
 import { PageShell, Input, Button, Card, Toast, InlineLoader } from '../../components/ui';
 import { courseApi } from '../../services/course.api';
@@ -21,10 +22,14 @@ import {
 
 const CourseBuilder: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   const lv = useLocalizedValue();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const backCoursesUrl = (location.state as any)?.from || (isAdmin ? '/admin-dashboard/content' : '/teacher-courses');
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -62,7 +67,7 @@ const CourseBuilder: React.FC = () => {
       });
       // Redirect sang curriculum editor
       const newCourseId = res?.data?.course?._id || res?.data?._id || res?.course?._id;
-      setTimeout(() => navigate(newCourseId ? `/teacher/courses/${newCourseId}/curriculum` : '/teacher-courses'), 1200);
+      setTimeout(() => navigate(newCourseId ? `/teacher/courses/${newCourseId}/curriculum` : backCoursesUrl, { state: { from: backCoursesUrl } }), 1200);
     },
     onError: (error: any) => {
       setToast({ 
@@ -191,7 +196,7 @@ const CourseBuilder: React.FC = () => {
         {/* Navigation & Header */}
         <div className="space-y-3">
           <Link
-            to="/teacher-courses"
+            to={backCoursesUrl}
             className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -541,7 +546,7 @@ const CourseBuilder: React.FC = () => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate('/teacher-courses')}
+              onClick={() => navigate(backCoursesUrl)}
             >
               {t('teacher.courseBuilder.buttons.cancel', 'Hủy bỏ')}
             </Button>

@@ -8,6 +8,7 @@ import { courseApi } from '../services/course.api';
 import { enrollmentApi } from '../services/enrollment.api';
 import { progressApi } from '../services/progress.api';
 import { lessonApi } from '../services/lesson.api';
+import { moduleApi } from '../services/module.api';
 import { quizApi } from '../services/quiz.api';
 import { reviewApi, Review } from '../services/review.api';
 import { userApi } from '../services/user.api';
@@ -220,10 +221,17 @@ const CourseDetail: React.FC = () => {
     enabled: !!courseId
   });
 
+  const { data: modulesData } = useQuery({
+    queryKey: ['modules', courseId],
+    queryFn: () => moduleApi.getModules(courseId!),
+    enabled: !!courseId
+  });
+
   const isInstructor = user?.role === 'admin' || (user && course?.instructor && (course.instructor._id === user.id));
 
   const progressPercent = progressData?.data?.progress?.progressPercentage || 0;
   const completedLessons = progressData?.data?.progress?.completedLessons || [];
+  const modules = modulesData?.data?.modules || [];
   const lessons = lessonsData?.data?.lessons || [];
   const quizzes = quizzesData?.data?.quizzes || quizzesData?.data?.data?.quizzes || [];
 
@@ -466,7 +474,13 @@ const CourseDetail: React.FC = () => {
 
               {/* Interactive Curriculum */}
               <div id="curriculum">
-                <CourseCurriculum lessons={lessons} quizzes={quizzes} />
+                <CourseCurriculum 
+                  modules={modules} 
+                  lessons={lessons} 
+                  quizzes={quizzes} 
+                  completedLessons={completedLessons} 
+                  isEnrolled={isEnrolled} 
+                />
               </div>
 
               {/* Instructor Profile */}

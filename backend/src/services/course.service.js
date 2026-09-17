@@ -75,11 +75,21 @@ class CourseService {
     };
   }
 
-  async getCourseById(id) {
+  async getCourseById(id, user = null) {
     const course = await courseRepository.findById(id);
     if (!course) {
       throw new AppError('Không tìm thấy khóa học này', 404);
     }
+
+    if (course.status !== 'published') {
+      const instructorId = course.instructor?._id?.toString() || course.instructor?.toString();
+      const isOwner = user && instructorId && instructorId === user.id;
+      const isAdmin = user && user.role === 'admin';
+      if (!isOwner && !isAdmin) {
+        throw new AppError('Không tìm thấy khóa học này', 404);
+      }
+    }
+
     return course;
   }
 
@@ -103,6 +113,15 @@ class CourseService {
       courseData.instructor = user.id;
     }
 
+    // Force default status to draft for non-admin, prevent mass-assignment
+    if (user.role === 'admin' && courseData.status) {
+      // Keep admin choice
+    } else {
+      courseData.status = 'draft';
+    }
+    courseData.averageRating = 0;
+    courseData.ratingsQuantity = 0;
+
     if (courseData.level && typeof courseData.level === 'string') {
       courseData.level = courseData.level.toLowerCase();
     }
@@ -119,6 +138,10 @@ class CourseService {
       courseData.price = Number(courseData.estimatedPrice) || 0;
     }
 
+    if (!courseData.thumbnailUrl && courseData.thumbnail) {
+      courseData.thumbnailUrl = courseData.thumbnail;
+    }
+
     return await courseRepository.create(courseData);
   }
 
@@ -132,7 +155,8 @@ class CourseService {
       throw new AppError('Không tìm thấy khóa học này', 404);
     }
 
-    if (user.role !== 'admin' && course.instructor._id.toString() !== user.id) {
+    const instructorId = course.instructor?._id?.toString() || course.instructor?.toString() || '';
+    if (user.role !== 'admin' && instructorId !== user.id) {
       throw new AppError('Bạn không có quyền chỉnh sửa khóa học của người khác', 403);
     }
 
@@ -156,6 +180,10 @@ class CourseService {
       updateData.price = Math.round(estimatedPrice * (1 - discountPercentage / 100));
     }
 
+    if (!updateData.thumbnailUrl && updateData.thumbnail) {
+      updateData.thumbnailUrl = updateData.thumbnail;
+    }
+
     return await courseRepository.updateById(id, updateData);
   }
 
@@ -165,7 +193,8 @@ class CourseService {
       throw new AppError('Không tìm thấy khóa học này', 404);
     }
 
-    if (user.role !== 'admin' && course.instructor._id.toString() !== user.id) {
+    const instructorId = course.instructor?._id?.toString() || course.instructor?.toString() || '';
+    if (user.role !== 'admin' && instructorId !== user.id) {
       throw new AppError('Bạn không có quyền xóa khóa học của người khác', 403);
     }
 

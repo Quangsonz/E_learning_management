@@ -122,8 +122,8 @@ const sendErrorDev = (err, req, res) => {
 };
 
 const sendErrorProd = (err, req, res) => {
-  // Operational, trusted error: send message to client
-  if (err.isOperational) {
+  // Operational, trusted error (status < 500): send message to client
+  if (err.isOperational && err.statusCode < 500) {
     const responsePayload = {
       status: err.status,
       errorCode: err.errorCode || 'OPERATION_ERROR',
@@ -134,13 +134,13 @@ const sendErrorProd = (err, req, res) => {
     }
     res.status(err.statusCode).json(responsePayload);
   } 
-  // Programming or other unknown error: don't leak error details
+  // Programming or internal database/server error: don't leak details
   else {
     console.error('ERROR 💥', err);
     res.status(500).json({
       status: 'error',
       errorCode: 'INTERNAL_SERVER_ERROR',
-      message: resolveMessage({ errorCode: 'INTERNAL_SERVER_ERROR', message: 'Something went very wrong!' }, req),
+      message: resolveMessage({ errorCode: 'INTERNAL_SERVER_ERROR', message: 'Đã xảy ra lỗi máy chủ nội bộ. Vui lòng thử lại sau.' }, req),
     });
   }
 };
@@ -194,6 +194,7 @@ module.exports = (err, req, res, next) => {
   }
   else if (!(error instanceof AppError)) {
     error = new AppError(err.message, err.statusCode || 500);
+    error.isOperational = Boolean(err.statusCode && err.statusCode < 500);
     error.stack = err.stack;
   }
 

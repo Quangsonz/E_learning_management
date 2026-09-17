@@ -16,6 +16,7 @@ const discussionRoutes = require('./discussion.routes');
 const adminRoutes = require('./admin.routes');
 const assignmentRoutes = require('./assignment.routes');
 const searchRoutes = require('./search.routes');
+const moduleRoutes = require('./module.routes');
 
 const router = express.Router();
 
@@ -29,6 +30,7 @@ router.use('/search', searchRoutes);
 router.use('/courses/:courseId/lessons/:lessonId/discussions', discussionRoutes);
 
 router.use('/courses', courseRoutes);
+router.use('/modules', moduleRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/enrollments', enrollmentRoutes);
 router.use('/progress', progressRoutes);

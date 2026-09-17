@@ -4,6 +4,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LoadingScreen, Toast, Button, EmptyState } from '../components/ui';
 import { lessonApi, Lesson as ApiLesson } from '../services/lesson.api';
+import { moduleApi, Module } from '../services/module.api';
 import { progressApi } from '../services/progress.api';
 import { quizApi } from '../services/quiz.api';
 import { enrollmentApi } from '../services/enrollment.api';
@@ -112,6 +113,13 @@ const Learning: React.FC = () => {
     retry: false
   });
 
+  const { data: modulesData, isLoading: isLoadingModules } = useQuery({
+    queryKey: ['modules', courseId],
+    queryFn: () => moduleApi.getModules(courseId!),
+    enabled: !!courseId,
+    retry: false
+  });
+
   const { data: progressData, isLoading: isLoadingProgress } = useQuery({
     queryKey: ['course-progress', courseId],
     queryFn: () => progressApi.getCourseProgress(courseId!),
@@ -152,50 +160,90 @@ const Learning: React.FC = () => {
   const discussions: Discussion[] = discussionsData?.data?.discussions || [];
   const comments: Comment[] = commentsData?.data?.comments || [];
 
+  const modules: Module[] = modulesData?.data?.modules || [];
   const lessons = lessonsData?.data?.lessons || [];
   const quizzes = quizzesData?.data?.data?.quizzes || [];
   const progressInfo = progressData?.data?.progress;
   const progressPercent = progressInfo?.progressPercentage || 0;
   const completedLessons = progressInfo?.completedLessons || [];
 
-  useEffect(() => {
-    if (lessons.length > 0 && !selectedLessonId) {
-      setSelectedLessonId(progressInfo?.lastAccessedLesson || lessons[0]._id);
+  // Structured curriculum modules: prefer real modules with fallback to legacy grouping
+  const curriculumModules = useMemo(() => {
+    if (modules && modules.length > 0) {
+      return modules.map((m, idx) => ({
+        id: m._id,
+        title: lv(m.title) || `${t('curriculum.module', 'Module')} ${idx + 1}`,
+        description: lv(m.description),
+        lessons: (m.lessons || []).map((l: ApiLesson) => ({
+          ...l,
+          title: lv(l.title)
+        }))
+      }));
     }
-  }, [lessons, selectedLessonId, progressInfo]);
-
-  const selectedLesson = useMemo(() => {
-    return lessons.find((item: ApiLesson) => item._id === selectedLessonId) || (!selectedQuizId ? lessons[0] : null);
-  }, [selectedLessonId, selectedQuizId, lessons]);
-
-  const groupedLessons = useMemo(() => {
     const groups: { [key: string]: ApiLesson[] } = {};
     lessons.forEach((lesson: ApiLesson) => {
       const titleStr = lv(lesson.title);
       const parts = titleStr.split(': ');
-      const chapter = parts.length > 1 ? parts[0] : t('learning.generalChapter');
+      const chapter = parts.length > 1 ? parts[0] : t('learning.generalChapter', 'Phần chung');
       if (!groups[chapter]) groups[chapter] = [];
       groups[chapter].push({ ...lesson, title: parts.length > 1 ? parts[1] : titleStr });
     });
-    return Object.entries(groups).map(([chapter, items]) => ({ chapter, items }));
-  }, [lessons, t, lv]);
+    return Object.entries(groups).map(([chapter, items], idx) => ({
+      id: `legacy-${idx}`,
+      title: chapter,
+      description: '',
+      lessons: items
+    }));
+  }, [modules, lessons, t, lv]);
 
-  const [openChapters, setOpenChapters] = useState<string[]>([]);
-  
-  useEffect(() => {
-    if (selectedLesson) {
-      const titleStr = lv(selectedLesson.title);
-      const parts = titleStr.split(': ');
-      const chapter = parts.length > 1 ? parts[0] : t('learning.generalChapter');
-      if (!openChapters.includes(chapter)) {
-        setOpenChapters(prev => [...prev, chapter]);
-      }
+  // Flat sequence of all lessons across modules
+  const allLessons: ApiLesson[] = useMemo(() => {
+    if (curriculumModules.length > 0) {
+      const flat = curriculumModules.flatMap(m => m.lessons);
+      if (flat.length > 0) return flat;
     }
-  }, [selectedLesson, t, lv]);
+    return lessons;
+  }, [curriculumModules, lessons]);
 
-  const toggleChapter = (chapter: string) => {
-    setOpenChapters(prev => prev.includes(chapter) ? prev.filter(c => c !== chapter) : [...prev, chapter]);
+  useEffect(() => {
+    if (allLessons.length > 0 && !selectedLessonId) {
+      setSelectedLessonId(progressInfo?.lastAccessedLesson || allLessons[0]._id);
+    }
+  }, [allLessons, selectedLessonId, progressInfo]);
+
+  const selectedLesson = useMemo(() => {
+    return allLessons.find((item: ApiLesson) => item._id === selectedLessonId) || (!selectedQuizId ? allLessons[0] : null);
+  }, [selectedLessonId, selectedQuizId, allLessons]);
+
+  const [openModuleIds, setOpenModuleIds] = useState<string[]>([]);
+
+  // Auto-expand module containing the active lesson
+  useEffect(() => {
+    if (selectedLesson && curriculumModules.length > 0) {
+      const activeModule = curriculumModules.find(m => 
+        m.lessons.some(l => l._id === selectedLesson._id)
+      );
+      if (activeModule && !openModuleIds.includes(activeModule.id)) {
+        setOpenModuleIds(prev => [...prev, activeModule.id]);
+      }
+    } else if (curriculumModules.length > 0 && openModuleIds.length === 0) {
+      setOpenModuleIds([curriculumModules[0].id]);
+    }
+  }, [selectedLesson, curriculumModules]);
+
+  const toggleModule = (id: string) => {
+    setOpenModuleIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
   };
+
+  const activeModuleTitle = useMemo(() => {
+    if (!selectedLesson) return '';
+    const activeModule = curriculumModules.find(m => 
+      m.lessons.some(l => l._id === selectedLesson._id)
+    );
+    return activeModule?.title || '';
+  }, [selectedLesson, curriculumModules]);
 
   const selectedQuiz = useMemo(() => {
     return quizzes.find((item: any) => item._id === selectedQuizId);
@@ -217,9 +265,9 @@ const Learning: React.FC = () => {
       window.setTimeout(() => setShowAchievement(false), 2600);
       
       // Auto-advance to next lesson if available
-      const currentIndex = lessons.findIndex((l: ApiLesson) => l._id === selectedLessonId);
-      if (currentIndex !== -1 && currentIndex < lessons.length - 1) {
-        setSelectedLessonId(lessons[currentIndex + 1]._id);
+      const currentIndex = allLessons.findIndex((l: ApiLesson) => l._id === selectedLessonId);
+      if (currentIndex !== -1 && currentIndex < allLessons.length - 1) {
+        setSelectedLessonId(allLessons[currentIndex + 1]._id);
       }
     }
   });
@@ -397,7 +445,7 @@ const Learning: React.FC = () => {
     addCommentMutation.mutate({ dId, content: commentText });
   };
 
-  if (isLoadingLessons || isLoadingProgress || isLoadingEnrollments) {
+  if (isLoadingLessons || isLoadingModules || isLoadingProgress || isLoadingEnrollments) {
     return (
       <div className="bg-[#FBFBFA] dark:bg-[#111111] flex items-center justify-center py-32 min-h-screen">
         <LoadingScreen title={t('common.loadingWorkspace')} message={t('learning.loading')} />
@@ -722,6 +770,11 @@ const Learning: React.FC = () => {
                   {/* Lesson Metadata */}
                   <div className="flex items-start justify-between gap-6 pb-8 border-b border-[#EAEAEA] dark:border-white/10">
                     <div>
+                      {activeModuleTitle && (
+                        <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1.5">
+                          {activeModuleTitle}
+                        </p>
+                      )}
                       <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{selectedQuiz ? lv(selectedQuiz.title) : (lv(selectedLesson?.title) || t('learning.noContent'))}</h1>
                       <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{selectedQuiz ? t('common.quiz') : t('common.lesson')}</p>
                     </div>
@@ -992,24 +1045,34 @@ const Learning: React.FC = () => {
                 <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
                   {t('learning.curriculum', 'Nội dung khóa học')}
                 </h3>
-                {lessons.length === 0 ? (
+                {allLessons.length === 0 ? (
                   <p className="text-sm text-slate-500">{t('learning.noLessons', 'Không có bài học nào.')}</p>
                 ) : (
                   <div className="flex flex-col gap-2">
-                    {groupedLessons.map((group, gIdx) => {
-                      const isOpen = openChapters.includes(group.chapter);
+                    {curriculumModules.map((module) => {
+                      const isOpen = openModuleIds.includes(module.id);
+                      const completedCount = module.lessons.filter((l: ApiLesson) => completedLessons.includes(l._id)).length;
                       return (
-                        <div key={gIdx} className="border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden">
+                        <div key={module.id} className="border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden">
                           <button
-                            onClick={() => toggleChapter(group.chapter)}
+                            onClick={() => toggleModule(module.id)}
                             className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left"
                           >
-                            <span className="font-semibold text-sm text-slate-800 dark:text-slate-200">{group.chapter}</span>
-                            <motion.svg animate={{ rotate: isOpen ? 180 : 0 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></motion.svg>
+                            <div className="flex-1 pr-2 min-w-0">
+                              <span className="font-semibold text-sm text-slate-800 dark:text-slate-200 block truncate">
+                                {module.title}
+                              </span>
+                              <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-0.5">
+                                {completedCount}/{module.lessons.length} {t('common.lessons', 'bài học')}
+                              </span>
+                            </div>
+                            <motion.svg animate={{ rotate: isOpen ? 180 : 0 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-slate-400 ml-1">
+                              <path d="M6 9l6 6 6-6"/>
+                            </motion.svg>
                           </button>
                           {isOpen && (
                             <div className="flex flex-col gap-1 p-2 bg-white dark:bg-[#1A1A1A]">
-                              {group.items.map((lesson: ApiLesson, index: number) => {
+                              {module.lessons.map((lesson: ApiLesson, index: number) => {
                                 const isActive = lesson._id === selectedLessonId && !selectedQuizId;
                                 const isCompleted = completedLessons.includes(lesson._id);
                                 return (

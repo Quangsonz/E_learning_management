@@ -17,10 +17,11 @@ const userSchema = new mongoose.Schema({
   
   // Auth Extra Fields
   isVerified: { type: Boolean, default: false },
-  verificationToken: String,
-  passwordResetToken: String,
-  passwordResetExpires: Date,
-  refreshToken: String,
+  verificationToken: { type: String, select: false },
+  passwordResetToken: { type: String, select: false },
+  passwordResetExpires: { type: Date, select: false },
+  refreshToken: { type: String, select: false },
+  passwordChangedAt: Date,
   // Dashboard / Learning Profile fields
   studyStreakDays: { type: Number, default: 0 }, // Số ngày học liên tiếp
   preferences: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }], // Sở thích danh mục để gợi ý
@@ -63,6 +64,15 @@ userSchema.pre('save', async function() {
 // Instance Method: Kiểm tra password
 userSchema.methods.correctPassword = async function(candidatePassword, userPassword) {
   return await bcrypt.compare(candidatePassword, userPassword);
+};
+
+// Instance Method: Kiểm tra nếu mật khẩu đã đổi sau khi token được cấp
+userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
+  if (this.passwordChangedAt) {
+    const changedTimestamp = parseInt(this.passwordChangedAt.getTime() / 1000, 10);
+    return JWTTimestamp < changedTimestamp;
+  }
+  return false;
 };
 
 // Instance Method: Tạo token reset password

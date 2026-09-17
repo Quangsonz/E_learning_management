@@ -33,13 +33,50 @@ class UploadService {
     return result.secure_url;
   }
 
-  async uploadVideo(fileBuffer) {
-    const result = await this.uploadStream(fileBuffer, 'video', 'elearning/videos');
-    return {
-      url: result.secure_url,
-      publicId: result.public_id,
-      duration: Math.round(result.duration || 0),
-    };
+  async uploadVideo(fileOrBuffer) {
+    const fs = require('fs');
+    let readStream;
+    let filePath = null;
+
+    if (fileOrBuffer && fileOrBuffer.path) {
+      filePath = fileOrBuffer.path;
+      readStream = fs.createReadStream(filePath);
+    } else if (Buffer.isBuffer(fileOrBuffer)) {
+      readStream = streamifier.createReadStream(fileOrBuffer);
+    } else if (fileOrBuffer && fileOrBuffer.buffer) {
+      readStream = streamifier.createReadStream(fileOrBuffer.buffer);
+    } else {
+      throw new AppError('Dữ liệu video không hợp lệ', 400);
+    }
+
+    try {
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: 'elearning/videos',
+            resource_type: 'video',
+          },
+          (error, res) => {
+            if (error) {
+              console.error(error);
+              return reject(new AppError('Tải lên thất bại do lỗi Cloudinary', 500));
+            }
+            resolve(res);
+          }
+        );
+        readStream.pipe(stream);
+      });
+
+      return {
+        url: result.secure_url,
+        publicId: result.public_id,
+        duration: Math.round(result.duration || 0),
+      };
+    } finally {
+      if (filePath) {
+        fs.promises.unlink(filePath).catch(() => {});
+      }
+    }
   }
 
   /**

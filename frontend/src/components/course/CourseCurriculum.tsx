@@ -3,26 +3,98 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { SectionLead } from '../ui';
 import { useLocalizedValue } from '../../utils/localized';
+import { Module } from '../../services/module.api';
 
 export type CurriculumLesson = {
+  _id?: string;
   title: string;
   duration: string;
-  status: 'completed' | 'current' | 'locked';
+  isPreview?: boolean;
+  status: 'completed' | 'current' | 'unlocked' | 'preview' | 'locked';
 };
 
 export type CurriculumItem = {
+  _id?: string;
   title: string;
+  description?: string;
   duration: string;
   lectures: number;
   lessons: CurriculumLesson[];
 };
 
-export const CourseCurriculum: React.FC<{ lessons?: any[]; quizzes?: any[] }> = ({ lessons = [], quizzes = [] }) => {
+export interface CourseCurriculumProps {
+  modules?: Module[];
+  lessons?: any[];
+  quizzes?: any[];
+  completedLessons?: string[];
+  isEnrolled?: boolean;
+}
+
+const formatDuration = (totalSeconds: number): string => {
+  if (!totalSeconds || isNaN(totalSeconds) || totalSeconds <= 0) return '0s';
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}h ${minutes > 0 ? `${minutes}m` : ''}`.trim();
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds > 0 ? `${seconds}s` : ''}`.trim();
+  }
+  return `${seconds}s`;
+};
+
+export const CourseCurriculum: React.FC<CourseCurriculumProps> = ({
+  modules = [],
+  lessons = [],
+  quizzes = [],
+  completedLessons = [],
+  isEnrolled = false
+}) => {
   const { t } = useTranslation();
   const lv = useLocalizedValue();
   const [openCurriculum, setOpenCurriculum] = useState<number>(0);
 
-  const curriculum = React.useMemo(() => {
+  const curriculum: CurriculumItem[] = React.useMemo(() => {
+    // 1. If structured modules are provided, use them directly
+    if (modules && modules.length > 0) {
+      return modules.map(mod => {
+        const modLessons = mod.lessons || [];
+        const totalDuration = modLessons.reduce((acc, curr) => acc + (curr.duration || 0), 0);
+
+        return {
+          _id: mod._id,
+          title: lv(mod.title) || t('curriculum.untitledModule', 'Chương chưa đặt tên'),
+          description: lv(mod.description),
+          duration: formatDuration(totalDuration),
+          lectures: modLessons.length,
+          lessons: modLessons.map(l => {
+            const isCompleted = completedLessons.includes(l._id);
+            const isFree = Boolean(l.isFreePreview || l.isPreview);
+            let status: CurriculumLesson['status'] = 'locked';
+            if (isCompleted) {
+              status = 'completed';
+            } else if (isEnrolled) {
+              status = 'unlocked';
+            } else if (isFree) {
+              status = 'preview';
+            } else {
+              status = 'locked';
+            }
+
+            return {
+              _id: l._id,
+              title: lv(l.title),
+              duration: formatDuration(l.duration || 0),
+              isPreview: isFree,
+              status
+            };
+          })
+        };
+      });
+    }
+
+    // 2. Fallback to lessons grouping if modules not available
     const groups: { [key: string]: any[] } = {};
     lessons.forEach(lesson => {
       const titleStr = lv(lesson.title);
@@ -34,21 +106,24 @@ export const CourseCurriculum: React.FC<{ lessons?: any[]; quizzes?: any[] }> = 
     
     return Object.entries(groups).map(([chapter, items]) => {
       const totalDuration = items.reduce((acc, curr) => acc + (curr.duration || 0), 0);
-      const minutes = Math.floor(totalDuration / 60);
-      const seconds = totalDuration % 60;
       
       return {
         title: chapter,
-        duration: `${minutes}m ${seconds}s`,
+        duration: formatDuration(totalDuration),
         lectures: items.length,
-        lessons: items.map(l => ({
-          title: l.title,
-          duration: `${Math.floor((l.duration || 0) / 60)}m ${(l.duration || 0) % 60}s`,
-          status: 'locked' // Placeholder status
-        }))
+        lessons: items.map(l => {
+          const isFree = Boolean(l.isFreePreview || l.isPreview);
+          return {
+            _id: l._id,
+            title: l.title,
+            duration: formatDuration(l.duration || 0),
+            isPreview: isFree,
+            status: completedLessons.includes(l._id) ? 'completed' : isEnrolled ? 'unlocked' : isFree ? 'preview' : 'locked'
+          };
+        })
       };
     });
-  }, [lessons, t, lv]);
+  }, [modules, lessons, completedLessons, isEnrolled, t, lv]);
 
   return (
     <section>
@@ -68,8 +143,13 @@ export const CourseCurriculum: React.FC<{ lessons?: any[]; quizzes?: any[] }> = 
                 className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left focus:outline-none"
               >
                 <div className="flex-1 pr-4">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-primary-600 dark:text-primary-400">Module {index + 1}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-primary-600 dark:text-primary-400">
+                    {t('curriculum.module', 'Module')} {index + 1}
+                  </p>
                   <h4 className="mt-1 text-base font-semibold text-slate-900 dark:text-white">{item.title}</h4>
+                  {item.description && (
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{item.description}</p>
+                  )}
                 </div>
                 <div className="text-right shrink-0">
                   <div className="text-sm font-medium text-slate-900 dark:text-white">{item.duration}</div>
@@ -93,13 +173,15 @@ export const CourseCurriculum: React.FC<{ lessons?: any[]; quizzes?: any[] }> = 
                     <div className="px-6 pb-5 pt-1 border-t border-slate-100 dark:border-white/5">
                       <ul className="space-y-1">
                         {item.lessons.map((lesson, lIdx) => (
-                          <li key={lIdx} className="flex items-center justify-between py-2.5 group/lesson">
+                          <li key={lesson._id || lIdx} className="flex items-center justify-between py-2.5 group/lesson">
                             <div className="flex items-center gap-3">
                               <div className="shrink-0 flex items-center justify-center w-6 h-6">
                                 {lesson.status === 'completed' ? (
                                   <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
-                                ) : lesson.status === 'current' ? (
-                                  <span className="flex h-4 w-4 relative"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span><span className="relative inline-flex rounded-full h-4 w-4 bg-primary-500 border-2 border-white dark:border-slate-900"></span></span>
+                                ) : lesson.status === 'unlocked' ? (
+                                  <svg className="w-4 h-4 text-primary-500" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                ) : lesson.status === 'preview' ? (
+                                  <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                                 ) : (
                                   <svg className="w-4 h-4 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
                                 )}
@@ -107,6 +189,11 @@ export const CourseCurriculum: React.FC<{ lessons?: any[]; quizzes?: any[] }> = 
                               <span className={`text-sm ${lesson.status === 'locked' ? 'text-slate-500 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200 font-medium group-hover/lesson:text-primary-600 dark:group-hover/lesson:text-primary-400 transition-colors'}`}>
                                 {lesson.title}
                               </span>
+                              {lesson.isPreview && !isEnrolled && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+                                  {t('course.previewBadge', 'Học thử')}
+                                </span>
+                              )}
                             </div>
                             <div className="text-xs text-slate-400 dark:text-slate-500">{lesson.duration}</div>
                           </li>

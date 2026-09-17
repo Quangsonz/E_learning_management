@@ -10,7 +10,8 @@ const connectedUsers = new Map();
 exports.init = (server) => {
   io = socketIo(server, {
     cors: {
-      origin: '*', // Trong production nên cấu hình origin cụ thể (VD: http://localhost:3000)
+      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      credentials: true,
       methods: ['GET', 'POST']
     }
   });

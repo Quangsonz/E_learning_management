@@ -558,6 +558,41 @@ class QuizService {
     const result = await resultRepository.findByStudentAndQuiz(user.id, quizId);
     return result;
   }
+  async getQuestionsForTeacher(quizId, user) {
+    const quiz = await quizRepository.findById(quizId);
+    if (!quiz) throw new AppError('Không tìm thấy Quiz', 404);
+
+    const course = await courseRepository.findById(quiz.course);
+    if (!course) throw new AppError('Không tìm thấy khóa học của Quiz này', 404);
+
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
+    if (user.role !== 'admin' && instructorId !== user.id) {
+      throw new AppError('Bạn không có quyền xem câu hỏi và đáp án của Quiz này', 403);
+    }
+
+    return await questionRepository.findByQuiz(quizId);
+  }
+
+  async getLessonQuestionsForTeacher(lessonId, user) {
+    const lesson = await require('../repositories/lesson.repository').findById(lessonId);
+    if (!lesson) throw new AppError('Không tìm thấy bài giảng', 404);
+
+    const course = await courseRepository.findById(lesson.course);
+    if (!course) throw new AppError('Không tìm thấy khóa học của bài giảng này', 404);
+
+    const instructorId = course.instructor && course.instructor._id 
+      ? course.instructor._id.toString() 
+      : course.instructor ? course.instructor.toString() : '';
+
+    if (user.role !== 'admin' && instructorId !== user.id) {
+      throw new AppError('Bạn không có quyền xem câu hỏi và đáp án của bài giảng này', 403);
+    }
+
+    return await questionRepository.findByLesson(lessonId);
+  }
 }
 
 module.exports = new QuizService();

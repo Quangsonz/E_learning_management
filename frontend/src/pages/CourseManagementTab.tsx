@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import {
@@ -18,12 +18,14 @@ import { useTranslation } from 'react-i18next';
 import { courseApi } from '../services/course.api';
 import { categoryApi } from '../services/category.api';
 import { userApi } from '../services/user.api';
+import { uploadApi } from '../services/upload.api';
 import { analyticsApi } from '../services/analytics.api';
 import { adminApi } from '../services/admin.api';
 import { LessonManager } from '../components/admin/LessonManager';
 import { QuizManager } from '../components/admin/QuizManager';
 import { useNavigate } from 'react-router-dom';
 import { useLocalizedValue } from '../utils/localized';
+import { Upload, Image as ImageIcon, Trash2, Loader2 } from 'lucide-react';
 
 type CourseStatus = 'draft' | 'published';
 
@@ -40,6 +42,7 @@ type Course = {
   status: CourseStatus;
   updatedAt: string;
   instructorId?: string;
+  thumbnailUrl?: string;
 };
 
 type CourseFormState = {
@@ -51,6 +54,7 @@ type CourseFormState = {
   estimatedPrice: string;
   discountPercentage: string;
   status: CourseStatus;
+  thumbnailUrl: string;
 };
 
 const MotionTr = motion.tr as unknown as React.FC<
@@ -65,7 +69,8 @@ const emptyForm: CourseFormState = {
   price: '0',
   estimatedPrice: '0',
   discountPercentage: '0',
-  status: 'draft'
+  status: 'draft',
+  thumbnailUrl: ''
 };
 
 const statusTone: Record<string, string> = {
@@ -140,7 +145,8 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       students: course.studentsCount || 0,
       status: course.status,
       updatedAt: new Date(course.updatedAt).toLocaleDateString(),
-      instructorId: course.instructor?._id
+      instructorId: course.instructor?._id,
+      thumbnailUrl: course.thumbnailUrl || course.thumbnail?.url || course.thumbnail || ''
     }));
   }, [responseData]);
   const [createOpen, setCreateOpen] = useState(false);
@@ -252,7 +258,8 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       price: course.price.toString(),
       estimatedPrice: (rawCourse?.estimatedPrice !== undefined ? rawCourse.estimatedPrice : course.price).toString(),
       discountPercentage: (rawCourse?.discountPercentage || 0).toString(),
-      status: course.status
+      status: course.status,
+      thumbnailUrl: rawCourse?.thumbnailUrl || rawCourse?.thumbnail || course.thumbnailUrl || ''
     });
     setEditOpen(true);
   };
@@ -323,6 +330,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       estimatedPrice: Number(form.estimatedPrice || form.price),
       discountPercentage: Number(form.discountPercentage || 0),
       status: form.status,
+      thumbnailUrl: form.thumbnailUrl.trim() || undefined,
     };
 
     if (!teacherMode && form.instructorId) {
@@ -535,8 +543,25 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                             />
                           </td>
                           <td className="px-5 py-4">
-                            <div className="font-semibold text-slate-950 dark:text-white line-clamp-1">{course.title}</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{course.categoryName}</div>
+                            <div className="flex items-center gap-3">
+                              {course.thumbnailUrl ? (
+                                <img
+                                  src={course.thumbnailUrl}
+                                  alt=""
+                                  className="w-12 h-8 rounded-lg object-cover bg-slate-100 dark:bg-slate-800 shrink-0 border border-slate-200/80 dark:border-white/10 shadow-xs"
+                                  loading="lazy"
+                                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                />
+                              ) : (
+                                <div className="w-12 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-500/20">
+                                  <ImageIcon className="w-4 h-4 opacity-70" />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <div className="font-semibold text-slate-950 dark:text-white line-clamp-1" title={course.title}>{course.title}</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{course.categoryName}</div>
+                              </div>
+                            </div>
                           </td>
                           <td className="px-5 py-4">{course.lessons}</td>
                           <td className="px-5 py-4">
@@ -569,7 +594,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                                 <button
                                   type="button"
                                   className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                  onClick={() => navigate(`/teacher/courses/${course.id}/curriculum`)}
+                                  onClick={() => navigate(`/teacher/courses/${course.id}/curriculum`, { state: { from: teacherMode ? '/teacher-courses' : '/admin-dashboard/content' } })}
                                 >
                                   {t('admin.courseManagement.manageLessons')}
                                 </button>
@@ -656,7 +681,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
 
                       <div className="pt-2">
                         <button
-                          onClick={() => navigate('/teacher/courses/new')}
+                          onClick={() => navigate('/teacher/courses/new', { state: { from: teacherMode ? '/teacher-courses' : '/admin-dashboard/content' } })}
                           className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all active:scale-95"
                         >
                           {t('admin.courseManagement.createFirstCourse')}
@@ -718,13 +743,13 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
         </AnimatePresence>
       </section>
 
-      <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)}>
+      <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} size="lg">
         <div className="space-y-5">
           <div>
             <p className="section-label">{t('admin.courseManagement.createModalLabel')}</p>
             <h2 className="mt-2 section-title">{t('admin.courseManagement.createCourse')}</h2>
           </div>
-          <CourseForm form={form} setForm={setForm} categories={categoriesData} teachers={teachers} teacherMode={teacherMode} />
+          <CourseForm form={form} setForm={setForm} categories={categoriesData} teachers={teachers} teacherMode={teacherMode} onToast={setToast} />
           <div className="mt-4 flex flex-wrap justify-end gap-3">
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
               {t('admin.courseManagement.cancel')}
@@ -734,13 +759,13 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
         </div>
       </Modal>
 
-      <Modal isOpen={editOpen} onClose={() => setEditOpen(false)}>
+      <Modal isOpen={editOpen} onClose={() => setEditOpen(false)} size="lg">
         <div className="space-y-5">
           <div>
             <p className="section-label">{t('admin.courseManagement.editModalLabel')}</p>
             <h2 className="mt-2 section-title">{t('admin.courseManagement.editCourse')}</h2>
           </div>
-          <CourseForm form={form} setForm={setForm} categories={categoriesData} teachers={teachers} teacherMode={teacherMode} />
+          <CourseForm form={form} setForm={setForm} categories={categoriesData} teachers={teachers} teacherMode={teacherMode} onToast={setToast} />
           <div className="mt-4 flex flex-wrap justify-end gap-3">
             <Button variant="ghost" onClick={() => setEditOpen(false)}>
               {t('admin.courseManagement.cancel')}
@@ -855,9 +880,13 @@ const CourseForm: React.FC<{
   categories: any[];
   teachers: any[];
   teacherMode: boolean;
-}> = ({ form, setForm, categories, teachers, teacherMode }) => {
+  onToast?: (message: string) => void;
+}> = ({ form, setForm, categories, teachers, teacherMode, onToast }) => {
   const { t } = useTranslation();
   const lv = useLocalizedValue();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
   const update = (field: keyof CourseFormState, value: string) => {
     setForm((current) => {
       const next = { ...current, [field]: value };
@@ -870,74 +899,225 @@ const CourseForm: React.FC<{
     });
   };
 
+  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      if (onToast) {
+        onToast(t('admin.courseManagement.form.imageTooLarge', 'Kích thước tệp vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.'));
+      }
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const res = await uploadApi.uploadImage(file);
+      const uploadedUrl = res.data?.url || res.data?.data?.url;
+      if (uploadedUrl) {
+        update('thumbnailUrl', uploadedUrl);
+        if (onToast) {
+          onToast(t('admin.courseManagement.form.uploadSuccess', 'Tải ảnh bìa lên thành công!'));
+        }
+      }
+    } catch (err: any) {
+      if (onToast) {
+        onToast(err.response?.data?.message || t('admin.courseManagement.form.uploadFailed', 'Tải ảnh lên thất bại, vui lòng thử lại.'));
+      }
+    } finally {
+      setIsUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {/* Title - full width */}
-      <div className="sm:col-span-2">
-        <Field label={t('admin.courseManagement.form.titleLabel')} value={form.title} onChange={(value) => update('title', value)} placeholder={t('admin.courseManagement.form.titlePlaceholder')} />
+    <div className="space-y-6">
+      {/* Course Thumbnail Media Section */}
+      <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] p-4 sm:p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+              <ImageIcon className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                {t('admin.courseManagement.form.thumbnailLabel', 'Ảnh bìa khóa học')}
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {t('admin.courseManagement.form.thumbnailDesc', 'Khuyến nghị tỷ lệ 16:9 (1280x720px), định dạng JPG, PNG hoặc WebP dưới 5MB.')}
+              </p>
+            </div>
+          </div>
+          {form.thumbnailUrl && (
+            <button
+              type="button"
+              onClick={() => update('thumbnailUrl', '')}
+              className="text-xs font-semibold text-rose-500 hover:text-rose-600 dark:text-rose-400 flex items-center gap-1 transition-colors px-2.5 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{t('admin.courseManagement.form.removeThumbnail', 'Gỡ ảnh')}</span>
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+          {/* Thumbnail preview / upload box (5 cols) */}
+          <div className="sm:col-span-5">
+            <div className="relative aspect-video rounded-xl border-2 border-dashed border-slate-200 dark:border-white/10 overflow-hidden bg-white dark:bg-slate-900 flex flex-col items-center justify-center group shadow-sm">
+              {form.thumbnailUrl ? (
+                <>
+                  <img
+                    src={form.thumbnailUrl}
+                    alt="Course Thumbnail"
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingImage}
+                      className="px-3 py-1.5 rounded-lg bg-white/95 hover:bg-white text-slate-900 text-xs font-semibold shadow-lg transition-transform hover:scale-105 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{t('admin.courseManagement.form.changeThumbnail', 'Đổi ảnh')}</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-4 text-center flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50/50 dark:hover:bg-indigo-500/5 transition-colors w-full h-full"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2">
+                    {isUploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+                  </div>
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    {isUploadingImage ? t('admin.courseManagement.form.uploading', 'Đang tải ảnh lên...') : t('admin.courseManagement.form.uploadThumbnail', 'Tải ảnh từ máy')}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    JPG, PNG, WebP (Tối đa 5MB)
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Direct URL input & Upload button action (7 cols) */}
+          <div className="sm:col-span-7 space-y-3">
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                {t('admin.courseManagement.form.thumbnailPlaceholder', 'Đường dẫn ảnh bìa (URL hoặc tải tệp)')}
+              </span>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={form.thumbnailUrl}
+                  onChange={(e) => update('thumbnailUrl', e.target.value)}
+                  placeholder="https://images.unsplash.com/... hoặc tải ảnh"
+                  className="w-full text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingImage}
+                  className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title={t('admin.courseManagement.form.uploadThumbnail', 'Tải ảnh từ máy')}
+                >
+                  {isUploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  <span className="hidden sm:inline">{t('admin.courseManagement.form.uploadThumbnail', 'Tải tệp')}</span>
+                </button>
+              </div>
+            </label>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+              💡 Ảnh bìa chất lượng cao sẽ hiển thị trên Danh sách khóa học, Chi tiết khóa học và Trang chủ để thu hút người học.
+            </p>
+          </div>
+        </div>
+
+        {/* Hidden File Input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageFileUpload}
+        />
       </div>
 
-      {/* Description - full width */}
-      <div className="sm:col-span-2">
+      {/* Other Course Details Form */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {/* Title - full width */}
+        <div className="sm:col-span-2">
+          <Field label={t('admin.courseManagement.form.titleLabel')} value={form.title} onChange={(value) => update('title', value)} placeholder={t('admin.courseManagement.form.titlePlaceholder')} />
+        </div>
+
+        {/* Description - full width */}
+        <div className="sm:col-span-2">
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('admin.courseManagement.form.descLabel')}</span>
+            <textarea
+              value={form.description}
+              onChange={(event) => update('description', event.target.value)}
+              rows={3}
+              placeholder={t('admin.courseManagement.form.descPlaceholder')}
+              className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50 px-4 py-3 text-sm font-medium text-slate-900 dark:text-white outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10 resize-none"
+            />
+          </label>
+        </div>
+
         <label className="block space-y-2">
-          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('admin.courseManagement.form.descLabel')}</span>
-          <textarea
-            value={form.description}
-            onChange={(event) => update('description', event.target.value)}
-            rows={3}
-            placeholder={t('admin.courseManagement.form.descPlaceholder')}
-            className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50 px-4 py-3 text-sm font-medium text-slate-900 dark:text-white outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10 resize-none"
-          />
-        </label>
-      </div>
-
-      <label className="block space-y-2">
-        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('admin.courseManagement.form.categoryLabel')}</span>
-        <select
-          value={form.categoryId}
-          onChange={(event) => update('categoryId', event.target.value)}
-          className="h-[46px] w-full rounded-2xl border border-slate-200 bg-white dark:bg-slate-900/50 px-4 text-sm font-medium text-slate-900 dark:text-white outline-none transition duration-sm ease-standard focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
-        >
-          <option value="">{t('admin.courseManagement.form.selectCategory')}</option>
-          {categories.map((cat) => (
-            <option key={cat._id} value={cat._id}>{lv(cat.name)}</option>
-          ))}
-        </select>
-      </label>
-
-      <Field label={t('admin.courseManagement.form.origPriceLabel')} value={form.estimatedPrice} onChange={(value) => update('estimatedPrice', value)} type="number" placeholder="0" />
-
-      <Field label={t('admin.courseManagement.form.discountLabel')} value={form.discountPercentage} onChange={(value) => update('discountPercentage', value)} type="number" placeholder="0" />
-
-      <Field label={t('admin.courseManagement.form.sellingPriceLabel')} value={form.price} onChange={(value) => update('price', value)} type="number" placeholder="0" className="bg-slate-50 dark:bg-slate-800/50 cursor-not-allowed opacity-80" disabled />
-
-      {!teacherMode && (
-        <label className="block space-y-2">
-          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('admin.courseManagement.form.instructorLabel')}</span>
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('admin.courseManagement.form.categoryLabel')}</span>
           <select
-            value={form.instructorId}
-            onChange={(event) => update('instructorId', event.target.value)}
+            value={form.categoryId}
+            onChange={(event) => update('categoryId', event.target.value)}
             className="h-[46px] w-full rounded-2xl border border-slate-200 bg-white dark:bg-slate-900/50 px-4 text-sm font-medium text-slate-900 dark:text-white outline-none transition duration-sm ease-standard focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
           >
-            <option value="">{t('admin.courseManagement.form.selectInstructor')}</option>
-            {teachers.map((t) => (
-              <option key={t._id} value={t._id}>{t.name} ({t.email})</option>
+            <option value="">{t('admin.courseManagement.form.selectCategory')}</option>
+            {categories.map((cat) => (
+              <option key={cat._id} value={cat._id}>{lv(cat.name)}</option>
             ))}
           </select>
         </label>
-      )}
 
-      <label className="block space-y-2">
-        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('admin.courseManagement.form.statusLabel')}</span>
-        <select
-          value={form.status}
-          onChange={(event) => update('status', event.target.value as CourseStatus)}
-          className="h-[46px] w-full rounded-2xl border border-slate-200 bg-white dark:bg-slate-900/50 px-4 text-sm font-medium text-slate-900 dark:text-white outline-none transition duration-sm ease-standard focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
-        >
-          <option value="draft">{t('admin.courseManagement.form.statusDraft')}</option>
-          <option value="published">{t('admin.courseManagement.form.statusPublished')}</option>
-        </select>
-      </label>
+        <Field label={t('admin.courseManagement.form.origPriceLabel')} value={form.estimatedPrice} onChange={(value) => update('estimatedPrice', value)} type="number" placeholder="0" />
+
+        <Field label={t('admin.courseManagement.form.discountLabel')} value={form.discountPercentage} onChange={(value) => update('discountPercentage', value)} type="number" placeholder="0" />
+
+        <Field label={t('admin.courseManagement.form.sellingPriceLabel')} value={form.price} onChange={(value) => update('price', value)} type="number" placeholder="0" className="bg-slate-50 dark:bg-slate-800/50 cursor-not-allowed opacity-80" disabled />
+
+        {!teacherMode && (
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('admin.courseManagement.form.instructorLabel')}</span>
+            <select
+              value={form.instructorId}
+              onChange={(event) => update('instructorId', event.target.value)}
+              className="h-[46px] w-full rounded-2xl border border-slate-200 bg-white dark:bg-slate-900/50 px-4 text-sm font-medium text-slate-900 dark:text-white outline-none transition duration-sm ease-standard focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
+            >
+              <option value="">{t('admin.courseManagement.form.selectInstructor')}</option>
+              {teachers.map((t) => (
+                <option key={t._id} value={t._id}>{t.name} ({t.email})</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <label className="block space-y-2">
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('admin.courseManagement.form.statusLabel')}</span>
+          <select
+            value={form.status}
+            onChange={(event) => update('status', event.target.value as CourseStatus)}
+            className="h-[46px] w-full rounded-2xl border border-slate-200 bg-white dark:bg-slate-900/50 px-4 text-sm font-medium text-slate-900 dark:text-white outline-none transition duration-sm ease-standard focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
+          >
+            <option value="draft">{t('admin.courseManagement.form.statusDraft')}</option>
+            <option value="published">{t('admin.courseManagement.form.statusPublished')}</option>
+          </select>
+        </label>
+      </div>
     </div>
   );
 };

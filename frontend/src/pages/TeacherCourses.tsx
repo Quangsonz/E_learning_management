@@ -86,7 +86,7 @@ const TeacherCourses: React.FC = () => {
             >
               {t('teacher.courses.statsBtn')}
             </Link>
-            <Link to="/teacher/courses/new">
+            <Link to="/teacher/courses/new" state={{ from: '/teacher-courses' }}>
               <Button className="flex items-center gap-2">
                 <Plus size={16} /> {t('teacher.courses.createBtn')}
               </Button>
@@ -116,7 +116,7 @@ const TeacherCourses: React.FC = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 shrink-0">
-              <Link to="/teacher/courses/new">
+              <Link to="/teacher/courses/new" state={{ from: '/teacher-courses' }}>
                 <button
                   type="button"
                   className="w-full sm:w-auto px-6 h-12 rounded-full bg-white text-indigo-950 hover:bg-slate-100 font-bold shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all"

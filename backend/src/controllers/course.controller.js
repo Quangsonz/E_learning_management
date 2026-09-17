@@ -50,7 +50,7 @@ class CourseController {
   });
 
   getCourse = catchAsync(async (req, res, next) => {
-    const course = await courseService.getCourseById(req.params.id);
+    const course = await courseService.getCourseById(req.params.id, req.user || null);
 
     res.status(200).json({
       status: 'success',

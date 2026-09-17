@@ -78,17 +78,20 @@ class ReviewService {
     return review;
   }
 
-  async updateReview(reviewId, studentId, data) {
+  async updateReview(reviewId, user, data) {
     const review = await reviewRepository.findById(reviewId);
     if (!review) throw new AppError('Không tìm thấy đánh giá', 404);
 
+    const userId = (user?._id || user?.id || user || '').toString();
+
     // Ràng buộc quyền sở hữu
-    if (review.student.toString() !== studentId.toString()) {
+    if (review.student.toString() !== userId) {
       throw new AppError('Bạn không có quyền chỉnh sửa đánh giá này', 403);
     }
 
     if (data.rating) review.rating = data.rating;
-    if (data.reviewText) review.reviewText = data.reviewText;
+    if (data.comment !== undefined) review.comment = data.comment;
+    else if (data.reviewText !== undefined) review.comment = data.reviewText;
 
     await review.save();
     await this.updateCourseAverageRating(review.course);
@@ -96,12 +99,15 @@ class ReviewService {
     return review;
   }
 
-  async deleteReview(reviewId, studentId) {
+  async deleteReview(reviewId, user) {
     const review = await reviewRepository.findById(reviewId);
     if (!review) throw new AppError('Không tìm thấy đánh giá', 404);
 
-    // Ràng buộc quyền sở hữu
-    if (review.student.toString() !== studentId.toString()) {
+    const userId = (user?._id || user?.id || user || '').toString();
+    const isAdmin = user?.role === 'admin';
+
+    // Ràng buộc quyền: Chỉ chủ sở hữu hoặc Admin mới có quyền xóa
+    if (!isAdmin && review.student.toString() !== userId) {
       throw new AppError('Bạn không có quyền xóa đánh giá này', 403);
     }
 

@@ -27,8 +27,11 @@ const createLesson = {
     provider: Joi.string().valid('cloudinary', 'youtube').allow('', null),
     duration: Joi.number().min(0).default(0),
     isFreePreview: Joi.boolean().default(false),
+    isPreview: Joi.boolean().default(false),
     order: Joi.number().integer().min(0),
     course: Joi.string().custom(objectId),
+    moduleId: Joi.string().custom(objectId),
+    module: Joi.string().custom(objectId),
     resources: Joi.array().items(Joi.any())
   })
 };
@@ -52,7 +55,10 @@ const updateLesson = {
     provider: Joi.string().valid('cloudinary', 'youtube').allow('', null),
     duration: Joi.number().min(0),
     isFreePreview: Joi.boolean(),
+    isPreview: Joi.boolean(),
     order: Joi.number().integer().min(0),
+    moduleId: Joi.string().custom(objectId),
+    module: Joi.string().custom(objectId),
     resources: Joi.array().items(Joi.any())
   })
 };
@@ -70,7 +76,9 @@ const reorderLessons = {
       .items(
         Joi.object().keys({
           id: Joi.string().required().custom(objectId),
-          order: Joi.number().integer().required()
+          order: Joi.number().integer().required(),
+          moduleId: Joi.string().custom(objectId),
+          module: Joi.string().custom(objectId)
         })
       )
       .min(1)

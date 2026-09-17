@@ -372,7 +372,7 @@ const TeachingPortfolio: React.FC<TeachingPortfolioProps> = ({ courses, isLoadin
         </div>
 
         <div className="flex flex-wrap items-center gap-3 shrink-0 w-full sm:w-auto">
-          <Link to="/teacher/courses/new" className="w-full sm:w-auto">
+          <Link to="/teacher/courses/new" state={{ from: '/profile' }} className="w-full sm:w-auto">
             <Button
               variant="primary"
               size="md"
@@ -481,7 +481,7 @@ const TeachingPortfolio: React.FC<TeachingPortfolioProps> = ({ courses, isLoadin
 
                   {/* Actions */}
                   <div className="p-6 pt-0 flex gap-2.5">
-                    <Link to={`/teacher/courses/${course._id}/curriculum`} className="flex-1">
+                    <Link to={`/teacher/courses/${course._id}/curriculum`} state={{ from: '/profile' }} className="flex-1">
                       <Button variant="primary" size="sm" fullWidth className="font-semibold" leftIcon={<FileEdit className="w-3.5 h-3.5" />}>
                         {t('profile.teachingCourses.editCurriculum', 'Soạn giáo án')}
                       </Button>
@@ -509,7 +509,7 @@ const TeachingPortfolio: React.FC<TeachingPortfolioProps> = ({ courses, isLoadin
                 {t('profile.teachingCourses.noCoursesDesc', 'Hãy bắt đầu hành trình giảng dạy bằng cách xuất bản khóa học đầu tiên của bạn!')}
               </p>
             </div>
-            <Link to="/teacher/courses/new" className="inline-block pt-2">
+            <Link to="/teacher/courses/new" state={{ from: '/profile' }} className="inline-block pt-2">
               <Button variant="primary" className="rounded-xl font-bold px-6 shadow-lg shadow-indigo-500/25">
                 {t('profile.teachingCourses.createFirstCourse', 'Tạo khóa học ngay →')}
               </Button>

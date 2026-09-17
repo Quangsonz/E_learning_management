@@ -97,6 +97,7 @@ class UserService {
 
     // Cập nhật mật khẩu mới (sẽ tự động hash qua pre-save hook)
     user.password = newPassword;
+    user.passwordChangedAt = Date.now() - 1000;
     await user.save();
 
     return user;

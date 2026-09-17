@@ -1,8 +1,21 @@
 const multer = require('multer');
 const AppError = require('../utils/appError');
 
-// Dùng memory storage để lấy file dạng Buffer, sau đó stream thẳng lên Cloudinary
+const os = require('os');
+
+// Dùng memory storage cho ảnh & tài liệu nhỏ
 const storage = multer.memoryStorage();
+
+// Dùng diskStorage cho Video dung lượng lớn để chống tràn bộ nhớ Heap RAM Node.js
+const videoDiskStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, os.tmpdir());
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, 'video-' + uniqueSuffix + '-' + file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_'));
+  }
+});
 
 // Bộ lọc cho Hình ảnh (Thumbnail, Avatar)
 const imageFilter = (req, file, cb) => {
@@ -32,7 +45,7 @@ exports.uploadImage = multer({
 });
 
 exports.uploadVideo = multer({
-  storage: storage,
+  storage: videoDiskStorage,
   fileFilter: videoFilter,
   limits: {
     fileSize: 500 * 1024 * 1024, // Giới hạn 500MB cho video

@@ -4,6 +4,14 @@ const jwt = require('jsonwebtoken');
 const isDev = process.env.NODE_ENV === 'development';
 const isTest = process.env.NODE_ENV === 'test';
 
+const getClientKey = (req) => {
+  // Chỉ cho phép x-test-client-id trong môi trường test
+  if (isTest && req.headers['x-test-client-id']) {
+    return req.headers['x-test-client-id'];
+  }
+  return ipKeyGenerator(req.ip);
+};
+
 /**
  * 1. Global API Rate Limiter
  * - Production: 500 requests per 15 minutes per IP
@@ -15,7 +23,7 @@ const globalLimiter = rateLimit({
   standardHeaders: 'draft-7',
   legacyHeaders: true,
   validate: { trustProxy: false, keyGeneratorIpFallback: false },
-  keyGenerator: (req) => req.headers['x-test-client-id'] || ipKeyGenerator(req.ip),
+  keyGenerator: getClientKey,
   handler: (req, res) => {
     res.status(429).json({
       status: 'fail',
@@ -35,7 +43,7 @@ const adminTeacherLimiter = rateLimit({
   standardHeaders: 'draft-7',
   legacyHeaders: true,
   validate: { trustProxy: false, keyGeneratorIpFallback: false },
-  keyGenerator: (req) => req.headers['x-test-client-id'] || ipKeyGenerator(req.ip),
+  keyGenerator: getClientKey,
   handler: (req, res) => {
     res.status(429).json({
       status: 'fail',
@@ -53,7 +61,8 @@ const dynamicLimiter = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer')) {
       const token = authHeader.split(' ')[1];
-      const decoded = jwt.decode(token);
+      // Xác minh chữ ký bí mật của token, không dùng decode bừa bãi
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
       if (decoded && ['admin', 'teacher'].includes(decoded.role)) {
         isAdminOrTeacher = true;
       }
@@ -77,7 +86,7 @@ const authLimiter = rateLimit({
   standardHeaders: 'draft-7',
   legacyHeaders: true,
   validate: { trustProxy: false, keyGeneratorIpFallback: false },
-  keyGenerator: (req) => req.headers['x-test-client-id'] || ipKeyGenerator(req.ip),
+  keyGenerator: getClientKey,
   handler: (req, res) => {
     res.status(429).json({
       status: 'fail',
@@ -97,7 +106,7 @@ const searchLimiter = rateLimit({
   standardHeaders: 'draft-7',
   legacyHeaders: true,
   validate: { trustProxy: false, keyGeneratorIpFallback: false },
-  keyGenerator: (req) => req.headers['x-test-client-id'] || ipKeyGenerator(req.ip),
+  keyGenerator: getClientKey,
   handler: (req, res) => {
     res.status(429).json({
       status: 'fail',
@@ -117,7 +126,7 @@ const uploadLimiter = rateLimit({
   standardHeaders: 'draft-7',
   legacyHeaders: true,
   validate: { trustProxy: false, keyGeneratorIpFallback: false },
-  keyGenerator: (req) => req.headers['x-test-client-id'] || ipKeyGenerator(req.ip),
+  keyGenerator: getClientKey,
   handler: (req, res) => {
     res.status(429).json({
       status: 'fail',

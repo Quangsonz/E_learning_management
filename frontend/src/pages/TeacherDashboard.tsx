@@ -405,7 +405,7 @@ const TeacherDashboard: React.FC = () => {
                         ) : null}
                       </div>
 
-                      <Link to={`/teacher/courses/${course._id}/curriculum`}>
+                      <Link to={`/teacher/courses/${course._id}/curriculum`} state={{ from: '/teacher-dashboard' }}>
                         <Button size="sm" variant="outline" className="gap-1.5 hover:border-indigo-500 text-xs">
                           <FileText className="w-3.5 h-3.5 text-indigo-500" />
                           {t('teacher.dashboard.curriculumBtn', 'Giáo trình')}
@@ -420,7 +420,7 @@ const TeacherDashboard: React.FC = () => {
                 <div className="p-8 text-center bg-slate-50/50 dark:bg-white/[0.02] rounded-2xl border border-dashed border-slate-200 dark:border-white/10">
                   <BookOpen className="w-10 h-10 text-slate-400 mx-auto mb-2" />
                   <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{t('teacher.dashboard.noCourses')}</p>
-                  <Link to="/teacher/courses/new" className="inline-block mt-3">
+                  <Link to="/teacher/courses/new" state={{ from: '/teacher-dashboard' }} className="inline-block mt-3">
                     <Button size="sm" className="gap-1.5">
                       <Plus className="w-3.5 h-3.5" /> {t('teacher.dashboard.createFirstCourse', 'Tạo khóa học đầu tiên')}
                     </Button>

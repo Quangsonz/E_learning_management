@@ -111,7 +111,7 @@ class AuthController {
     await authService.forgotPassword(req.body.email, req);
     res.status(200).json({
       status: 'success',
-      message: 'Link đặt lại mật khẩu đã được gửi qua email!',
+      message: 'Nếu địa chỉ email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi đến hòm thư của bạn.',
     });
   });
 

@@ -21,7 +21,7 @@ class QuizController {
   });
 
   getQuestionsForTeacher = catchAsync(async (req, res, next) => {
-    const questions = await require('../repositories/question.repository').findByQuiz(req.params.quizId);
+    const questions = await quizService.getQuestionsForTeacher(req.params.quizId, req.user);
     res.status(200).json({ status: 'success', data: { questions } });
   });
 
@@ -66,7 +66,7 @@ class QuizController {
   });
 
   getLessonQuestionsForTeacher = catchAsync(async (req, res, next) => {
-    const questions = await require('../repositories/question.repository').findByLesson(req.params.lessonId);
+    const questions = await quizService.getLessonQuestionsForTeacher(req.params.lessonId, req.user);
     res.status(200).json({ status: 'success', data: { questions } });
   });
 

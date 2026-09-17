@@ -4,17 +4,22 @@ const userRepository = require('../repositories/user.repository');
 const AppError = require('../utils/appError');
 const sendEmail = require('../utils/email');
 
-const signToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+const signToken = (user) => {
+  const id = user._id ? user._id.toString() : user.id;
+  const role = user.role || 'student';
+  return jwt.sign({ id, role }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '1d',
   });
 };
 
 const createSendToken = (user, statusCode, res) => {
-  const token = signToken(user._id);
+  const token = signToken(user);
 
-  // Xóa password trước khi trả về
+  // Xóa các trường nhạy cảm trước khi trả về
   user.password = undefined;
+  user.verificationToken = undefined;
+  user.passwordResetToken = undefined;
+  user.refreshToken = undefined;
 
   res.status(statusCode).json({
     status: 'success',
@@ -28,12 +33,12 @@ const createSendToken = (user, statusCode, res) => {
 class AuthService {
   /**
    * Đăng ký người dùng mới
-   * @param {Object} userData - { name, email, password, role }
-   * @param {Object} req - Express request object (dùng để lấy host URL)
+   * @param {Object} userData - { name, email, password }
+   * @param {Object} req - Express request object
    * @param {Object} res - Express response object
    */
   async register(userData, req, res) {
-    const { name, email, password, role } = userData;
+    const { name, email, password } = userData;
 
     // Kiểm tra email đã tồn tại
     const existingUser = await userRepository.findByEmail(email);
@@ -41,9 +46,8 @@ class AuthService {
       throw new AppError('Email đã được sử dụng!', 400);
     }
 
-    // Chỉ cho phép role: student | teacher (không cho client tự đặt admin)
-    const allowedRoles = ['student', 'teacher'];
-    const assignedRole = allowedRoles.includes(role) ? role : 'student';
+    // Tất cả người dùng đăng ký mới luôn là student. Muốn thành giảng viên phải nộp TeacherApplication qua Admin
+    const assignedRole = 'student';
 
     const newUser = await userRepository.create({ name, email, password, role: assignedRole });
 
@@ -51,9 +55,8 @@ class AuthService {
     const verifyToken = newUser.createEmailVerificationToken();
     await newUser.save({ validateBeforeSave: false });
 
-    const protocol = req.protocol || 'http';
-    const host = req.get ? req.get('host') : 'localhost:5000';
-    const verifyURL = `${protocol}://${host}/api/auth/verify-email/${verifyToken}`;
+    const baseUrl = process.env.APP_URL || (req && req.protocol && req.get ? `${req.protocol}://${req.get('host')}` : 'http://localhost:5000');
+    const verifyURL = `${baseUrl}/api/auth/verify-email/${verifyToken}`;
     const message = `Chào ${name},\n\nVui lòng click vào link sau để xác minh email của bạn:\n${verifyURL}\n\nLink có hiệu lực trong 24 giờ.`;
 
     try {
@@ -90,19 +93,24 @@ class AuthService {
       throw new AppError('Email hoặc mật khẩu không chính xác', 401, 'INVALID_PASSWORD');
     }
 
+    // Kiểm tra tài khoản có bị suspend không
+    if (user.isActive === false) {
+      throw new AppError('Tài khoản của bạn đã bị tạm ngưng. Vui lòng liên hệ Quản trị viên.', 403, 'ACCOUNT_SUSPENDED');
+    }
 
     createSendToken(user, 200, res);
   }
 
   /**
-   * Quên mật khẩu - Gửi link reset
+   * Quên mật khẩu - Gửi link reset (Chống user enumeration)
    * @param {string} email
    * @param {Object} req
    */
   async forgotPassword(email, req) {
     const user = await userRepository.findByEmail(email);
     if (!user) {
-      throw new AppError('Không tìm thấy người dùng nào với địa chỉ email này', 404);
+      // Chống user enumeration: không trả về lỗi 404, âm thầm return
+      return;
     }
 
     const resetToken = user.createPasswordResetToken();
@@ -148,6 +156,7 @@ class AuthService {
     user.password = newPassword;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
+    user.passwordChangedAt = Date.now() - 1000;
     await user.save();
 
     createSendToken(user, 200, res);

@@ -4,6 +4,7 @@ const AppError = require('../utils/appError');
 const notificationService = require('./notification.service');
 const xpService = require('./xp.service');
 const Course = require('../models/Course');
+const enrollmentRepository = require('../repositories/enrollment.repository');
 
 class DiscussionService {
   async getDiscussionsByLesson(lessonId) {
@@ -12,7 +13,22 @@ class DiscussionService {
       .sort('-createdAt');
   }
 
-  async createDiscussion(courseId, lessonId, userId, content) {
+  async createDiscussion(courseId, lessonId, userId, content, user = null) {
+    const course = await Course.findById(courseId);
+    if (!course) {
+      throw new AppError('Không tìm thấy khóa học', 404);
+    }
+
+    // Verify student is enrolled or is course instructor or admin
+    const isAdmin = user?.role === 'admin';
+    const isInstructor = course.instructor && course.instructor.toString() === userId.toString();
+    if (!isAdmin && !isInstructor) {
+      const enrollment = await enrollmentRepository.findByStudentAndCourse(userId, courseId);
+      if (!enrollment || enrollment.paymentStatus !== 'completed') {
+        throw new AppError('Bạn phải đăng ký khóa học này để tham gia thảo luận', 403);
+      }
+    }
+
     const discussion = await Discussion.create({
       course: courseId,
       lesson: lessonId,
@@ -21,7 +37,6 @@ class DiscussionService {
     });
 
     // Notify instructor
-    const course = await Course.findById(courseId);
     if (course && course.instructor.toString() !== userId.toString()) {
       await notificationService.createNotification({
         recipient: course.instructor,
@@ -43,13 +58,26 @@ class DiscussionService {
       .sort('createdAt');
   }
 
-  async addComment(discussionId, userId, content) {
+  async addComment(discussionId, userId, content, user = null) {
+    const discussion = await Discussion.findById(discussionId);
+    if (!discussion) throw new AppError('Không tìm thấy thảo luận', 404);
+
+    const course = await Course.findById(discussion.course);
+    const isAdmin = user?.role === 'admin';
+    const isInstructor = course && course.instructor && course.instructor.toString() === userId.toString();
+    if (!isAdmin && !isInstructor) {
+      const enrollment = await enrollmentRepository.findByStudentAndCourse(userId, discussion.course);
+      if (!enrollment || enrollment.paymentStatus !== 'completed') {
+        throw new AppError('Bạn phải đăng ký khóa học này để tham gia bình luận', 403);
+      }
+    }
+
     const comment = await Comment.create({
       discussion: discussionId,
       author: userId,
       content
     });
-    const discussion = await Discussion.findByIdAndUpdate(discussionId, { $inc: { commentsCount: 1 } });
+    await Discussion.findByIdAndUpdate(discussionId, { $inc: { commentsCount: 1 } });
     
     // Notify discussion author
     if (discussion && discussion.author.toString() !== userId.toString()) {
@@ -77,6 +105,7 @@ class DiscussionService {
       await xpService.addXP(discussion.author, 'DISCUSSION_UPVOTE');
     } else {
       discussion.upvotes.splice(index, 1);
+      await xpService.deductXP(discussion.author, 5);
     }
     await discussion.save();
     return discussion;
