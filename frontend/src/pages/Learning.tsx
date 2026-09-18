@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -32,6 +32,347 @@ const notesSeed = [
   'Pause the video and write one insight per lesson.',
   'Use the resources panel to save reference materials.'
 ];
+
+interface SidebarLessonItemProps {
+  lesson: ApiLesson;
+  index: number;
+  isActive: boolean;
+  isCompleted: boolean;
+  onSelect: (id: string) => void;
+  lv: (val: any) => string;
+}
+
+const SidebarLessonItem = React.memo<SidebarLessonItemProps>(({
+  lesson,
+  index,
+  isActive,
+  isCompleted,
+  onSelect,
+  lv,
+}) => {
+  const handleClick = useCallback(() => {
+    onSelect(lesson._id);
+  }, [onSelect, lesson._id]);
+
+  return (
+    <button
+      onClick={handleClick}
+      className={`group flex items-start justify-between py-2 px-2.5 rounded-md text-left w-full transition-colors ${
+        isActive
+          ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium'
+          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
+      }`}
+    >
+      <div className="flex items-start gap-3 w-full">
+        <div className="w-4 h-4 shrink-0 flex items-center justify-center mt-0.5">
+          {isCompleted ? (
+            <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+            </svg>
+          ) : isActive ? (
+            <div className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+          ) : (
+            <span className="text-[10px] text-slate-400">{index + 1}</span>
+          )}
+        </div>
+        <span className="text-sm line-clamp-2 leading-snug break-words flex-1" title={lv(lesson.title)}>
+          {lv(lesson.title)}
+        </span>
+      </div>
+    </button>
+  );
+});
+SidebarLessonItem.displayName = 'SidebarLessonItem';
+
+interface SidebarModuleItemProps {
+  module: {
+    id: string;
+    title: string;
+    lessons: ApiLesson[];
+  };
+  isOpen: boolean;
+  onToggle: (id: string) => void;
+  selectedLessonId: string | null;
+  selectedQuizId: string | null;
+  completedLessons: string[];
+  onSelectLesson: (id: string) => void;
+  t: (key: string, defaultVal?: string) => string;
+  lv: (val: any) => string;
+}
+
+const SidebarModuleItem = React.memo<SidebarModuleItemProps>(({
+  module,
+  isOpen,
+  onToggle,
+  selectedLessonId,
+  selectedQuizId,
+  completedLessons,
+  onSelectLesson,
+  t,
+  lv,
+}) => {
+  const completedCount = useMemo(() => {
+    return module.lessons.filter((l: ApiLesson) => completedLessons.includes(l._id)).length;
+  }, [module.lessons, completedLessons]);
+
+  const handleToggle = useCallback(() => {
+    onToggle(module.id);
+  }, [onToggle, module.id]);
+
+  return (
+    <div className="border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden">
+      <button
+        onClick={handleToggle}
+        className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left"
+      >
+        <div className="flex-1 pr-2 min-w-0">
+          <span className="font-semibold text-sm text-slate-800 dark:text-slate-200 block truncate">
+            {module.title}
+          </span>
+          <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-0.5">
+            {completedCount}/{module.lessons.length} {t('common.lessons', 'bài học')}
+          </span>
+        </div>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className={`shrink-0 text-slate-400 ml-1 transition-transform duration-200 ease-out ${isOpen ? 'rotate-180' : ''}`}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      <div
+        className="grid transition-[grid-template-rows] duration-200 ease-out"
+        style={{ gridTemplateRows: isOpen ? '1fr' : '0fr' }}
+      >
+        <div className="overflow-hidden">
+          <div className={`flex flex-col gap-1 p-2 bg-white dark:bg-[#1A1A1A] transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0'}`}>
+            {module.lessons.map((lesson: ApiLesson, index: number) => {
+              const isActive = lesson._id === selectedLessonId && !selectedQuizId;
+              const isCompleted = completedLessons.includes(lesson._id);
+              return (
+                <SidebarLessonItem
+                  key={lesson._id}
+                  lesson={lesson}
+                  index={index}
+                  isActive={isActive}
+                  isCompleted={isCompleted}
+                  onSelect={onSelectLesson}
+                  lv={lv}
+                />
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+SidebarModuleItem.displayName = 'SidebarModuleItem';
+
+interface LearningCurriculumSidebarProps {
+  curriculumModules: Array<{
+    id: string;
+    title: string;
+    lessons: ApiLesson[];
+  }>;
+  allLessons: ApiLesson[];
+  selectedLessonId: string | null;
+  selectedQuizId: string | null;
+  selectedAssignmentId: string | null;
+  completedLessons: string[];
+  quizzes: any[];
+  assignments: any[];
+  practiceLimit: number;
+  onSelectLesson: (id: string) => void;
+  onSelectQuiz: (id: string) => void;
+  onSelectAssignment: (id: string) => void;
+  onStartPractice: (limit: number) => void;
+  onPracticeLimitChange: (limit: number) => void;
+  t: (key: string, defaultVal?: string) => string;
+  lv: (val: any) => string;
+}
+
+const LearningCurriculumSidebar = React.memo<LearningCurriculumSidebarProps>(({
+  curriculumModules,
+  allLessons,
+  selectedLessonId,
+  selectedQuizId,
+  selectedAssignmentId,
+  completedLessons,
+  quizzes,
+  assignments,
+  practiceLimit,
+  onSelectLesson,
+  onSelectQuiz,
+  onSelectAssignment,
+  onStartPractice,
+  onPracticeLimitChange,
+  t,
+  lv,
+}) => {
+  const [openModuleIds, setOpenModuleIds] = useState<string[]>([]);
+
+  // Auto-expand module containing the active lesson
+  useEffect(() => {
+    if (selectedLessonId && curriculumModules.length > 0) {
+      const activeModule = curriculumModules.find(m => 
+        m.lessons.some(l => l._id === selectedLessonId)
+      );
+      if (activeModule) {
+        setOpenModuleIds(prev => prev.includes(activeModule.id) ? prev : [...prev, activeModule.id]);
+      }
+    } else if (curriculumModules.length > 0 && openModuleIds.length === 0) {
+      setOpenModuleIds([curriculumModules[0].id]);
+    }
+  }, [selectedLessonId, curriculumModules]);
+
+  const toggleModule = useCallback((id: string) => {
+    setOpenModuleIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  }, []);
+
+  return (
+    <div className="flex flex-col bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-2xl p-5 shadow-sm max-h-[calc(100vh-12rem)] overflow-y-auto custom-scrollbar pr-1">
+      <div className="pt-2 pb-5 border-b border-[#EAEAEA] dark:border-white/10">
+        <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
+          {t('learning.curriculum', 'Nội dung khóa học')}
+        </h3>
+        {allLessons.length === 0 ? (
+          <p className="text-sm text-slate-500">{t('learning.noLessons', 'Không có bài học nào.')}</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {curriculumModules.map((module) => (
+              <SidebarModuleItem
+                key={module.id}
+                module={module}
+                isOpen={openModuleIds.includes(module.id)}
+                onToggle={toggleModule}
+                selectedLessonId={selectedLessonId}
+                selectedQuizId={selectedQuizId}
+                completedLessons={completedLessons}
+                onSelectLesson={onSelectLesson}
+                t={t}
+                lv={lv}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {quizzes.length > 0 && (
+        <div className="pt-5 pb-5 border-b border-[#EAEAEA] dark:border-white/10">
+          <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
+            {t('learning.assessments', 'Bài kiểm tra')}
+          </h3>
+          <div className="flex flex-col gap-1">
+            {quizzes.map((quiz: any) => {
+              const isActive = quiz._id === selectedQuizId;
+              const isCompleted = Boolean(quiz.isCompleted);
+              return (
+                <button
+                  key={quiz._id}
+                  onClick={() => onSelectQuiz(quiz._id)}
+                  className={`group flex items-start justify-between py-2 px-2.5 rounded-md text-left w-full transition-colors ${isActive ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-[#111111] dark:hover:text-white'}`}
+                >
+                  <div className="flex items-start gap-3 w-full">
+                    <div className="w-4 h-4 shrink-0 flex items-center justify-center mt-0.5">
+                      {isCompleted ? (
+                        <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm line-clamp-2 leading-snug break-words" title={lv(quiz.title)}>{lv(quiz.title)}</span>
+                      <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                        <span>{quiz.questionCount ?? quiz.totalQuestions ?? 0} {t('learning.questions', 'câu')}</span>
+                        {quiz.isCompleted && (
+                          <>
+                            <span>•</span>
+                            <span className={quiz.isPassed ? 'text-emerald-500 font-semibold' : 'text-rose-500 font-semibold'}>
+                              {quiz.scorePercentage ?? quiz.score}%
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {assignments.length > 0 && (
+        <div className="pt-5 pb-5 border-b border-[#EAEAEA] dark:border-white/10">
+          <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
+            {t('learning.assignments', 'Bài tập về nhà')}
+          </h3>
+          <div className="flex flex-col gap-1">
+            {assignments.map((assignment: any) => {
+              const isActive = assignment._id === selectedAssignmentId;
+              return (
+                <button
+                  key={assignment._id}
+                  onClick={() => onSelectAssignment(assignment._id)}
+                  className={`group flex items-start justify-between py-2 px-2.5 rounded-md text-left w-full transition-colors ${isActive ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-[#111111] dark:hover:text-white'}`}
+                >
+                  <div className="flex items-start gap-3 w-full">
+                    <div className="w-4 h-4 shrink-0 flex items-center justify-center text-slate-400 mt-0.5">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <span className="text-sm line-clamp-2 leading-snug break-words flex-1" title={lv(assignment.title)}>{lv(assignment.title)}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="pt-5 pb-2">
+        <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
+          {t('learning.randomPractice', 'Luyện tập ngẫu nhiên')}
+        </h3>
+        <div className="space-y-4">
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">{t('learning.numQuestions', 'Số lượng câu hỏi')}</label>
+            <select
+              value={practiceLimit}
+              onChange={(e) => onPracticeLimitChange(Number(e.target.value))}
+              className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+            >
+              <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={5}>5 {t('learning.questions', 'câu hỏi')}</option>
+              <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={10}>10 {t('learning.questions', 'câu hỏi')}</option>
+              <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={15}>15 {t('learning.questions', 'câu hỏi')}</option>
+              <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={20}>20 {t('learning.questions', 'câu hỏi')}</option>
+              <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={25}>25 {t('learning.questions', 'câu hỏi')}</option>
+              <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={30}>30 {t('learning.questions', 'câu hỏi')}</option>
+              <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={40}>40 {t('learning.questions', 'câu hỏi')}</option>
+              <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={50}>50 {t('learning.questions', 'câu hỏi')}</option>
+            </select>
+          </div>
+          <button
+            onClick={() => onStartPractice(practiceLimit)}
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl font-semibold text-sm hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            {t('learning.startPractice', 'Bắt đầu luyện tập')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+LearningCurriculumSidebar.displayName = 'LearningCurriculumSidebar';
 
 const Learning: React.FC = () => {
   const { t } = useTranslation();
@@ -110,6 +451,7 @@ const Learning: React.FC = () => {
     queryKey: ['lessons', courseId],
     queryFn: () => lessonApi.getLessons(courseId!),
     enabled: !!courseId,
+    staleTime: 5 * 60 * 1000,
     retry: false
   });
 
@@ -117,18 +459,21 @@ const Learning: React.FC = () => {
     queryKey: ['modules', courseId],
     queryFn: () => moduleApi.getModules(courseId!),
     enabled: !!courseId,
+    staleTime: 5 * 60 * 1000,
     retry: false
   });
 
   const { data: progressData, isLoading: isLoadingProgress } = useQuery({
     queryKey: ['course-progress', courseId],
     queryFn: () => progressApi.getCourseProgress(courseId!),
-    enabled: !!courseId
+    enabled: !!courseId,
+    staleTime: 30 * 1000
   });
 
   const { data: enrollmentsData, isLoading: isLoadingEnrollments } = useQuery({
     queryKey: ['my-enrollments'],
-    queryFn: () => enrollmentApi.getMyEnrollments()
+    queryFn: () => enrollmentApi.getMyEnrollments(),
+    staleTime: 5 * 60 * 1000
   });
 
   const isEnrolled = useMemo(() => {
@@ -142,19 +487,22 @@ const Learning: React.FC = () => {
   const { data: quizzesData, isLoading: isLoadingQuizzes } = useQuery({
     queryKey: ['quizzes', courseId],
     queryFn: () => quizApi.getQuizzesByCourse(courseId!),
-    enabled: !!courseId
+    enabled: !!courseId,
+    staleTime: 5 * 60 * 1000
   });
 
   const { data: discussionsData } = useQuery({
     queryKey: ['discussions', courseId, selectedLessonId],
     queryFn: () => discussionApi.getDiscussions(courseId!, selectedLessonId!),
-    enabled: !!courseId && !!selectedLessonId && !selectedQuizId
+    enabled: !!courseId && !!selectedLessonId && !selectedQuizId && activeTab === 'discussion',
+    staleTime: 60 * 1000
   });
 
   const { data: commentsData } = useQuery({
     queryKey: ['comments', courseId, selectedLessonId, expandedDiscussionId],
     queryFn: () => discussionApi.getComments(courseId!, selectedLessonId!, expandedDiscussionId!),
-    enabled: !!courseId && !!selectedLessonId && !!expandedDiscussionId
+    enabled: !!courseId && !!selectedLessonId && !!expandedDiscussionId && activeTab === 'discussion',
+    staleTime: 60 * 1000
   });
 
   const discussions: Discussion[] = discussionsData?.data?.discussions || [];
@@ -172,7 +520,7 @@ const Learning: React.FC = () => {
     if (modules && modules.length > 0) {
       return modules.map((m, idx) => ({
         id: m._id,
-        title: lv(m.title) || `${t('curriculum.module', 'Module')} ${idx + 1}`,
+        title: lv(m.title) || `${t('curriculum.module', 'Chương')} ${idx + 1}`,
         description: lv(m.description),
         lessons: (m.lessons || []).map((l: ApiLesson) => ({
           ...l,
@@ -215,27 +563,32 @@ const Learning: React.FC = () => {
     return allLessons.find((item: ApiLesson) => item._id === selectedLessonId) || (!selectedQuizId ? allLessons[0] : null);
   }, [selectedLessonId, selectedQuizId, allLessons]);
 
-  const [openModuleIds, setOpenModuleIds] = useState<string[]>([]);
-
-  // Auto-expand module containing the active lesson
-  useEffect(() => {
-    if (selectedLesson && curriculumModules.length > 0) {
-      const activeModule = curriculumModules.find(m => 
-        m.lessons.some(l => l._id === selectedLesson._id)
-      );
-      if (activeModule && !openModuleIds.includes(activeModule.id)) {
-        setOpenModuleIds(prev => [...prev, activeModule.id]);
-      }
-    } else if (curriculumModules.length > 0 && openModuleIds.length === 0) {
-      setOpenModuleIds([curriculumModules[0].id]);
+  const handleSelectLesson = useCallback((lessonId: string) => {
+    if (courseId && selectedLessonId && videoRef.current && videoRef.current.currentTime > 0) {
+      progressApi.updateVideoProgress(courseId, selectedLessonId, videoRef.current.currentTime).catch(err => {
+        console.error('Failed to save progress on lesson switch:', err);
+      });
     }
-  }, [selectedLesson, curriculumModules]);
+    setSelectedLessonId(lessonId);
+    setSelectedQuizId(null);
+    setSelectedAssignmentId(null);
+  }, [courseId, selectedLessonId]);
 
-  const toggleModule = (id: string) => {
-    setOpenModuleIds(prev => 
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
+  const handleSelectQuiz = useCallback((quizId: string) => {
+    setSelectedQuizId(quizId);
+    setSelectedLessonId(null);
+    setSelectedAssignmentId(null);
+  }, []);
+
+  const handleSelectAssignment = useCallback((assignmentId: string) => {
+    setSelectedAssignmentId(assignmentId);
+    setSelectedLessonId(null);
+    setSelectedQuizId(null);
+  }, []);
+
+  const handleStartPractice = useCallback((limit: number) => {
+    navigate(`/courses/${courseId}/quizzes/smart/take?limit=${limit}`);
+  }, [navigate, courseId]);
 
   const activeModuleTitle = useMemo(() => {
     if (!selectedLesson) return '';
@@ -1040,184 +1393,24 @@ const Learning: React.FC = () => {
             </div>
 
             {/* Typography-driven Curriculum with Independent Scroll */}
-            <div className="flex flex-col bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-2xl p-5 shadow-sm max-h-[calc(100vh-12rem)] overflow-y-auto custom-scrollbar pr-1">
-              <div className="pt-2 pb-5 border-b border-[#EAEAEA] dark:border-white/10">
-                <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
-                  {t('learning.curriculum', 'Nội dung khóa học')}
-                </h3>
-                {allLessons.length === 0 ? (
-                  <p className="text-sm text-slate-500">{t('learning.noLessons', 'Không có bài học nào.')}</p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {curriculumModules.map((module) => {
-                      const isOpen = openModuleIds.includes(module.id);
-                      const completedCount = module.lessons.filter((l: ApiLesson) => completedLessons.includes(l._id)).length;
-                      return (
-                        <div key={module.id} className="border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden">
-                          <button
-                            onClick={() => toggleModule(module.id)}
-                            className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left"
-                          >
-                            <div className="flex-1 pr-2 min-w-0">
-                              <span className="font-semibold text-sm text-slate-800 dark:text-slate-200 block truncate">
-                                {module.title}
-                              </span>
-                              <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-0.5">
-                                {completedCount}/{module.lessons.length} {t('common.lessons', 'bài học')}
-                              </span>
-                            </div>
-                            <motion.svg animate={{ rotate: isOpen ? 180 : 0 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-slate-400 ml-1">
-                              <path d="M6 9l6 6 6-6"/>
-                            </motion.svg>
-                          </button>
-                          {isOpen && (
-                            <div className="flex flex-col gap-1 p-2 bg-white dark:bg-[#1A1A1A]">
-                              {module.lessons.map((lesson: ApiLesson, index: number) => {
-                                const isActive = lesson._id === selectedLessonId && !selectedQuizId;
-                                const isCompleted = completedLessons.includes(lesson._id);
-                                return (
-                                  <button
-                                    key={lesson._id}
-                                    onClick={() => {
-                                      if (courseId && selectedLessonId && videoRef.current && videoRef.current.currentTime > 0) {
-                                        progressApi.updateVideoProgress(courseId, selectedLessonId, videoRef.current.currentTime).catch(err => {
-                                          console.error('Failed to save progress on lesson switch:', err);
-                                        });
-                                      }
-                                      setSelectedLessonId(lesson._id); 
-                                      setSelectedQuizId(null); 
-                                      setSelectedAssignmentId(null); 
-                                    }}
-                                    className={`group flex items-start justify-between py-2 px-2.5 rounded-md text-left w-full transition-colors ${isActive ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'}`}
-                                  >
-                                    <div className="flex items-start gap-3 w-full">
-                                      <div className="w-4 h-4 shrink-0 flex items-center justify-center mt-0.5">
-                                        {isCompleted ? (
-                                          <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
-                                        ) : isActive ? (
-                                          <div className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
-                                        ) : (
-                                          <span className="text-[10px] text-slate-400">{index + 1}</span>
-                                        )}
-                                      </div>
-                                      <span className="text-sm line-clamp-2 leading-snug break-words flex-1" title={lv(lesson.title)}>{lv(lesson.title)}</span>
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {quizzes.length > 0 && (
-                <div className="pt-5 pb-5 border-b border-[#EAEAEA] dark:border-white/10">
-                  <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
-                    {t('learning.assessments', 'Bài kiểm tra')}
-                  </h3>
-                  <div className="flex flex-col gap-1">
-                    {quizzes.map((quiz: any) => {
-                      const isActive = quiz._id === selectedQuizId;
-                      const isCompleted = Boolean(quiz.isCompleted);
-                      return (
-                        <button
-                          key={quiz._id}
-                          onClick={() => { setSelectedQuizId(quiz._id); setSelectedLessonId(null); setSelectedAssignmentId(null); }}
-                          className={`group flex items-start justify-between py-2 px-2.5 rounded-md text-left w-full transition-colors ${isActive ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-[#111111] dark:hover:text-white'}`}
-                        >
-                          <div className="flex items-start gap-3 w-full">
-                            <div className="w-4 h-4 shrink-0 flex items-center justify-center mt-0.5">
-                              {isCompleted ? (
-                                <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
-                              ) : (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <span className="text-sm line-clamp-2 leading-snug break-words" title={lv(quiz.title)}>{lv(quiz.title)}</span>
-                              <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                                <span>{quiz.questionCount ?? quiz.totalQuestions ?? 0} {t('learning.questions', 'câu')}</span>
-                                {quiz.isCompleted && (
-                                  <>
-                                    <span>•</span>
-                                    <span className={quiz.isPassed ? 'text-emerald-500 font-semibold' : 'text-rose-500 font-semibold'}>
-                                      {quiz.scorePercentage ?? quiz.score}%
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {assignments.length > 0 && (
-                <div className="pt-5 pb-5 border-b border-[#EAEAEA] dark:border-white/10">
-                  <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
-                    {t('learning.assignments', 'Bài tập về nhà')}
-                  </h3>
-                  <div className="flex flex-col gap-1">
-                    {assignments.map((assignment: any) => {
-                      const isActive = assignment._id === selectedAssignmentId;
-                      return (
-                        <button
-                          key={assignment._id}
-                          onClick={() => { setSelectedAssignmentId(assignment._id); setSelectedLessonId(null); setSelectedQuizId(null); }}
-                          className={`group flex items-start justify-between py-2 px-2.5 rounded-md text-left w-full transition-colors ${isActive ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-[#111111] dark:hover:text-white'}`}
-                        >
-                          <div className="flex items-start gap-3 w-full">
-                            <div className="w-4 h-4 shrink-0 flex items-center justify-center text-slate-400 mt-0.5">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                            </div>
-                            <span className="text-sm line-clamp-2 leading-snug break-words flex-1" title={lv(assignment.title)}>{lv(assignment.title)}</span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              <div className="pt-5 pb-2">
-                <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 mb-4">
-                  {t('learning.randomPractice', 'Luyện tập ngẫu nhiên')}
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">{t('learning.numQuestions', 'Số lượng câu hỏi')}</label>
-                    <select
-                      value={practiceLimit}
-                      onChange={(e) => setPracticeLimit(Number(e.target.value))}
-                      className="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
-                    >
-                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={5}>5 {t('learning.questions', 'câu hỏi')}</option>
-                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={10}>10 {t('learning.questions', 'câu hỏi')}</option>
-                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={15}>15 {t('learning.questions', 'câu hỏi')}</option>
-                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={20}>20 {t('learning.questions', 'câu hỏi')}</option>
-                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={25}>25 {t('learning.questions', 'câu hỏi')}</option>
-                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={30}>30 {t('learning.questions', 'câu hỏi')}</option>
-                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={40}>40 {t('learning.questions', 'câu hỏi')}</option>
-                      <option className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white" value={50}>50 {t('learning.questions', 'câu hỏi')}</option>
-                    </select>
-                  </div>
-                  <button
-                    onClick={() => navigate(`/courses/${courseId}/quizzes/smart/take?limit=${practiceLimit}`)}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl font-semibold text-sm hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                    {t('learning.startPractice', 'Bắt đầu luyện tập')}
-                  </button>
-                </div>
-              </div>
-            </div>
+            <LearningCurriculumSidebar
+              curriculumModules={curriculumModules}
+              allLessons={allLessons}
+              selectedLessonId={selectedLessonId}
+              selectedQuizId={selectedQuizId}
+              selectedAssignmentId={selectedAssignmentId}
+              completedLessons={completedLessons}
+              quizzes={quizzes}
+              assignments={assignments}
+              practiceLimit={practiceLimit}
+              onSelectLesson={handleSelectLesson}
+              onSelectQuiz={handleSelectQuiz}
+              onSelectAssignment={handleSelectAssignment}
+              onStartPractice={handleStartPractice}
+              onPracticeLimitChange={setPracticeLimit}
+              t={t}
+              lv={lv}
+            />
 
           </div>
         </div>

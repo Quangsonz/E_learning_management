@@ -78,31 +78,42 @@ const StarBackground: React.FC = () => {
       }
     };
 
+    const connectionDistanceSq = connectionDistance * connectionDistance;
+    const mouseDistanceSq = mouseDistance * mouseDistance;
+
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const isMouseActive = mouse.x >= 0 && mouse.y >= 0;
 
       for (let i = 0; i < particles.length; i++) {
         particles[i].update(canvas.width, canvas.height);
         particles[i].draw();
 
-        // Connect nearby particles
-        for (let j = i; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
+        // Connect nearby particles only if mouse is active on screen
+        if (isMouseActive) {
+          for (let j = i + 1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const distSq = dx * dx + dy * dy;
 
-          if (distance < connectionDistance) {
-            // Only draw line if at least one particle is near the mouse
-            const distToMouse1 = Math.sqrt(Math.pow(mouse.x - particles[i].x, 2) + Math.pow(mouse.y - particles[i].y, 2));
-            const distToMouse2 = Math.sqrt(Math.pow(mouse.x - particles[j].x, 2) + Math.pow(mouse.y - particles[j].y, 2));
+            if (distSq < connectionDistanceSq) {
+              const mx1 = mouse.x - particles[i].x;
+              const my1 = mouse.y - particles[i].y;
+              const distToMouse1Sq = mx1 * mx1 + my1 * my1;
 
-            if (distToMouse1 < mouseDistance || distToMouse2 < mouseDistance) {
-              ctx.beginPath();
-              ctx.strokeStyle = `rgba(125, 211, 252, ${1 - distance / connectionDistance})`; // sky-300 color
-              ctx.lineWidth = 0.5;
-              ctx.moveTo(particles[i].x, particles[i].y);
-              ctx.lineTo(particles[j].x, particles[j].y);
-              ctx.stroke();
+              const mx2 = mouse.x - particles[j].x;
+              const my2 = mouse.y - particles[j].y;
+              const distToMouse2Sq = mx2 * mx2 + my2 * my2;
+
+              if (distToMouse1Sq < mouseDistanceSq || distToMouse2Sq < mouseDistanceSq) {
+                const distance = Math.sqrt(distSq);
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(125, 211, 252, ${1 - distance / connectionDistance})`;
+                ctx.lineWidth = 0.5;
+                ctx.moveTo(particles[i].x, particles[i].y);
+                ctx.lineTo(particles[j].x, particles[j].y);
+                ctx.stroke();
+              }
             }
           }
         }

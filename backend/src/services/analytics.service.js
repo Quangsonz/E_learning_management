@@ -113,6 +113,8 @@ class AnalyticsService {
           enrollmentCount: { $sum: 1 }
         }
       },
+      { $sort: { enrollmentCount: -1 } },
+      { $limit: limit },
       {
         $lookup: {
           from: 'courses',
@@ -130,9 +132,7 @@ class AnalyticsService {
           as: 'instructor'
         }
       },
-      { $unwind: '$instructor' },
-      { $sort: { enrollmentCount: -1 } },
-      { $limit: limit },
+      { $unwind: { path: '$instructor', preserveNullAndEmptyArrays: true } },
       {
         $project: {
           _id: 0,

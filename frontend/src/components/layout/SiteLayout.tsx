@@ -105,10 +105,14 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     localStorage.setItem('language', nextLang);
   };
 
-  const translatedSidebarItems = sidebarItems.map(item => ({
-    ...item,
-    label: t(item.key)
-  }));
+  const translatedSidebarItems = useMemo(
+    () =>
+      sidebarItems.map((item) => ({
+        ...item,
+        label: t(item.key)
+      })),
+    [t]
+  );
 
   const { data: wishlistData } = useQuery({
     queryKey: ['wishlist'],

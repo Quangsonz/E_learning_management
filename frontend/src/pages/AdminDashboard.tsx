@@ -284,20 +284,30 @@ const UserIntelligence = () => {
   // FIX BUG-01: Tab values khớp với dữ liệu backend (role: student/teacher/admin)
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [editUser, setEditUser] = useState<any | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ userId: string; action: 'suspend' | 'activate' } | null>(null);
   const [deleteUserConfirm, setDeleteUserConfirm] = useState<{ userId: string; userName: string } | null>(null);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const { data: usersData, isLoading: usersLoading } = useQuery({
-    queryKey: ['admin-users', filter, search, page],
+    queryKey: ['admin-users', filter, debouncedSearch, page],
     queryFn: () => userApi.getAllUsers({
       role: filter === 'All' ? undefined : filter.toLowerCase(),
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       page,
       limit: 15
     }),
     staleTime: 60000,
+    keepPreviousData: true,
   });
 
   // FIX: Lấy users + pagination từ response mới (có total, page, totalPages)
@@ -368,7 +378,7 @@ const UserIntelligence = () => {
               type="text"
               placeholder={t('admin.users.searchPlaceholder')}
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onChange={(e) => setSearch(e.target.value)}
               className="pl-9 pr-4 py-2 text-sm bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors w-64 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/30 shadow-sm"
             />
           </div>

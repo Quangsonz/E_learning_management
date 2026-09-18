@@ -63,7 +63,7 @@ export const HeroBackgroundSlideshow: React.FC<{
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentIdx((prev) => (prev + 1) % HERO_SLIDESHOW_IMAGES.length);
-    }, 2000);
+    }, 7000);
     return () => clearInterval(timer);
   }, []);
 

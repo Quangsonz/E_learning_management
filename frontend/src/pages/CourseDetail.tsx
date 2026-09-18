@@ -145,7 +145,8 @@ const CourseDetail: React.FC = () => {
   const { data: courseData, isLoading, isError } = useQuery({
     queryKey: ['course', courseId],
     queryFn: () => courseApi.getCourseById(courseId!),
-    enabled: !!courseId
+    enabled: !!courseId,
+    staleTime: 5 * 60 * 1000
   });
 
   const hasError = !courseId || isError;
@@ -154,7 +155,8 @@ const CourseDetail: React.FC = () => {
   // Lấy danh sách đăng ký để kiểm tra
   const { data: enrollmentsData } = useQuery({
     queryKey: ['my-enrollments'],
-    queryFn: () => enrollmentApi.getMyEnrollments()
+    queryFn: () => enrollmentApi.getMyEnrollments(),
+    staleTime: 5 * 60 * 1000
   });
 
   const isEnrolled = useMemo(() => {
@@ -176,7 +178,8 @@ const CourseDetail: React.FC = () => {
 
   const { data: wishlistData } = useQuery({
     queryKey: ['wishlist'],
-    queryFn: () => userApi.getWishlist()
+    queryFn: () => userApi.getWishlist(),
+    staleTime: 5 * 60 * 1000
   });
 
   const isInWishlist = useMemo(() => {
@@ -200,31 +203,36 @@ const CourseDetail: React.FC = () => {
   const { data: progressData } = useQuery({
     queryKey: ['course-progress', courseId],
     queryFn: () => progressApi.getCourseProgress(courseId!),
-    enabled: isEnrolled
+    enabled: isEnrolled,
+    staleTime: 30 * 1000
   });
 
   const { data: lessonsData } = useQuery({
     queryKey: ['lessons', courseId],
     queryFn: () => lessonApi.getLessons(courseId!),
-    enabled: !!courseId
+    enabled: !!courseId,
+    staleTime: 5 * 60 * 1000
   });
 
   const { data: reviewsData } = useQuery({
     queryKey: ['reviews', courseId],
     queryFn: () => reviewApi.getCourseReviews(courseId!),
-    enabled: !!courseId
+    enabled: !!courseId,
+    staleTime: 5 * 60 * 1000
   });
 
   const { data: quizzesData } = useQuery({
     queryKey: ['quizzes', courseId],
     queryFn: () => quizApi.getQuizzesByCourse(courseId!),
-    enabled: !!courseId
+    enabled: !!courseId,
+    staleTime: 5 * 60 * 1000
   });
 
   const { data: modulesData } = useQuery({
     queryKey: ['modules', courseId],
     queryFn: () => moduleApi.getModules(courseId!),
-    enabled: !!courseId
+    enabled: !!courseId,
+    staleTime: 5 * 60 * 1000
   });
 
   const isInstructor = user?.role === 'admin' || (user && course?.instructor && (course.instructor._id === user.id));

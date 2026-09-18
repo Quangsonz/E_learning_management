@@ -34,6 +34,9 @@
     "quiz": "Quiz",
     "lesson": "Lesson"
   },
+  "curriculum": {
+    "module": "Chapter"
+  },
   "layout": {
     "nav": {
       "home": "Home",

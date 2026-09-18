@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { Toast } from '../components/ui';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
+import { Toast } from '../components/ui/Toast';
 
 type ToastVariant = 'success' | 'error' | 'info' | 'warning';
 
@@ -18,7 +18,15 @@ interface ToastContextType {
   warning: (message: string, title?: string) => void;
 }
 
-const ToastContext = createContext<ToastContextType | undefined>(undefined);
+const defaultToastContext: ToastContextType = {
+  showToast: () => {},
+  success: () => {},
+  error: () => {},
+  info: () => {},
+  warning: () => {},
+};
+
+const ToastContext = createContext<ToastContextType>(defaultToastContext);
 
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [toast, setToast] = useState<ToastOptions | null>(null);
@@ -43,8 +51,13 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     showToast({ message, variant: 'warning', title });
   }, [showToast]);
 
+  const value = useMemo(
+    () => ({ showToast, success, error, info, warning }),
+    [showToast, success, error, info, warning]
+  );
+
   return (
-    <ToastContext.Provider value={{ showToast, success, error, info, warning }}>
+    <ToastContext.Provider value={value}>
       {children}
       <Toast
         visible={!!toast}
@@ -61,8 +74,5 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
 export const useToast = () => {
   const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used within ToastProvider');
-  }
-  return context;
+  return context || defaultToastContext;
 };

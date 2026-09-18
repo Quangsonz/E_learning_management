@@ -278,7 +278,7 @@ const SortableModuleCard = ({
   };
 
   const lessons = module.lessons || [];
-  const moduleTitle = lv(module.title) || `${t('curriculum.module', 'Module')} ${index + 1}`;
+  const moduleTitle = lv(module.title) || `${t('curriculum.module', 'Chương')} ${index + 1}`;
   const moduleDesc = lv(module.description);
   const totalDuration = formatTotalDuration(lessons, t);
 
@@ -311,7 +311,7 @@ const SortableModuleCard = ({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                {t('curriculum.module', 'Module')} {index + 1}
+                {t('curriculum.module', 'Chương')} {index + 1}
               </span>
               <span className="text-slate-300 dark:text-slate-700">•</span>
               <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
@@ -610,21 +610,25 @@ const CurriculumEditor = () => {
   const reorderModulesMutation = useMutation({
     mutationFn: (newOrder: { id: string; order: number }[]) => moduleApi.reorderModules(courseId!, newOrder),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['modules', courseId] });
       setToast({ message: 'Đã lưu thứ tự chương học!', type: 'success' });
     },
-    onError: () => setToast({ message: 'Lưu thứ tự chương học thất bại', type: 'error' })
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['modules', courseId] });
+      setToast({ message: 'Lưu thứ tự chương học thất bại', type: 'error' });
+    }
   });
 
   // ── Lesson Mutations ─────────────────────────────────────────────
   const reorderLessonsMutation = useMutation({
     mutationFn: (newOrder: { id: string; order: number; moduleId?: string }[]) => lessonApi.reorderLessons(courseId!, newOrder),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['modules', courseId] });
       queryClient.invalidateQueries({ queryKey: ['lessons', courseId] });
       setToast({ message: t('teacher.curriculum.toasts.orderSaved'), type: 'success' });
     },
-    onError: () => setToast({ message: t('teacher.curriculum.toasts.orderFailed'), type: 'error' }),
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['modules', courseId] });
+      setToast({ message: t('teacher.curriculum.toasts.orderFailed'), type: 'error' });
+    },
   });
 
   const createLessonMutation = useMutation({
@@ -1061,7 +1065,7 @@ const CurriculumEditor = () => {
             <SectionHeader 
               label={t('teacher.curriculum.curriculumLabel', 'GIÁO TRÌNH KHÓA HỌC')}
               title={courseData?.data?.course?.title ? lv(courseData.data.course.title) : 'Curriculum Editor'} 
-              description={t('teacher.curriculum.curriculumDesc', 'Xây dựng và tổ chức nội dung theo cấu trúc Chuẩn: Khóa học → Chương (Module) → Bài giảng (Lesson)')}
+              description={t('teacher.curriculum.curriculumDesc', 'Xây dựng và tổ chức nội dung theo cấu trúc Chuẩn: Khóa học → Chương → Bài giảng (Lesson)')}
             />
           </div>
 
@@ -1074,7 +1078,7 @@ const CurriculumEditor = () => {
                   variant="outline" 
                   className="h-10 px-4 rounded-xl flex items-center gap-2 border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/50 font-semibold"
                 >
-                  <FolderPlus size={18} /> {t('teacher.curriculum.addModule', '+ Thêm Module')}
+                  <FolderPlus size={18} /> {t('teacher.curriculum.addModule', '+ Thêm Chương')}
                 </Button>
                 {modules.length > 0 && (
                   <Button 
@@ -1259,10 +1263,10 @@ const CurriculumEditor = () => {
                   <FolderPlus size={28} />
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 dark:text-slate-200">
-                  Khóa học chưa có Chương học (Module) nào
+                  Khóa học chưa có Chương học nào
                 </h3>
                 <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-md mx-auto text-sm leading-relaxed">
-                  Để đảm bảo tính sư phạm rõ ràng, mỗi khóa học cần được tổ chức thành các Chương (Module) lớn, mỗi Chương sẽ chứa các Bài giảng (Lessons) tương ứng.
+                  Để đảm bảo tính sư phạm rõ ràng, mỗi khóa học cần được tổ chức thành các Chương học lớn, mỗi Chương sẽ chứa các Bài giảng (Lessons) tương ứng.
                 </p>
                 <Button onClick={() => handleOpenModuleModal(null)} className="mt-6 flex items-center gap-2 mx-auto">
                   <FolderPlus size={18} /> Tạo Chương đầu tiên
@@ -1334,7 +1338,7 @@ const CurriculumEditor = () => {
                     className="w-full py-4 border-2 border-dashed border-slate-200 hover:border-indigo-500 dark:border-white/10 dark:hover:border-indigo-400 rounded-3xl text-sm font-bold text-slate-600 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 flex items-center justify-center gap-2 transition-all cursor-pointer hover:bg-indigo-50/20 dark:hover:bg-indigo-500/5 shadow-xs"
                   >
                     <FolderPlus size={18} />
-                    <span>{t('teacher.curriculum.addModuleLong', '+ Thêm Chương học mới (Module)')}</span>
+                    <span>{t('teacher.curriculum.addModuleLong', '+ Thêm Chương học mới')}</span>
                   </button>
                 </div>
               </div>
@@ -1471,7 +1475,7 @@ const CurriculumEditor = () => {
               </div>
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                  {editingModule ? t('teacher.curriculum.editModule', 'Chỉnh sửa Chương học (Module)') : t('teacher.curriculum.newModule', 'Tạo Chương học mới (Module)')}
+                  {editingModule ? t('teacher.curriculum.editModule', 'Chỉnh sửa Chương học') : t('teacher.curriculum.newModule', 'Tạo Chương học mới')}
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   {t('teacher.curriculum.moduleSubtitle', 'Phân nhóm nội dung bài giảng khoa học và mạch lạc')}
@@ -1552,7 +1556,7 @@ const CurriculumEditor = () => {
               {/* Module selection dropdown */}
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  {t('teacher.curriculum.moduleBelongLabel', 'Thuộc Chương học (Module)')} <span className="text-rose-500">*</span>
+                  {t('teacher.curriculum.moduleBelongLabel', 'Thuộc Chương học')} <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={lessonFormData.moduleId}
@@ -1562,7 +1566,7 @@ const CurriculumEditor = () => {
                 >
                   {modules.map((m, idx) => (
                     <option key={m._id} value={m._id}>
-                      {t('curriculum.module', 'Module')} {idx + 1}: {lv(m.title)}
+                      {t('curriculum.module', 'Chương')} {idx + 1}: {lv(m.title)}
                     </option>
                   ))}
                 </select>
@@ -2052,7 +2056,7 @@ const CurriculumEditor = () => {
                   </div>
                   <div className="space-y-1">
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                      {deleteTarget.type === 'module' && t('teacher.curriculum.deleteModuleTitle', 'Xác nhận xóa Chương học (Module)')}
+                      {deleteTarget.type === 'module' && t('teacher.curriculum.deleteModuleTitle', 'Xác nhận xóa Chương học')}
                       {deleteTarget.type === 'lesson' && (t('teacher.curriculum.deleteLessonTitle', 'Xác nhận xóa bài học'))}
                       {deleteTarget.type === 'quiz' && (t('teacher.curriculum.deleteQuizTitle', 'Xác nhận xóa bài kiểm tra'))}
                       {deleteTarget.type === 'question' && (t('teacher.curriculum.deleteQuestionTitle', 'Xác nhận xóa câu hỏi'))}

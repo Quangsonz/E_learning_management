@@ -15,7 +15,6 @@ import {
   PageShell,
   SectionLead
 } from '../components/ui';
-import useSimulatedLoading from '../hooks/useSimulatedLoading';
 import { useLocalizedValue } from '../utils/localized';
 
 type Question = {
@@ -25,6 +24,72 @@ type Question = {
 };
 
 const MotionDiv = motion.div as unknown as React.FC<React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>>;
+
+interface QuizCountdownTimerProps {
+  initialMinutes?: number;
+  isPaused: boolean;
+  onTimeUp: () => void;
+  countdownLabel: string;
+}
+
+const QuizCountdownTimer: React.FC<QuizCountdownTimerProps> = React.memo(({
+  initialMinutes,
+  isPaused,
+  onTimeUp,
+  countdownLabel
+}) => {
+  const [timeLeft, setTimeLeft] = useState<number | null>(() => (initialMinutes ? initialMinutes * 60 : null));
+  const onTimeUpRef = React.useRef(onTimeUp);
+  onTimeUpRef.current = onTimeUp;
+
+  useEffect(() => {
+    if (initialMinutes && timeLeft === null) {
+      setTimeLeft(initialMinutes * 60);
+    }
+  }, [initialMinutes, timeLeft]);
+
+  useEffect(() => {
+    if (isPaused || timeLeft === null) return;
+
+    const timer = window.setInterval(() => {
+      setTimeLeft((current) => {
+        if (current === null) return null;
+        if (current <= 1) {
+          window.clearInterval(timer);
+          onTimeUpRef.current();
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [isPaused, timeLeft !== null]);
+
+  const formatTime = (seconds: number | null) => {
+    if (seconds === null) return '--:--';
+    const minutes = Math.floor(seconds / 60);
+    const remaining = seconds % 60;
+    return `${minutes}:${remaining.toString().padStart(2, '0')}`;
+  };
+
+  const timerWarning = timeLeft !== null && timeLeft <= 15;
+
+  return (
+    <div className="flex items-baseline gap-6 lg:flex-col lg:items-end lg:gap-1.5">
+      <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{countdownLabel}</span>
+      <span
+        className={`inline-block rounded-xl px-3 py-1 text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl transition-all duration-300 ${
+          timerWarning
+            ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200 animate-pulse'
+            : 'text-slate-950 dark:text-white'
+        }`}
+      >
+        {formatTime(timeLeft)}
+      </span>
+    </div>
+  );
+});
 
 const Quiz: React.FC = () => {
   const { t } = useTranslation();
@@ -54,55 +119,17 @@ const Quiz: React.FC = () => {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [timerKey, setTimerKey] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [resultData, setResultData] = useState<any>(null);
   const [celebrate, setCelebrate] = useState(false);
-  const [pulse, setPulse] = useState(false);
-
-  // Initialize timer once quiz data loads
-  useEffect(() => {
-    if (quiz?.timeLimit && timeLeft === null) {
-      setTimeLeft(quiz.timeLimit * 60);
-    }
-  }, [quiz, timeLeft]);
-
-  useEffect(() => {
-    if (showResult || celebrate || timeLeft === null) return;
-
-    const timer = window.setInterval(() => {
-      setTimeLeft((current) => {
-        if (current === null) return null;
-        if (current <= 1) {
-          window.clearInterval(timer);
-          finishQuiz();
-          return 0;
-        }
-
-        if (current <= 15) {
-          setPulse(true);
-        }
-
-        return current - 1;
-      });
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [showResult, celebrate]);
 
   const currentQuestion = questions[currentIndex];
 
   const progress = useMemo(() => {
     return ((currentIndex + 1) / questions.length) * 100;
   }, [currentIndex]);
-
-  const formatTime = (seconds: number | null) => {
-    if (seconds === null) return '--:--';
-    const minutes = Math.floor(seconds / 60);
-    const remaining = seconds % 60;
-    return `${minutes}:${remaining.toString().padStart(2, '0')}`;
-  };
 
   const finishQuiz = () => {
     const answersPayload = Object.entries(answers).map(([questionId, selectedOptionId]) => ({
@@ -155,15 +182,13 @@ const Quiz: React.FC = () => {
   const restartQuiz = () => {
     setCurrentIndex(0);
     setAnswers({});
-    if (quiz?.timeLimit) setTimeLeft(quiz.timeLimit * 60);
     setShowResult(false);
     setShowReview(false);
     setCelebrate(false);
-    setPulse(false);
+    setTimerKey((k) => k + 1);
   };
 
   const completedQuestions = Object.keys(answers).length;
-  const timerWarning = timeLeft !== null && timeLeft <= 15;
 
   const scorePercent = resultData?.scorePercentage ?? resultData?.score ?? 0;
   const isPassed = Boolean(resultData?.isPassed ?? resultData?.passed);
@@ -225,18 +250,13 @@ const Quiz: React.FC = () => {
           </Button>
         }
         aside={
-          <div className="flex items-baseline gap-6 lg:flex-col lg:items-end lg:gap-1.5">
-            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('quizPage.countdown')}</span>
-            <span
-              className={`inline-block rounded-xl px-3 py-1 text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl transition-all duration-300 ${
-                timerWarning
-                  ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200'
-                  : 'text-slate-950 dark:text-white'
-              } ${pulse ? 'animate-pulse' : ''}`}
-            >
-              {formatTime(timeLeft)}
-            </span>
-          </div>
+          <QuizCountdownTimer
+            key={timerKey}
+            initialMinutes={quiz?.timeLimit}
+            isPaused={showResult || celebrate}
+            onTimeUp={finishQuiz}
+            countdownLabel={t('quizPage.countdown')}
+          />
         }
       />
 

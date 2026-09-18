@@ -82,7 +82,7 @@ export const LessonManager: React.FC<LessonManagerProps> = ({ courseId, courseTi
               <div className="space-y-3">
                 {modules.length > 0 && (
                   <label className="block space-y-1">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Module / Chương</span>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Chương học</span>
                     <select
                       value={selectedModuleId || modules[0]._id}
                       onChange={(e) => setSelectedModuleId(e.target.value)}

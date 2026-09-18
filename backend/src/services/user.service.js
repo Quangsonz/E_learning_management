@@ -27,7 +27,8 @@ class UserService {
         .sort(sort)
         .skip(skip)
         .limit(limitNum)
-        .select('-password -verificationToken -passwordResetToken -refreshToken'),
+        .select('-password -verificationToken -passwordResetToken -refreshToken')
+        .lean(),
       User.countDocuments(filter)
     ]);
 

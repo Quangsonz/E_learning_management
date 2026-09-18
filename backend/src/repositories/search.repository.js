@@ -47,44 +47,50 @@ class SearchRepository {
   async searchLessons(searchTerm, user = null, limit = 5) {
     const searchConditions = buildLocalizedSearchConditions('title', searchTerm);
 
-    // Determine accessible course IDs
-    let courseFilter = {};
-    if (!user || user.role === 'student') {
-      // Find published courses or student's enrolled courses
-      const publishedCourses = await Course.find({ status: 'published' }).select('_id').lean();
-      let accessibleCourseIds = publishedCourses.map(c => c._id);
+    // Fetch candidate lessons matching search conditions first (fast, indexed, bounded)
+    const candidateLessons = await Lesson.find({ $or: searchConditions })
+      .select('_id title duration order course provider')
+      .populate('course', '_id title slug status instructor')
+      .limit(limit * 4)
+      .lean();
 
-      if (user && (user._id || user.id)) {
-        const enrolled = await Enrollment.find({
-          student: user._id || user.id,
-          paymentStatus: 'completed'
-        }).select('course').lean();
-        const enrolledCourseIds = enrolled.map(e => e.course);
-        accessibleCourseIds = [...accessibleCourseIds, ...enrolledCourseIds];
-      }
-      courseFilter = { course: { $in: accessibleCourseIds } };
-    } else if (user.role === 'teacher') {
-      const teacherCourses = await Course.find({
-        $or: [
-          { instructor: user._id || user.id },
-          { status: 'published' }
-        ]
-      }).select('_id').lean();
-      courseFilter = { course: { $in: teacherCourses.map(c => c._id) } };
+    if (!candidateLessons || candidateLessons.length === 0) {
+      return [];
     }
 
-    const query = {
-      $and: [
-        { $or: searchConditions },
-        courseFilter
-      ]
-    };
+    // Admin has access to all lessons
+    if (user?.role === 'admin') {
+      return candidateLessons.slice(0, limit);
+    }
 
-    return await Lesson.find(query)
-      .select('_id title duration order course provider')
-      .populate('course', 'title slug status')
-      .limit(limit)
-      .lean();
+    // Teacher has access to published courses or courses they instruct
+    if (user?.role === 'teacher') {
+      const teacherIdStr = (user._id || user.id)?.toString();
+      const filtered = candidateLessons.filter(lesson => {
+        const course = lesson.course;
+        if (!course) return false;
+        return course.status === 'published' || course.instructor?.toString() === teacherIdStr;
+      });
+      return filtered.slice(0, limit);
+    }
+
+    // Student or unauthenticated user: published courses or enrolled courses
+    let enrolledCourseIdSet = new Set();
+    if (user && (user._id || user.id)) {
+      const enrolled = await Enrollment.find({
+        student: user._id || user.id,
+        paymentStatus: 'completed'
+      }).select('course').lean();
+      enrolledCourseIdSet = new Set(enrolled.map(e => e.course?.toString()));
+    }
+
+    const filtered = candidateLessons.filter(lesson => {
+      const course = lesson.course;
+      if (!course) return false;
+      return course.status === 'published' || enrolledCourseIdSet.has(course._id?.toString());
+    });
+
+    return filtered.slice(0, limit);
   }
 
   /**

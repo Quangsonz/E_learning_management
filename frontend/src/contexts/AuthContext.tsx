@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useCallback, useMemo, useEffect, ReactNode } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -152,7 +152,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     [dispatch]
   );
 
-  const value: AuthContextType = {
+  const value: AuthContextType = useMemo(() => ({
     user,
     accessToken,
     isAuthenticated,
@@ -163,7 +163,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     refreshProfile,
     updateProfile,
-  };
+  }), [
+    user,
+    accessToken,
+    isAuthenticated,
+    isAdmin,
+    isTeacher,
+    login,
+    register,
+    logout,
+    refreshProfile,
+    updateProfile,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

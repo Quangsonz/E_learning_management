@@ -41,16 +41,6 @@ courseSchema.pre('save', function() {
   }
 });
 
-// Query middleware: Tự động populate instructor và category
-courseSchema.pre(/^find/, function() {
-  this.populate({
-    path: 'instructor',
-    select: 'name role avatar'
-  }).populate({
-    path: 'category',
-    select: 'name slug'
-  });
-});
 
 // Cascading delete middleware khi xóa khóa học
 courseSchema.pre('findOneAndDelete', async function() {

@@ -89,16 +89,26 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const stepList = [t('admin.courseManagement.draftStep'), t('admin.courseManagement.publishStep')];
 
   const { data: responseData, isLoading } = useQuery({
-    queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses', page, search, selectedCategory],
+    queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses', page, debouncedSearch, selectedCategory],
     queryFn: () => {
-      const params = { page, limit: 10, search: search || undefined, category: selectedCategory === 'All' ? undefined : selectedCategory };
+      const params = { page, limit: 10, search: debouncedSearch || undefined, category: selectedCategory === 'All' ? undefined : selectedCategory };
       return teacherMode ? courseApi.getMyCourses(params) : courseApi.getAllCourses(params);
-    }
+    },
+    keepPreviousData: true
   });
   
   const totalPages = responseData?.data?.totalPages || 1;
@@ -396,7 +406,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
           <Input
             type="search"
             value={search}
-            onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder={t('admin.courseManagement.searchPlaceholder')}
             icon={
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -409,7 +419,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
                 />
               </svg>
             }
-            onClear={() => { setSearch(''); setPage(1); }}
+            onClear={() => setSearch('')}
             className="max-w-lg flex-1"
           />
 
