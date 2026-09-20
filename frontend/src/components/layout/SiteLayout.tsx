@@ -139,6 +139,24 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Smart auto-hide floating header on scroll down, show on scroll up
   const [isNavVisible, setIsNavVisible] = useState(true);
 
+  // Broadcast nav visibility changes to child components (e.g. Learning page header sync)
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('app:nav-visibility-change', {
+      detail: { isVisible: isNavVisible }
+    }));
+  }, [isNavVisible]);
+
+  // Allow child components (like Learning focus mode) to programmatically toggle or set nav visibility
+  useEffect(() => {
+    const handleSetNav = (e: any) => {
+      if (typeof e.detail?.isVisible === 'boolean') {
+        setIsNavVisible(e.detail.isVisible);
+      }
+    };
+    window.addEventListener('app:set-nav-visibility', handleSetNav);
+    return () => window.removeEventListener('app:set-nav-visibility', handleSetNav);
+  }, []);
+
   useEffect(() => {
     let lastScrollY = window.scrollY;
     let ticking = false;
@@ -192,11 +210,6 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     if (mobileOpen) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = '';
   }, [mobileOpen]);
-
-  // Completely bypass layout on learning viewer pages (/courses/:courseId/learn)
-  if (location.pathname.includes('/learn')) {
-    return <>{children}</>;
-  }
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-[#FBFBFA] dark:bg-[#080808] transition-colors duration-300 relative selection:bg-indigo-500/30 w-full max-w-[100vw]">
@@ -367,7 +380,9 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </header>
 
       {/* ── Mobile Top Bar ─────────────────────────────── */}
-      <header className="sticky top-0 z-40 flex h-16 items-center justify-between px-4 border-b border-black/5 dark:border-white/5 bg-white/80 dark:bg-[#080808]/80 backdrop-blur-xl md:hidden">
+      <header className={`sticky top-0 z-40 flex h-16 items-center justify-between px-4 border-b border-black/5 dark:border-white/5 bg-white/80 dark:bg-[#080808]/80 backdrop-blur-xl md:hidden transition-all duration-300 transform ${
+        isNavVisible ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-full opacity-0 pointer-events-none'
+      }`}>
         <Link to="/home" className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 text-white font-bold tracking-tighter text-sm">
           E
         </Link>
@@ -473,85 +488,87 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         {children}
       </main>
 
-      {/* ── High-End Footer ────────────────────────────────────────── */}
-      <footer className="mt-24 border-t border-slate-200/50 dark:border-white/10 relative bg-white/40 dark:bg-black/20 backdrop-blur-xl">
-        {/* Subtle mesh background for the footer */}
-        <div className="absolute inset-0 z-0 pointer-events-none opacity-30 dark:opacity-20 overflow-hidden mix-blend-multiply dark:mix-blend-screen">
-          <div className="absolute -bottom-[50%] -left-[10%] w-[50%] h-[100%] rounded-full bg-indigo-500/20 blur-[120px]" />
-          <div className="absolute bottom-[0%] -right-[10%] w-[40%] h-[80%] rounded-full bg-cyan-400/20 blur-[140px]" />
-        </div>
+      {/* ── High-End Footer (Hidden on /learn page for focused learning experience) ──────────────── */}
+      {!location.pathname.includes('/learn') && (
+        <footer className="mt-24 border-t border-slate-200/50 dark:border-white/10 relative bg-white/40 dark:bg-black/20 backdrop-blur-xl">
+          {/* Subtle mesh background for the footer */}
+          <div className="absolute inset-0 z-0 pointer-events-none opacity-30 dark:opacity-20 overflow-hidden mix-blend-multiply dark:mix-blend-screen">
+            <div className="absolute -bottom-[50%] -left-[10%] w-[50%] h-[100%] rounded-full bg-indigo-500/20 blur-[120px]" />
+            <div className="absolute bottom-[0%] -right-[10%] w-[40%] h-[80%] rounded-full bg-cyan-400/20 blur-[140px]" />
+          </div>
 
-        <div className="mx-auto max-w-[1400px] px-6 lg:px-12 py-16 lg:py-24 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-8 mb-16">
-            
-            {/* Brand Section */}
-            <div className="md:col-span-5 lg:col-span-4 pr-8">
-              <Link to="/home" className="flex items-center gap-3 mb-6">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 text-white font-bold tracking-tighter text-base shadow-lg shadow-indigo-500/20">
-                  E
-                </div>
-                <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">E-Learning.</span>
-              </Link>
-              <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed max-w-[30ch] font-medium">
-                Elevating the educational experience through intentional design, advanced component composition, and emotional interaction.
-              </p>
+          <div className="mx-auto max-w-[1400px] px-6 lg:px-12 py-16 lg:py-24 relative z-10">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-8 mb-16">
               
-              {/* Social Links */}
-              <div className="flex items-center gap-4 mt-8">
-                {['Twitter', 'GitHub', 'Dribbble'].map((social) => (
-                  <button key={social} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/30">
-                    <span className="text-xs font-bold">{social[0]}</span>
-                  </button>
-                ))}
+              {/* Brand Section */}
+              <div className="md:col-span-5 lg:col-span-4 pr-8">
+                <Link to="/home" className="flex items-center gap-3 mb-6">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 text-white font-bold tracking-tighter text-base shadow-lg shadow-indigo-500/20">
+                    E
+                  </div>
+                  <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">E-Learning.</span>
+                </Link>
+                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed max-w-[30ch] font-medium">
+                  Elevating the educational experience through intentional design, advanced component composition, and emotional interaction.
+                </p>
+                
+                {/* Social Links */}
+                <div className="flex items-center gap-4 mt-8">
+                  {['Twitter', 'GitHub', 'Dribbble'].map((social) => (
+                    <button key={social} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/30">
+                      <span className="text-xs font-bold">{social[0]}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Links Section */}
+              <div className="md:col-span-7 lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-8">
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-6">Platform</h4>
+                  <ul className="space-y-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                    <li><Link to="/courses" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Courses</Link></li>
+                    <li><a href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Certifications</a></li>
+                  </ul>
+                </div>
+                
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-6">Management</h4>
+                  <ul className="space-y-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                    <li><a href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center gap-2">Analytics <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-[9px] font-bold uppercase tracking-widest">New</span></a></li>
+                  </ul>
+                </div>
+
+                <div className="col-span-2 sm:col-span-1">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-6">Stay Updated</h4>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-4">Join our newsletter for weekly educational design patterns.</p>
+                  <div className="relative group">
+                    <input type="email" placeholder="Email address" className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-full py-3 pl-5 pr-12 text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400 transition-colors placeholder:text-slate-400 shadow-sm" />
+                    <button className="absolute right-1.5 top-1.5 bottom-1.5 w-9 rounded-full bg-slate-950 dark:bg-white flex items-center justify-center text-white dark:text-slate-950 group-hover:bg-indigo-600 dark:group-hover:bg-indigo-400 transition-colors shadow-md">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Links Section */}
-            <div className="md:col-span-7 lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-8">
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-6">Platform</h4>
-                <ul className="space-y-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                  <li><Link to="/courses" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Courses</Link></li>
-                  <li><a href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Certifications</a></li>
-                </ul>
+            {/* Bottom Bar */}
+            <div className="pt-8 border-t border-slate-200/50 dark:border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="text-sm font-bold text-slate-400 dark:text-slate-500">
+                © 2026 E-Learning. Crafted with purpose.
               </div>
-              
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-6">Management</h4>
-                <ul className="space-y-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                  <li><a href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center gap-2">Analytics <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-[9px] font-bold uppercase tracking-widest">New</span></a></li>
-                </ul>
-              </div>
-
-              <div className="col-span-2 sm:col-span-1">
-                <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white mb-6">Stay Updated</h4>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-4">Join our newsletter for weekly educational design patterns.</p>
-                <div className="relative group">
-                  <input type="email" placeholder="Email address" className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-full py-3 pl-5 pr-12 text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400 transition-colors placeholder:text-slate-400 shadow-sm" />
-                  <button className="absolute right-1.5 top-1.5 bottom-1.5 w-9 rounded-full bg-slate-950 dark:bg-white flex items-center justify-center text-white dark:text-slate-950 group-hover:bg-indigo-600 dark:group-hover:bg-indigo-400 transition-colors shadow-md">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                  </button>
+              <div className="flex flex-wrap items-center gap-6 text-sm font-bold text-slate-400 dark:text-slate-500">
+                <a href="#" className="hover:text-slate-900 dark:hover:text-white transition-colors">Privacy Policy</a>
+                <a href="#" className="hover:text-slate-900 dark:hover:text-white transition-colors">Terms of Service</a>
+                <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-white/10">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-slate-700 dark:text-slate-300">All Systems Operational</span>
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Bottom Bar */}
-          <div className="pt-8 border-t border-slate-200/50 dark:border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="text-sm font-bold text-slate-400 dark:text-slate-500">
-              © 2026 E-Learning. Crafted with purpose.
-            </div>
-            <div className="flex flex-wrap items-center gap-6 text-sm font-bold text-slate-400 dark:text-slate-500">
-              <a href="#" className="hover:text-slate-900 dark:hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-slate-900 dark:hover:text-white transition-colors">Terms of Service</a>
-              <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-white/10">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-slate-700 dark:text-slate-300">All Systems Operational</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
 
       <WishlistDrawer isOpen={wishlistOpen} onClose={() => setWishlistOpen(false)} />
     </div>

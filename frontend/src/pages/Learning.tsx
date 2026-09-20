@@ -458,6 +458,27 @@ const Learning: React.FC = () => {
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
 
+  // Synchronized navbar vs page header visibility (Mutual Exclusivity)
+  const [isNavbarVisible, setIsNavbarVisible] = useState(true);
+
+  useEffect(() => {
+    const handleNavVisibilityChange = (e: any) => {
+      if (typeof e.detail?.isVisible === 'boolean') {
+        setIsNavbarVisible(e.detail.isVisible);
+      }
+    };
+    window.addEventListener('app:nav-visibility-change', handleNavVisibilityChange);
+    return () => window.removeEventListener('app:nav-visibility-change', handleNavVisibilityChange);
+  }, []);
+
+  const toggleNavbarVisibility = useCallback(() => {
+    setIsNavbarVisible(prev => {
+      const next = !prev;
+      window.dispatchEvent(new CustomEvent('app:set-nav-visibility', { detail: { isVisible: next } }));
+      return next;
+    });
+  }, []);
+
   const { data: courseData } = useQuery({
     queryKey: ['course', courseId],
     queryFn: () => courseApi.getCourseById(courseId!),
@@ -465,28 +486,35 @@ const Learning: React.FC = () => {
     staleTime: 5 * 60 * 1000
   });
 
-  const handleQualityChange = useCallback((newQuality: VideoQuality) => {
-    setSelectedQuality(newQuality);
-    setShowQualityMenu(false);
+  const qualitySwitchTimeRef = React.useRef<number | null>(null);
 
+  const handleQualityChange = useCallback((newQuality: VideoQuality) => {
     if (videoRef.current) {
       const currentPos = videoRef.current.currentTime;
       const wasPlaying = !videoRef.current.paused;
+      qualitySwitchTimeRef.current = currentPos;
 
       const restoreState = () => {
-        if (videoRef.current) {
-          videoRef.current.currentTime = currentPos;
+        if (videoRef.current && qualitySwitchTimeRef.current !== null) {
+          videoRef.current.currentTime = qualitySwitchTimeRef.current;
           videoRef.current.playbackRate = playbackSpeed;
           if (wasPlaying) {
             videoRef.current.play().catch(() => {});
           }
+          qualitySwitchTimeRef.current = null;
           videoRef.current.removeEventListener('loadedmetadata', restoreState);
         }
       };
 
       videoRef.current.addEventListener('loadedmetadata', restoreState);
     }
-  }, [playbackSpeed]);
+
+    setSelectedQuality(newQuality);
+    setShowQualityMenu(false);
+
+    const opt = QUALITY_OPTIONS.find(o => o.id === newQuality);
+    successToast(`Chất lượng video: ${opt?.label || newQuality}`, 'Trình phát Video');
+  }, [playbackSpeed, successToast]);
 
   const handleSpeedChange = useCallback((speed: number) => {
     setPlaybackSpeed(speed);
@@ -846,6 +874,10 @@ const Learning: React.FC = () => {
 
 
   const handleVideoLoadedMetadata = () => {
+    if (qualitySwitchTimeRef.current !== null) {
+      // Quality switch in progress - restore handled by quality callback
+      return;
+    }
     if (videoRef.current && progressInfo?.videoProgress && selectedLessonId) {
       const savedTime = progressInfo.videoProgress[selectedLessonId];
       if (savedTime) {
@@ -933,13 +965,17 @@ const Learning: React.FC = () => {
   }
 
   return (
-    <div className="bg-[#FBFBFA] dark:bg-[#111111] text-[#111111] dark:text-[#FBFBFA] selection:bg-slate-200 dark:selection:bg-slate-800">
+    <div className="bg-[#FBFBFA] dark:bg-[#111111] text-[#111111] dark:text-[#FBFBFA] selection:bg-slate-200 dark:selection:bg-slate-800 min-h-screen">
       
-      {/* Top minimal nav */}
-      <nav className="h-14 border-b border-[#EAEAEA] dark:border-white/10 flex items-center px-6 lg:px-8 bg-[#FBFBFA]/90 dark:bg-[#111111]/90 backdrop-blur-md sticky top-0 z-40">
+      {/* Top minimal nav: Synchronized with floating navbar (hidden when navbar is visible, shown when navbar is hidden) */}
+      <header className={`fixed top-0 left-0 right-0 h-14 border-b border-[#EAEAEA] dark:border-white/10 flex items-center px-6 lg:px-8 bg-white/95 dark:bg-[#111111]/95 backdrop-blur-md z-40 transition-all duration-300 ease-out transform ${
+        isNavbarVisible 
+          ? '-translate-y-full opacity-0 pointer-events-none' 
+          : 'translate-y-0 opacity-100 pointer-events-auto shadow-sm'
+      }`}>
         <div className="flex items-center justify-between w-full max-w-[1400px] mx-auto gap-4">
           <div className="flex items-center gap-4 min-w-0">
-            <Link to={`/courses/${courseId || ''}`} className="text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors flex items-center gap-1.5 shrink-0">
+            <Link to={`/courses/${courseId || ''}`} className="text-sm font-medium text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 transition-colors flex items-center gap-1.5 shrink-0">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
               {t('learning.backToCourse', 'Quay lại khóa học')}
             </Link>
@@ -953,11 +989,50 @@ const Learning: React.FC = () => {
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 hidden sm:inline">
               {completedLessons.length}/{allLessons.length} {t('common.lessons', 'bài học')} ({progressPercent}%)
             </span>
+            <button
+              type="button"
+              onClick={toggleNavbarVisibility}
+              className="px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+              title="Mở thanh điều hướng trang chính"
+            >
+              <span>🧭 Menu chính</span>
+            </button>
           </div>
         </div>
-      </nav>
+      </header>
 
-      <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8 lg:py-12">
+      {/* Main Content Area: Sufficient top spacing so floating navbar does not overlap */}
+      <div className="max-w-[1400px] mx-auto px-4 lg:px-8 pt-24 lg:pt-28 pb-12">
+        {/* Subtle breadcrumb bar and focus mode toggle */}
+        <div className="flex items-center justify-between gap-4 mb-6 text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-2 min-w-0">
+            <Link to={`/courses/${courseId || ''}`} className="hover:text-indigo-600 dark:hover:text-indigo-400 font-semibold flex items-center gap-1 shrink-0 transition-colors">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+              {t('learning.backToCourse', 'Quay lại khóa học')}
+            </Link>
+            <span>/</span>
+            <span className="truncate text-slate-700 dark:text-slate-200 font-medium">
+              {courseData?.data?.course?.title ? lv(courseData.data.course.title) : ''}
+            </span>
+            {selectedLesson && (
+              <>
+                <span>/</span>
+                <span className="truncate text-indigo-600 dark:text-indigo-400 font-semibold">
+                  {lv(selectedLesson.title)}
+                </span>
+              </>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={toggleNavbarVisibility}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 text-slate-600 dark:text-slate-300 font-medium transition-colors shrink-0 shadow-xs"
+            title={isNavbarVisible ? 'Ẩn menu chính (Chế độ tập trung)' : 'Hiện lại menu chính'}
+          >
+            <span>{isNavbarVisible ? 'Ẩn menu (Tập trung)' : 'Hiện menu chính'}</span>
+          </button>
+        </div>
         
         {/* Asymmetrical Layout */}
         <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
@@ -1171,19 +1246,70 @@ const Learning: React.FC = () => {
                           className="w-full h-full"
                         ></iframe>
                       ) : selectedLesson.videoUrl ? (
-                        <video 
-                          key={selectedLessonId || 'video-player'}
-                          ref={videoRef}
-                          controls 
-                          autoPlay
-                          className="w-full h-full object-contain" 
-                          src={getTransformedVideoUrl(selectedLesson.videoUrl, selectedQuality)}
-                          onPause={handleVideoPause}
-                          onLoadedMetadata={handleVideoLoadedMetadata}
-                          onEnded={completeLesson}
-                        >
-                          Your browser does not support the video tag.
-                        </video>
+                        <>
+                          <video 
+                            key={selectedLessonId || 'video-player'}
+                            ref={videoRef}
+                            controls 
+                            autoPlay
+                            className="w-full h-full object-contain" 
+                            src={getTransformedVideoUrl(selectedLesson.videoUrl, selectedQuality)}
+                            onPause={handleVideoPause}
+                            onLoadedMetadata={handleVideoLoadedMetadata}
+                            onEnded={completeLesson}
+                          >
+                            Your browser does not support the video tag.
+                          </video>
+
+                          {/* In-Player Floating Quality Indicator & Quick Switcher */}
+                          <div className="absolute top-3 right-3 z-30 opacity-90 hover:opacity-100 transition-opacity pointer-events-auto">
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowQualityMenu(!showQualityMenu);
+                                  setShowSpeedMenu(false);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/75 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 text-xs font-semibold shadow-lg transition-all"
+                                title="Điều chỉnh chất lượng video MP4"
+                              >
+                                <Settings size={13} className="text-indigo-400" />
+                                <span className="font-mono text-emerald-400 font-bold uppercase">{selectedQuality}</span>
+                                <ChevronDown size={12} className={`transition-transform duration-200 ${showQualityMenu ? 'rotate-180' : ''}`} />
+                              </button>
+
+                              {showQualityMenu && (
+                                <>
+                                  <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowQualityMenu(false); }} />
+                                  <div className="absolute right-0 top-full mt-2 w-48 rounded-2xl bg-slate-900/95 border border-white/20 shadow-2xl p-1.5 z-50 flex flex-col gap-0.5 backdrop-blur-xl text-white">
+                                    <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-white/10 mb-1">
+                                      Chất lượng phát MP4
+                                    </div>
+                                    {QUALITY_OPTIONS.map((opt) => (
+                                      <button
+                                        key={opt.id}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleQualityChange(opt.id);
+                                        }}
+                                        className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors text-left ${
+                                          selectedQuality === opt.id
+                                            ? 'bg-indigo-600 text-white font-bold'
+                                            : 'text-slate-300 hover:bg-white/10'
+                                        }`}
+                                      >
+                                        <span>{opt.label}</span>
+                                        {selectedQuality === opt.id && <Check size={14} className="text-white" />}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </>
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 border border-slate-800 text-center p-8 gap-3">
                           <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">

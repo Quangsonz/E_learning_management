@@ -203,7 +203,6 @@ const App: React.FC = () => {
 
   const isNoLayoutRoute =
     noLayoutPaths.some((path) => location.pathname.startsWith(path)) ||
-    location.pathname.includes('/learn') ||
     location.pathname === '/';
 
   const routeFallback = (
