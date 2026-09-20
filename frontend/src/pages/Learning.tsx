@@ -452,7 +452,8 @@ const Learning: React.FC = () => {
     queryKey: ['lessons', courseId],
     queryFn: () => lessonApi.getLessons(courseId!),
     enabled: !!courseId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
     retry: false
   });
 
@@ -460,7 +461,8 @@ const Learning: React.FC = () => {
     queryKey: ['modules', courseId],
     queryFn: () => moduleApi.getModules(courseId!),
     enabled: !!courseId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
     retry: false
   });
 
@@ -468,7 +470,8 @@ const Learning: React.FC = () => {
     queryKey: ['course-progress', courseId],
     queryFn: () => progressApi.getCourseProgress(courseId!),
     enabled: !!courseId,
-    staleTime: 30 * 1000
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: enrollmentsData, isLoading: isLoadingEnrollments } = useQuery({
@@ -764,11 +767,22 @@ const Learning: React.FC = () => {
     addBookmarkMutation.mutate({ cId: courseId, lId: selectedLessonId, time: videoRef.current.currentTime, note: bookmarkNote });
   };
 
-  const getYoutubeVideoId = (url?: string) => {
+  const getYoutubeVideoId = (url?: string): string | null => {
     if (!url || typeof url !== 'string') return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return match && match[2].length === 11 ? match[2] : null;
+    const cleanUrl = url.trim();
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = cleanUrl.match(regExp);
+    if (match && match[2] && match[2].length === 11) {
+      return match[2];
+    }
+    try {
+      const parsed = new URL(cleanUrl);
+      if (parsed.hostname.includes('youtube.com') || parsed.hostname.includes('youtu.be')) {
+        const v = parsed.searchParams.get('v');
+        if (v && v.length === 11) return v;
+      }
+    } catch {}
+    return null;
   };
 
   const createDiscussionMutation = useMutation({
@@ -1043,18 +1057,18 @@ const Learning: React.FC = () => {
                          </Button>
                       </div>
                     ) : selectedLesson ? (
-                      getYoutubeVideoId(selectedLesson.videoUrl) ? (
+                      selectedLesson.videoUrl && getYoutubeVideoId(selectedLesson.videoUrl) ? (
                         <iframe
                           width="100%"
                           height="100%"
-                          src={`https://www.youtube.com/embed/${getYoutubeVideoId(selectedLesson.videoUrl)}`}
+                          src={`https://www.youtube.com/embed/${getYoutubeVideoId(selectedLesson.videoUrl)}?autoplay=1`}
                           title="YouTube video player"
                           frameBorder="0"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
                           className="w-full h-full"
                         ></iframe>
-                      ) : (
+                      ) : selectedLesson.videoUrl ? (
                         <video 
                           key={selectedLessonId || 'video-player'}
                           ref={videoRef}
@@ -1068,6 +1082,14 @@ const Learning: React.FC = () => {
                         >
                           Your browser does not support the video tag.
                         </video>
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 border border-slate-800 text-center p-8 gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                          </div>
+                          <p className="text-white font-medium text-base">{t('learning.videoNotAvailable', 'Bài học này chưa có video hoặc đang được cập nhật.')}</p>
+                          <p className="text-slate-400 text-xs">{t('learning.checkBackLater', 'Vui lòng kiểm tra lại sau hoặc liên hệ giảng viên.')}</p>
+                        </div>
                       )
                     ) : (
                       <div className="w-full h-full flex items-center justify-center opacity-60">

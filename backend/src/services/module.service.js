@@ -17,14 +17,15 @@ class ModuleService {
       const instructorId = course.instructor && course.instructor._id 
         ? course.instructor._id.toString() 
         : course.instructor ? course.instructor.toString() : '';
-      const isInstructor = user && instructorId && instructorId === user.id;
+      const isInstructor = user && instructorId && instructorId === String(user.id || user._id);
 
       if (user && user.role === 'admin') {
         hasFullAccess = true;
       } else if (user && user.role === 'teacher' && isInstructor) {
         hasFullAccess = true;
-      } else if (user && user.id) {
-        const enrollment = await enrollmentRepository.findByStudentAndCourse(user.id, courseId);
+      } else if (user && (user.id || user._id)) {
+        const studentId = user.id || user._id;
+        const enrollment = await enrollmentRepository.findByStudentAndCourse(studentId, courseId);
         if (enrollment && enrollment.paymentStatus === 'completed') {
           hasFullAccess = true;
         }

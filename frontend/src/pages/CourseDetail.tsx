@@ -174,6 +174,10 @@ const CourseDetail: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-enrollments'] });
       queryClient.invalidateQueries({ queryKey: ['learning-statistics'] });
+      queryClient.invalidateQueries({ queryKey: ['modules', courseId] });
+      queryClient.invalidateQueries({ queryKey: ['lessons', courseId] });
+      queryClient.invalidateQueries({ queryKey: ['course-progress', courseId] });
+      queryClient.invalidateQueries({ queryKey: ['course', courseId] });
       navigate(`/courses/${courseId}/learn`);
     },
     onSettled: () => setIsEnrolling(false)
