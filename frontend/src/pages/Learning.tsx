@@ -16,8 +16,56 @@ import { uploadApi } from '../services/upload.api';
 import { certificateApi, Certificate } from '../services/certificate.api';
 import { store } from '../store/store';
 import { API_BASE } from '../services/axios';
+import { courseApi } from '../services/course.api';
 import { useTranslation } from 'react-i18next';
 import { useLocalizedValue } from '../utils/localized';
+import { 
+  Settings, 
+  Zap, 
+  ChevronDown, 
+  Check, 
+  Bookmark as BookmarkIcon
+} from 'lucide-react';
+
+export type VideoQuality = 'auto' | '1080p' | '720p' | '480p' | '360p';
+
+export const QUALITY_OPTIONS: { id: VideoQuality; label: string; tag: string }[] = [
+  { id: 'auto', label: 'Tự động (Gốc)', tag: 'Auto' },
+  { id: '1080p', label: '1080p Full HD', tag: 'FHD' },
+  { id: '720p', label: '720p HD', tag: 'HD' },
+  { id: '480p', label: '480p SD', tag: 'SD' },
+  { id: '360p', label: '360p Tiết kiệm', tag: '360p' }
+];
+
+export const SPEED_OPTIONS: number[] = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+export const getTransformedVideoUrl = (rawUrl?: string, quality: VideoQuality = 'auto'): string => {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  if (quality === 'auto') return rawUrl;
+
+  // Cloudinary video transformation
+  if (rawUrl.includes('res.cloudinary.com') && rawUrl.includes('/video/upload/')) {
+    let transformation = 'q_auto,w_1280,h_720,c_limit';
+    if (quality === '1080p') transformation = 'q_auto,w_1920,h_1080,c_limit';
+    else if (quality === '720p') transformation = 'q_auto,w_1280,h_720,c_limit';
+    else if (quality === '480p') transformation = 'q_auto,w_854,h_480,c_limit';
+    else if (quality === '360p') transformation = 'q_auto,w_640,h_360,c_limit';
+
+    const uploadIdx = rawUrl.indexOf('/video/upload/');
+    const prefix = rawUrl.slice(0, uploadIdx + '/video/upload/'.length);
+    const rest = rawUrl.slice(uploadIdx + '/video/upload/'.length);
+
+    if (rest.startsWith('q_auto') || rest.startsWith('w_') || rest.startsWith('c_')) {
+      const slashAfterTransform = rest.indexOf('/');
+      if (slashAfterTransform !== -1) {
+        return `${prefix}${transformation}/${rest.slice(slashAfterTransform + 1)}`;
+      }
+    }
+    return `${prefix}${transformation}/${rest}`;
+  }
+
+  return rawUrl;
+};
 
 type Resource = { title: string; type: string };
 
@@ -403,6 +451,50 @@ const Learning: React.FC = () => {
   const [claimedCertificate, setClaimedCertificate] = useState<Certificate | null>(null);
   const [showCertSuccess, setShowCertSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState<'discussion' | 'notes' | 'resources'>('discussion');
+
+  // Video Quality & Speed Controls
+  const [selectedQuality, setSelectedQuality] = useState<VideoQuality>('auto');
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+
+  const { data: courseData } = useQuery({
+    queryKey: ['course', courseId],
+    queryFn: () => courseApi.getCourseById(courseId!),
+    enabled: !!courseId,
+    staleTime: 5 * 60 * 1000
+  });
+
+  const handleQualityChange = useCallback((newQuality: VideoQuality) => {
+    setSelectedQuality(newQuality);
+    setShowQualityMenu(false);
+
+    if (videoRef.current) {
+      const currentPos = videoRef.current.currentTime;
+      const wasPlaying = !videoRef.current.paused;
+
+      const restoreState = () => {
+        if (videoRef.current) {
+          videoRef.current.currentTime = currentPos;
+          videoRef.current.playbackRate = playbackSpeed;
+          if (wasPlaying) {
+            videoRef.current.play().catch(() => {});
+          }
+          videoRef.current.removeEventListener('loadedmetadata', restoreState);
+        }
+      };
+
+      videoRef.current.addEventListener('loadedmetadata', restoreState);
+    }
+  }, [playbackSpeed]);
+
+  const handleSpeedChange = useCallback((speed: number) => {
+    setPlaybackSpeed(speed);
+    setShowSpeedMenu(false);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = speed;
+    }
+  }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -845,13 +937,23 @@ const Learning: React.FC = () => {
       
       {/* Top minimal nav */}
       <nav className="h-14 border-b border-[#EAEAEA] dark:border-white/10 flex items-center px-6 lg:px-8 bg-[#FBFBFA]/90 dark:bg-[#111111]/90 backdrop-blur-md sticky top-0 z-40">
-        <div className="flex items-center gap-4 w-full max-w-[1400px] mx-auto">
-          <Link to={`/courses/${courseId || ''}`} className="text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors flex items-center gap-1.5">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-            {t('learning.backToCourse', 'Quay lại khóa học')}
-          </Link>
-          <div className="w-[1px] h-4 bg-slate-200 dark:bg-white/10"></div>
-          <span className="text-sm font-semibold tracking-tight">{t('learning.courseViewer', 'Xem bài giảng')}</span>
+        <div className="flex items-center justify-between w-full max-w-[1400px] mx-auto gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <Link to={`/courses/${courseId || ''}`} className="text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors flex items-center gap-1.5 shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+              {t('learning.backToCourse', 'Quay lại khóa học')}
+            </Link>
+            <div className="w-[1px] h-4 bg-slate-200 dark:bg-white/10 shrink-0"></div>
+            <span className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white truncate">
+              {courseData?.data?.course?.title ? lv(courseData.data.course.title) : t('learning.courseViewer', 'Xem bài giảng')}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 hidden sm:inline">
+              {completedLessons.length}/{allLessons.length} {t('common.lessons', 'bài học')} ({progressPercent}%)
+            </span>
+          </div>
         </div>
       </nav>
 
@@ -1075,7 +1177,7 @@ const Learning: React.FC = () => {
                           controls 
                           autoPlay
                           className="w-full h-full object-contain" 
-                          src={selectedLesson.videoUrl}
+                          src={getTransformedVideoUrl(selectedLesson.videoUrl, selectedQuality)}
                           onPause={handleVideoPause}
                           onLoadedMetadata={handleVideoLoadedMetadata}
                           onEnded={completeLesson}
@@ -1098,30 +1200,131 @@ const Learning: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Bookmark Feature */}
-                  {selectedLesson && !selectedQuiz && !getYoutubeVideoId(selectedLesson.videoUrl) && (
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center gap-4">
-                        <button 
-                          onClick={() => setShowBookmarkInput(!showBookmarkInput)}
-                          className="flex items-center gap-2 text-sm font-medium text-indigo-500 hover:text-indigo-400"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-                          {t('learning.bookmark.add')}
-                        </button>
+                  {/* Video Actions & Quality Toolbar */}
+                  {selectedLesson && !selectedQuiz && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 p-2.5 sm:p-3 bg-white dark:bg-white/5 border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xs">
+                      {/* Left: Bookmark Feature */}
+                      <div className="flex items-center gap-2">
+                        {!getYoutubeVideoId(selectedLesson.videoUrl) ? (
+                          <button 
+                            type="button"
+                            onClick={() => setShowBookmarkInput(!showBookmarkInput)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
+                          >
+                            <BookmarkIcon size={14} />
+                            <span>{t('learning.bookmark.add', 'Đánh dấu thời điểm')}</span>
+                          </button>
+                        ) : (
+                          <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1 px-2">
+                            <span>▶</span> YouTube Player
+                          </span>
+                        )}
                       </div>
-                      {showBookmarkInput && (
-                        <div className="flex items-center gap-3">
-                          <input 
-                            type="text" 
-                            value={bookmarkNote}
-                            onChange={(e) => setBookmarkNote(e.target.value)}
-                            placeholder={t('learning.bookmark.placeholder')}
-                            className="flex-1 bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                          <Button onClick={handleAddBookmark} disabled={!bookmarkNote.trim() || addBookmarkMutation.isPending}>{t('common.save')}</Button>
-                        </div>
-                      )}
+
+                      {/* Right: Quality & Speed Controls */}
+                      <div className="flex items-center gap-2">
+                        {/* Video Quality Dropdown (Available for HTML5 / Cloudinary videos) */}
+                        {!getYoutubeVideoId(selectedLesson.videoUrl) && (
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => { setShowQualityMenu(!showQualityMenu); setShowSpeedMenu(false); }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-white/10 transition-colors"
+                              title="Chất lượng video"
+                            >
+                              <Settings size={13} className="text-indigo-500" />
+                              <span className="text-slate-400 text-[11px] hidden sm:inline">Chất lượng:</span>
+                              <span className="font-bold uppercase text-indigo-600 dark:text-indigo-400">{selectedQuality}</span>
+                              <ChevronDown size={12} className={`transition-transform duration-200 ${showQualityMenu ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {showQualityMenu && (
+                              <>
+                                <div className="fixed inset-0 z-30" onClick={() => setShowQualityMenu(false)} />
+                                <div className="absolute right-0 bottom-full mb-2 w-48 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/15 shadow-2xl p-1.5 z-40 flex flex-col gap-0.5">
+                                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-white/10 mb-1">
+                                    Chất lượng phát
+                                  </div>
+                                  {QUALITY_OPTIONS.map((opt) => (
+                                    <button
+                                      key={opt.id}
+                                      type="button"
+                                      onClick={() => handleQualityChange(opt.id)}
+                                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors text-left ${
+                                        selectedQuality === opt.id
+                                          ? 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold'
+                                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                                      }`}
+                                    >
+                                      <span>{opt.label}</span>
+                                      {selectedQuality === opt.id && <Check size={14} className="text-indigo-600 dark:text-indigo-400" />}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Playback Speed Dropdown */}
+                        {!getYoutubeVideoId(selectedLesson.videoUrl) && (
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => { setShowSpeedMenu(!showSpeedMenu); setShowQualityMenu(false); }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-white/10 transition-colors"
+                              title="Tốc độ phát"
+                            >
+                              <Zap size={13} className="text-amber-500" />
+                              <span className="text-slate-400 text-[11px] hidden sm:inline">Tốc độ:</span>
+                              <span className="font-bold text-slate-800 dark:text-white">{playbackSpeed}x</span>
+                              <ChevronDown size={12} className={`transition-transform duration-200 ${showSpeedMenu ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {showSpeedMenu && (
+                              <>
+                                <div className="fixed inset-0 z-30" onClick={() => setShowSpeedMenu(false)} />
+                                <div className="absolute right-0 bottom-full mb-2 w-36 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/15 shadow-2xl p-1.5 z-40 flex flex-col gap-0.5">
+                                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-white/10 mb-1">
+                                    Tốc độ phát
+                                  </div>
+                                  {SPEED_OPTIONS.map((speed) => (
+                                    <button
+                                      key={speed}
+                                      type="button"
+                                      onClick={() => handleSpeedChange(speed)}
+                                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors text-left ${
+                                        playbackSpeed === speed
+                                          ? 'bg-amber-50 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold'
+                                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
+                                      }`}
+                                    >
+                                      <span>{speed === 1 ? '1x (Chuẩn)' : `${speed}x`}</span>
+                                      {playbackSpeed === speed && <Check size={14} className="text-amber-600 dark:text-amber-400" />}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bookmark Input Row */}
+                  {showBookmarkInput && (
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="text" 
+                        value={bookmarkNote}
+                        onChange={(e) => setBookmarkNote(e.target.value)}
+                        placeholder={t('learning.bookmark.placeholder')}
+                        className="flex-1 bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-xl px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <Button onClick={handleAddBookmark} disabled={!bookmarkNote.trim() || addBookmarkMutation.isPending}>{t('common.save')}</Button>
+                    </div>
+                  )}
                       {/* List Bookmarks */}
                       {(progressInfo?.bookmarks?.filter((b: any) => b.lesson === selectedLessonId)?.length || 0) > 0 && (
                         <div className="mt-2 space-y-2">
@@ -1141,8 +1344,6 @@ const Learning: React.FC = () => {
                           </div>
                         </div>
                       )}
-                    </div>
-                  )}
 
                   {/* Lesson Metadata */}
                   <div className="flex items-start justify-between gap-6 pb-8 border-b border-[#EAEAEA] dark:border-white/10">

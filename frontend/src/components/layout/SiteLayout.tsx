@@ -193,6 +193,11 @@ const SiteLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     else document.body.style.overflow = '';
   }, [mobileOpen]);
 
+  // Completely bypass layout on learning viewer pages (/courses/:courseId/learn)
+  if (location.pathname.includes('/learn')) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="flex flex-col min-h-[100dvh] bg-[#FBFBFA] dark:bg-[#080808] transition-colors duration-300 relative selection:bg-indigo-500/30 w-full max-w-[100vw]">
       
