@@ -47,7 +47,7 @@ const formatDuration = (totalSeconds: number): string => {
 interface LessonItemProps {
   lesson: CurriculumLesson;
   isEnrolled: boolean;
-  t: (key: string, fallback?: string) => string;
+  t: any;
 }
 
 const LessonItem: React.FC<LessonItemProps> = React.memo(({ lesson, isEnrolled, t }) => {
@@ -101,7 +101,7 @@ interface ModuleAccordionItemProps {
   isOpen: boolean;
   onToggle: (index: number) => void;
   isEnrolled: boolean;
-  t: (key: string, fallback?: string) => string;
+  t: any;
 }
 
 const ModuleAccordionItem: React.FC<ModuleAccordionItemProps> = React.memo(({
@@ -181,7 +181,7 @@ interface QuizAccordionItemProps {
   isOpen: boolean;
   onToggle: () => void;
   lv: (val: any) => string;
-  t: (key: string, fallback?: string) => string;
+  t: any;
 }
 
 const QuizAccordionItem: React.FC<QuizAccordionItemProps> = React.memo(({

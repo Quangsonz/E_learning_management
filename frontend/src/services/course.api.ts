@@ -12,6 +12,7 @@ export interface CourseData {
   category: { _id: string; name: string; slug: string };
   status: 'draft' | 'published';
   thumbnailUrl?: string;
+  thumbnail?: string;
   averageRating: number;
   createdAt: string;
   updatedAt: string;

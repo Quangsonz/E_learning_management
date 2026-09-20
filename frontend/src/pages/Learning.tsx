@@ -15,6 +15,7 @@ import { assignmentApi, Assignment, AssignmentSubmission } from '../services/ass
 import { uploadApi } from '../services/upload.api';
 import { certificateApi, Certificate } from '../services/certificate.api';
 import { store } from '../store/store';
+import { API_BASE } from '../services/axios';
 import { useTranslation } from 'react-i18next';
 import { useLocalizedValue } from '../utils/localized';
 
@@ -194,7 +195,7 @@ interface LearningCurriculumSidebarProps {
   onSelectAssignment: (id: string) => void;
   onStartPractice: (limit: number) => void;
   onPracticeLimitChange: (limit: number) => void;
-  t: (key: string, defaultVal?: string) => string;
+  t: any;
   lv: (val: any) => string;
 }
 
@@ -715,7 +716,6 @@ const Learning: React.FC = () => {
         const currentTime = vRef.current.currentTime;
         if (currentTime > 0) {
           try {
-            const apiBase = import.meta.env.VITE_API_URL || '/api';
             const state = store.getState();
             const token = state.auth.accessToken;
             
@@ -726,9 +726,10 @@ const Learning: React.FC = () => {
               headers['Authorization'] = `Bearer ${token}`;
             }
 
-            fetch(`${apiBase}/progress/${cId}/lessons/${lId}/video-progress`, {
+            fetch(`${API_BASE}/progress/${cId}/lessons/${lId}/video-progress`, {
               method: 'POST',
               headers,
+              credentials: 'include',
               body: JSON.stringify({ time: currentTime }),
               keepalive: true
             }).catch(err => {

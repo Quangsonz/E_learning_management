@@ -4,7 +4,22 @@ import { useSelector } from 'react-redux';
 import { QueryClient } from '@tanstack/react-query';
 import { selectAccessToken, selectIsAuthenticated } from '../store/slices/authSlice';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+// Normalized Socket URL resolution
+const getSocketUrl = (): string => {
+  const socketEnv = import.meta.env.VITE_SOCKET_URL;
+  if (socketEnv && typeof socketEnv === 'string' && socketEnv.trim()) {
+    return socketEnv.trim().replace(/\/+$/, '');
+  }
+
+  const apiEnv = import.meta.env.VITE_API_URL;
+  if (apiEnv && typeof apiEnv === 'string' && apiEnv.trim()) {
+    return apiEnv.trim().replace(/\/api\/?$/i, '').replace(/\/+$/, '');
+  }
+
+  return 'http://localhost:5000';
+};
+
+const SOCKET_URL = getSocketUrl();
 
 export interface Notification {
   _id: string;
@@ -32,7 +47,9 @@ export const useSocket = (queryClient?: QueryClient) => {
   useEffect(() => {
     if (isAuthenticated && token) {
       const newSocket = io(SOCKET_URL, {
-        auth: { token }
+        auth: { token },
+        withCredentials: true,
+        transports: ['websocket', 'polling']
       });
 
       setSocket(newSocket);
@@ -45,8 +62,7 @@ export const useSocket = (queryClient?: QueryClient) => {
         setNotifications((prev) => [data, ...prev]);
         setUnreadCount((prev) => prev + 1);
 
-        // Phase 2: Invalidate server-state caches that depend on notification data.
-        // This keeps the notifications list and dashboard summary fresh in real time.
+        // Invalidate server-state caches that depend on notification data
         if (queryClient) {
           queryClient.invalidateQueries({ queryKey: ['notifications'] });
           queryClient.invalidateQueries({ queryKey: ['student-dashboard-summary'] });
@@ -63,6 +79,8 @@ export const useSocket = (queryClient?: QueryClient) => {
       });
 
       return () => {
+        newSocket.off('connect');
+        newSocket.off('new_notification');
         newSocket.disconnect();
       };
     }

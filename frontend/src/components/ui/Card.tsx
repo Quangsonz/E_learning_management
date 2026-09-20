@@ -1,16 +1,16 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, HTMLMotionProps } from 'framer-motion';
 import { fadeUp } from '../../animations/motionVariants';
 import '../../styles/components.css';
 
-interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+interface CardProps extends HTMLMotionProps<'div'> {
   interactive?: boolean;
 }
 
-export const Card: React.FC<CardProps> = ({ interactive = false, children, ...rest }) => {
-  const className = `card ${interactive ? 'interactive' : ''}`;
+export const Card: React.FC<CardProps> = ({ interactive = false, children, className = '', ...rest }) => {
+  const combinedClass = `card ${interactive ? 'interactive' : ''} ${className}`.trim();
   return (
-    <motion.div className={className} variants={fadeUp} initial="initial" animate="animate" {...rest}>
+    <motion.div className={combinedClass} variants={fadeUp} initial="initial" animate="animate" {...rest}>
       {children}
     </motion.div>
   );

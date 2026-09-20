@@ -1,13 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
-type ToastVariant = 'success' | 'error' | 'info' | 'warning';
+export type ToastVariant = 'success' | 'error' | 'info' | 'warning';
 
-type ToastProps = {
+export type ToastProps = {
   message: string;
   title?: string;
   variant?: ToastVariant;
-  visible: boolean;
+  type?: ToastVariant;
+  visible?: boolean;
   onClose?: () => void;
   position?: 'bottom-right' | 'top-right' | 'bottom-center' | 'top-center';
   duration?: number; // ms, 0 = no auto-close
@@ -71,13 +72,15 @@ const positionClass: Record<string, string> = {
 export const Toast: React.FC<ToastProps> = ({
   message,
   title,
-  variant = 'success',
-  visible,
+  variant,
+  type,
+  visible = true,
   onClose,
   position = 'top-right',
   duration = 4000
 }) => {
-  const config = variantConfig[variant];
+  const activeVariant = variant || type || 'success';
+  const config = variantConfig[activeVariant];
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-close

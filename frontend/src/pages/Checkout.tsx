@@ -11,7 +11,7 @@ import { courseApi } from '../services/course.api';
 import { paymentApi } from '../services/payment.api';
 import { Button, PageShell } from '../components/ui';
 
-const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || import.meta.env.VITE_STRIPE_PUBLIC_KEY;
 const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
 
 const StripeCheckoutForm = ({ courseId }: { courseId: string }) => {

@@ -1,13 +1,23 @@
 import axios from 'axios';
 import { store } from '../store/store';
-import { setAuth, clearAuth } from '../store/slices/authSlice';
+import { clearAuth } from '../store/slices/authSlice';
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+// Normalized API Base URL (trims trailing slashes, falls back to /api)
+const getApiBase = (): string => {
+  const rawUrl = import.meta.env.VITE_API_URL;
+  if (rawUrl && typeof rawUrl === 'string' && rawUrl.trim()) {
+    return rawUrl.trim().replace(/\/+$/, '');
+  }
+  return '/api';
+};
+
+export const API_BASE = getApiBase();
 
 export const axiosInstance = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000
+  timeout: 15000,
+  withCredentials: true,
 });
 
 axiosInstance.interceptors.request.use((config) => {

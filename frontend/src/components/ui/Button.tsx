@@ -1,12 +1,13 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, HTMLMotionProps } from 'framer-motion';
 import { buttonHoverTap } from '../../animations/motionVariants';
 import '../../styles/components.css';
 
 type Variant = 'primary' | 'ghost' | 'outline' | 'pill' | 'gradient' | 'success' | 'danger';
 type Size = 'xs' | 'sm' | 'md' | 'lg';
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
+  children?: React.ReactNode;
   variant?: Variant;
   size?: Size;
   loading?: boolean;

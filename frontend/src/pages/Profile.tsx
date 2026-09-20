@@ -116,7 +116,7 @@ const ProfileHero: React.FC = () => {
   const displayName = user?.name || t('settings.preview.defaultUser', 'User');
   const displayEmail = user?.email || '';
   const displayRole = user?.role || 'student';
-  const isTeacher = displayRole === 'teacher' || displayRole === 'instructor' || displayRole === 'admin';
+  const isTeacher = displayRole === 'teacher' || (displayRole as string) === 'instructor' || displayRole === 'admin';
   const displayAvatar = user?.avatar && user.avatar !== 'default-avatar.png'
     ? user.avatar
     : `https://ui-avatars.com/api/?background=6366f1&color=fff&name=${encodeURIComponent(displayName)}&size=256`;
@@ -720,7 +720,7 @@ const Profile: React.FC = () => {
   const { t } = useTranslation();
   const lv = useLocalizedValue();
   const user = useSelector(selectCurrentUser);
-  const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'instructor' || user?.role === 'admin';
+  const isTeacherOrAdmin = user?.role === 'teacher' || (user?.role as string) === 'instructor' || user?.role === 'admin';
 
   const [activeTab, setActiveTab] = useState<'teaching' | 'learning'>(isTeacherOrAdmin ? 'teaching' : 'learning');
   const [showApplyModal, setShowApplyModal] = useState(false);

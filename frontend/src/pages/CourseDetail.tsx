@@ -625,7 +625,7 @@ const CourseDetail: React.FC = () => {
                       {upNextLesson && (
                         <div className="mb-6 p-4 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/[0.03]">
                           <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-indigo-600 dark:text-indigo-400 mb-1">{t('course.upNext', 'Bài học tiếp theo')}</div>
-                          <div className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2">{upNextLesson.title}</div>
+                          <div className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2">{lv(upNextLesson.title)}</div>
                           <div className="flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400">
                             <Play size={12} className="text-indigo-500" />
                             <span>{upNextLesson.duration || t('course.videoLesson', 'Video bài học')}</span>

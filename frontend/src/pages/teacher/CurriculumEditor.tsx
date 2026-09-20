@@ -87,7 +87,7 @@ interface SortableLessonItemProps {
   onDelete: (id: string, title: string) => void;
   onPreview: (l: Lesson) => void;
   lv: (val: any) => string;
-  t: (key: string, fallback?: string) => string;
+  t: any;
 }
 
 const SortableLessonItem = ({ lesson, index, moduleId, onEdit, onDelete, onPreview, lv, t }: SortableLessonItemProps) => {
@@ -243,7 +243,7 @@ interface SortableModuleCardProps {
   onDeleteLesson: (id: string, title: string) => void;
   onPreviewLesson: (lesson: Lesson) => void;
   lv: (val: any) => string;
-  t: (key: string, fallback?: string) => string;
+  t: any;
 }
 
 const SortableModuleCard = ({
@@ -1759,7 +1759,7 @@ const CurriculumEditor = () => {
                         <button onClick={() => handleOpenQuestionModal(q)} className="p-1.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
                           <Edit3 size={15} />
                         </button>
-                        <button onClick={() => setDeleteTarget({ type: 'question', id: q._id, name: q.text })} className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors">
+                        <button onClick={() => setDeleteTarget({ type: 'question', id: q._id || '', name: q.text || '' })} className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors">
                           <Trash2 size={15} />
                         </button>
                       </div>

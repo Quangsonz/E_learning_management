@@ -1,13 +1,12 @@
 import React from 'react';
-import { motion, MotionProps } from 'framer-motion';
+import { motion, HTMLMotionProps } from 'framer-motion';
 import { fadeUp } from '../../animations/motionVariants';
 
-type GlassPanelProps = React.HTMLAttributes<HTMLDivElement> & {
+type GlassPanelProps = HTMLMotionProps<'div'> & {
   padding?: 'none' | 'sm' | 'md' | 'lg';
   hover?: boolean;
   dark?: boolean;
   variant?: 'default' | 'sm' | 'dark';
-  motionProps?: MotionProps;
 };
 
 const paddingMap = {
@@ -17,10 +16,6 @@ const paddingMap = {
   lg: 'p-6 sm:p-8'
 };
 
-const MotionDiv = motion.div as unknown as React.FC<
-  React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement> & MotionProps>
->;
-
 export const GlassPanel: React.FC<GlassPanelProps> = ({
   padding = 'md',
   hover = false,
@@ -28,7 +23,6 @@ export const GlassPanel: React.FC<GlassPanelProps> = ({
   variant,
   className = '',
   children,
-  motionProps,
   ...rest
 }) => {
   const actualVariant = variant || (dark ? 'dark' : 'default');
@@ -44,16 +38,15 @@ export const GlassPanel: React.FC<GlassPanelProps> = ({
     : '';
 
   return (
-    <MotionDiv
+    <motion.div
       className={`${variantClass} ${paddingMap[padding]} ${hoverClass} ${className}`}
       variants={fadeUp}
       initial="initial"
       animate="animate"
-      {...motionProps}
       {...rest}
     >
       {children}
-    </MotionDiv>
+    </motion.div>
   );
 };
 
