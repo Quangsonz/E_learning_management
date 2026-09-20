@@ -20,6 +20,16 @@ const moduleRoutes = require('./module.routes');
 
 const router = express.Router();
 
+// Root API Welcome endpoint
+router.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Welcome to E-Learning Management API',
+    docs: '/api-docs',
+    health: '/health'
+  });
+});
+
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/admin', adminRoutes);

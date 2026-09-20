@@ -59,7 +59,16 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Health Check Endpoint (Render liveness check - đặt trước rate limiter)
+// Root & Health Check Endpoints (Đặt trước rate limiter)
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'E-Learning Backend API is running smoothly',
+    docs: '/api-docs',
+    health: '/health'
+  });
+});
+
 app.get(['/health', '/api/health'], (req, res) => {
   res.status(200).json({
     status: 'ok',
