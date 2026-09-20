@@ -2,11 +2,15 @@ import axios from 'axios';
 import { store } from '../store/store';
 import { clearAuth } from '../store/slices/authSlice';
 
-// Normalized API Base URL (trims trailing slashes, falls back to /api)
+// Normalized API Base URL (ensures it ends with /api if not present, trims trailing slashes)
 const getApiBase = (): string => {
   const rawUrl = import.meta.env.VITE_API_URL;
   if (rawUrl && typeof rawUrl === 'string' && rawUrl.trim()) {
-    return rawUrl.trim().replace(/\/+$/, '');
+    let clean = rawUrl.trim().replace(/\/+$/, '');
+    if (!clean.endsWith('/api') && !clean.includes('/api/')) {
+      clean += '/api';
+    }
+    return clean;
   }
   return '/api';
 };
@@ -16,7 +20,7 @@ export const API_BASE = getApiBase();
 export const axiosInstance = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
+  timeout: 60000, // 60s timeout for Render free tier cold-start
   withCredentials: true,
 });
 
