@@ -314,7 +314,9 @@ const Home: React.FC = () => {
   const { data: enrollmentsData } = useQuery({
     queryKey: ['my-enrollments'],
     queryFn: () => enrollmentApi.getMyEnrollments(),
-    enabled: isAuthenticated,
+    enabled: Boolean(isAuthenticated),
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   // Fetch recommendations

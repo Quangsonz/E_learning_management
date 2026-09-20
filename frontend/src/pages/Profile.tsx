@@ -749,7 +749,9 @@ const Profile: React.FC = () => {
   const { data: enrollmentsData, isLoading: isLoadingEnrollments } = useQuery({
     queryKey: ['my-enrollments'],
     queryFn: () => enrollmentApi.getMyEnrollments(),
-    enabled: !!user
+    enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
   const enrollments = enrollmentsData?.data?.enrollments || [];
 

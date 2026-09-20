@@ -156,14 +156,16 @@ const CourseDetail: React.FC = () => {
   const { data: enrollmentsData } = useQuery({
     queryKey: ['my-enrollments'],
     queryFn: () => enrollmentApi.getMyEnrollments(),
-    staleTime: 5 * 60 * 1000
+    enabled: Boolean(user),
+    staleTime: 0,
+    refetchOnMount: 'always'
   });
 
   const isEnrolled = useMemo(() => {
     const list = (enrollmentsData as any)?.data?.enrollments || (enrollmentsData as any)?.enrollments;
     if (!list || !courseId) return false;
     return list.some((e: any) => 
-      (typeof e.course === 'object' ? e.course?._id : e.course) === courseId
+      String(typeof e.course === 'object' ? e.course?._id : e.course) === String(courseId)
     );
   }, [enrollmentsData, courseId]);
 
@@ -171,6 +173,7 @@ const CourseDetail: React.FC = () => {
     mutationFn: (id: string) => enrollmentApi.enrollCourse(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['learning-statistics'] });
       navigate(`/courses/${courseId}/learn`);
     },
     onSettled: () => setIsEnrolling(false)

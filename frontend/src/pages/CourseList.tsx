@@ -280,12 +280,17 @@ const CourseList: React.FC = () => {
   const { data: enrollmentsData } = useQuery({
     queryKey: ['my-enrollments'],
     queryFn: () => enrollmentApi.getMyEnrollments(),
-    enabled: isAuthenticated,
-    staleTime: 1000 * 60 * 5,
+    enabled: Boolean(isAuthenticated),
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
   const enrolledCourseIds = useMemo(() => {
     const list = (enrollmentsData as any)?.enrollments || (enrollmentsData as any)?.data?.enrollments || [];
-    return new Set(list.map((e: any) => e.course?._id || e.course));
+    return new Set(
+      list
+        .map((e: any) => String(e.course?._id || e.course || ''))
+        .filter(Boolean)
+    );
   }, [enrollmentsData]);
 
   const isFiltered = Boolean(debouncedQuery || activeCategoryId || priceType !== 'all' || minRating > 0 || sortBy !== '-createdAt');

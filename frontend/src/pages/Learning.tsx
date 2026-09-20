@@ -474,14 +474,15 @@ const Learning: React.FC = () => {
   const { data: enrollmentsData, isLoading: isLoadingEnrollments } = useQuery({
     queryKey: ['my-enrollments'],
     queryFn: () => enrollmentApi.getMyEnrollments(),
-    staleTime: 5 * 60 * 1000
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const isEnrolled = useMemo(() => {
     if (!enrollmentsData?.data?.enrollments || !courseId) return false;
     // Kiểm tra mảng enrollments, nếu enrollment.course là string hay object
     return enrollmentsData.data.enrollments.some((e: any) => 
-      (typeof e.course === 'object' ? e.course._id : e.course) === courseId
+      String(typeof e.course === 'object' ? e.course?._id : e.course) === String(courseId)
     );
   }, [enrollmentsData, courseId]);
 

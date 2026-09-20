@@ -187,6 +187,7 @@ const Checkout = () => {
             // Invalidate React Query caches
             queryClient.invalidateQueries({ queryKey: ['enrollments'] });
             queryClient.invalidateQueries({ queryKey: ['my-enrollments'] });
+            queryClient.invalidateQueries({ queryKey: ['learning-statistics'] });
             queryClient.invalidateQueries({ queryKey: ['course', courseId] });
             queryClient.invalidateQueries({ queryKey: ['student-dashboard-summary'] });
             queryClient.invalidateQueries({ queryKey: ['admin-orders'] });

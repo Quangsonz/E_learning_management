@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useCallback, useMemo, useEffect, ReactNode } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   setAuth,
   clearAuth,
@@ -52,6 +53,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const user = useSelector(selectCurrentUser);
   const accessToken = useSelector(selectAccessToken);
@@ -85,6 +87,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     async (data: LoginPayload) => {
       const response = await authApi.login(data);
       if (response.status === 'success') {
+        queryClient.clear();
         dispatch(
           setAuth({
             accessToken: response.token,
@@ -93,7 +96,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         );
       }
     },
-    [dispatch]
+    [dispatch, queryClient]
   );
 
   /**
@@ -103,6 +106,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     async (data: RegisterPayload) => {
       const response = await authApi.register(data);
       if (response.status === 'success') {
+        queryClient.clear();
         dispatch(
           setAuth({
             accessToken: response.token,
@@ -111,7 +115,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         );
       }
     },
-    [dispatch]
+    [dispatch, queryClient]
   );
 
   /**
@@ -123,10 +127,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch {
       // Bỏ qua lỗi server khi logout
     } finally {
+      queryClient.clear();
       dispatch(clearAuth());
       navigate('/login', { replace: true });
     }
-  }, [dispatch, navigate]);
+  }, [dispatch, navigate, queryClient]);
 
   /**
    * Refresh profile từ server
