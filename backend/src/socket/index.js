@@ -8,9 +8,34 @@ let io;
 const connectedUsers = new Map();
 
 exports.init = (server) => {
+  const allowedOrigins = [
+    process.env.CLIENT_URL,
+    process.env.FRONTEND_URL,
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:4173'
+  ].filter(Boolean);
+
   io = socketIo(server, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const isExplicitlyAllowed = allowedOrigins.some((allowed) => {
+          const cleanAllowed = allowed.replace(/\/$/, '');
+          const cleanOrigin = origin.replace(/\/$/, '');
+          return cleanOrigin === cleanAllowed;
+        });
+
+        if (
+          isExplicitlyAllowed ||
+          origin.endsWith('.vercel.app') ||
+          process.env.NODE_ENV !== 'production'
+        ) {
+          return callback(null, true);
+        }
+
+        return callback(new Error('Origin not allowed by Socket.IO CORS'));
+      },
       credentials: true,
       methods: ['GET', 'POST']
     }

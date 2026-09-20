@@ -15,12 +15,59 @@ const swaggerSpec = require('./config/swagger');
 
 const app = express();
 
+// Trust reverse proxy (Required for Render, Heroku, Cloudflare to obtain real client IP)
+app.set('trust proxy', 1);
+
 // 1. Security HTTP headers & compression
 app.use(helmet());
 app.use(compression());
 
-// 2. Enable CORS for all requests (including preflight and early errors)
-app.use(cors());
+// 2. Enable CORS with proper origin check for Production (Vercel) & Localhost
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:4173'
+].filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Cho phép requests không có origin (curl, mobile apps, server-to-server, Render health check)
+    if (!origin) return callback(null, true);
+
+    const isExplicitlyAllowed = allowedOrigins.some((allowed) => {
+      const cleanAllowed = allowed.replace(/\/$/, '');
+      const cleanOrigin = origin.replace(/\/$/, '');
+      return cleanOrigin === cleanAllowed;
+    });
+
+    if (
+      isExplicitlyAllowed ||
+      origin.endsWith('.vercel.app') ||
+      process.env.NODE_ENV !== 'production'
+    ) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept-Language', 'X-Requested-With']
+};
+
+app.use(cors(corsOptions));
+
+// Health Check Endpoint (Render liveness check - đặt trước rate limiter)
+app.get(['/health', '/api/health'], (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 // 3. Request filtering (URL length check, Content-Type check, pagination limits)
 app.use(requestFilter);

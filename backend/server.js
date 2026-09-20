@@ -15,9 +15,29 @@ const httpServer = http.createServer(app);
 // Khởi tạo Socket.IO
 socketLayer.init(httpServer);
 
-const server = httpServer.listen(PORT, () => {
-  console.log(`🚀 Server is running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+const mongoose = require('mongoose');
+
+const server = httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server is running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
 });
+
+// Graceful shutdown on SIGTERM / SIGINT (Render restarts, zero-downtime deploys)
+const gracefulShutdown = (signal) => {
+  console.log(`⚠️ Received ${signal}. Shutting down gracefully...`);
+  server.close(async () => {
+    console.log('HTTP server closed.');
+    try {
+      await mongoose.connection.close(false);
+      console.log('MongoDB connection closed.');
+    } catch (err) {
+      console.error('Error closing MongoDB connection:', err.message);
+    }
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Handle unhandled promise rejections (e.g. database connection issues)
 process.on('unhandledRejection', (err) => {

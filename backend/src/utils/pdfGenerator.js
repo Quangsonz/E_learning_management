@@ -1,5 +1,8 @@
 const fs = require('fs');
 const path = require('path');
+const PDFDocument = require('pdfkit');
+const cloudinary = require('../config/cloudinary');
+const streamifier = require('streamifier');
 
 function removeVietnameseTones(str) {
   if (!str) return '';
