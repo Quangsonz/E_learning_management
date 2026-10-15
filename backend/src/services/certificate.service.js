@@ -7,21 +7,28 @@ const AppError = require('../utils/appError');
 const QRCode = require('qrcode');
 const notificationService = require('./notification.service');
 const xpService = require('./xp.service');
+const { getLocalizedText } = require('../utils/localizedHelper');
 
 class CertificateService {
   async claimCertificate(courseId, user) {
+    const userId = typeof user === 'string' ? user : (user?.id || user?._id || '').toString();
+    if (!userId) {
+      throw new AppError('Xác thực học viên không hợp lệ', 401);
+    }
+    const userName = user?.name || 'Học viên E-Learning';
+
     // 1. Kiểm tra khóa học có tồn tại
     const course = await courseRepository.findById(courseId);
     if (!course) throw new AppError('Không tìm thấy khóa học', 404);
 
     // 2. Kiểm tra user đã hoàn thành 100% chưa
-    const progress = await progressRepository.findByStudentAndCourse(user.id, courseId);
+    const progress = await progressRepository.findByStudentAndCourse(userId, courseId);
     if (!progress || progress.progressPercentage < 100) {
       throw new AppError('Bạn chưa hoàn thành khóa học này. Hãy học hết 100% để nhận chứng chỉ nhé!', 403);
     }
 
     // 3. Kiểm tra xem chứng chỉ đã được tạo trước đó chưa
-    let existingCertificate = await certificateRepository.findByStudentAndCourse(user.id, courseId);
+    let existingCertificate = await certificateRepository.findByStudentAndCourse(userId, courseId);
     if (existingCertificate) {
       return existingCertificate; // Nếu có rồi thì trả về luôn, không sinh lại PDF nữa
     }
@@ -35,11 +42,12 @@ class CertificateService {
     const qrCodeDataUrl = await QRCode.toDataURL(validationUrl);
 
     // 6. Sinh PDF và Upload (Sẽ mất vài giây tùy mạng)
-    const pdfUrl = await generateCertificate(user.name, course.title, certId, qrCodeDataUrl);
+    const courseTitleStr = getLocalizedText(course.title, 'vi');
+    const pdfUrl = await generateCertificate(userName, courseTitleStr, certId, qrCodeDataUrl);
 
     // 7. Lưu dữ liệu vào Database
     const newCertificate = await certificateRepository.create({
-      student: user.id,
+      student: userId,
       course: courseId,
       certificateUrl: pdfUrl,
       pdfUrl: pdfUrl,
@@ -51,22 +59,23 @@ class CertificateService {
 
     // 8. Gửi Notification
     await notificationService.createNotification({
-      recipient: user.id,
+      recipient: userId,
       title: 'Chứng chỉ hoàn thành!',
-      message: `Chúc mừng bạn đã nhận chứng chỉ hoàn thành khóa học "${course.title}"!`,
+      message: `Chúc mừng bạn đã nhận chứng chỉ hoàn thành khóa học "${courseTitleStr}"!`,
       type: 'certificate',
       link: `/certificates/verify/${certId}`
     });
 
     // 9. Award XP & Badge
-    await xpService.addXP(user.id, 'COURSE_COMPLETE');
-    await xpService.awardBadge(user.id, 'COURSE_GRADUATE');
+    await xpService.addXP(userId, 'COURSE_COMPLETE');
+    await xpService.awardBadge(userId, 'COURSE_GRADUATE');
 
     return newCertificate;
   }
 
   async getMyCertificates(user) {
-    return await certificateRepository.findByStudent(user.id);
+    const userId = typeof user === 'string' ? user : (user?.id || user?._id || '').toString();
+    return await certificateRepository.findByStudent(userId);
   }
 
   async verifyCertificate(certificateId) {

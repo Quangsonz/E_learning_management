@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   GraduationCap
 } from 'lucide-react';
+import { useLocalizedValue } from '../utils/localized';
 
 interface CertificateData {
   certificateId: string;
@@ -28,8 +29,8 @@ interface CertificateData {
   };
   course: {
     _id: string;
-    title: string;
-    category?: { name: string };
+    title: any;
+    category?: { name: any };
     instructor: {
       name: string;
     };
@@ -38,6 +39,7 @@ interface CertificateData {
 
 const CertificateVerify: React.FC = () => {
   const { certificateId } = useParams<{ certificateId: string }>();
+  const lv = useLocalizedValue();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<CertificateData | null>(null);
@@ -183,7 +185,7 @@ const CertificateVerify: React.FC = () => {
                   {/* Course Title */}
                   <div className="p-4 sm:p-6 bg-slate-900/80 rounded-2xl border border-white/10 max-w-2xl mx-auto shadow-inner space-y-1">
                     <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                      {data.course?.title}
+                      {lv(data.course?.title)}
                     </h2>
                     <p className="text-xs text-slate-400">
                       Giảng viên hướng dẫn: <span className="text-amber-300 font-semibold">{data.course?.instructor?.name || 'Hệ thống E-Learning'}</span>

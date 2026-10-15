@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
@@ -10,6 +10,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { courseApi } from '../services/course.api';
 import { paymentApi } from '../services/payment.api';
 import { Button, PageShell } from '../components/ui';
+import { useLocalizedValue } from '../utils/localized';
 
 const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || import.meta.env.VITE_STRIPE_PUBLIC_KEY;
 const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
@@ -64,20 +65,30 @@ const StripeCheckoutForm = ({ courseId }: { courseId: string }) => {
 
 const Checkout = () => {
   const { t } = useTranslation();
+  const lv = useLocalizedValue();
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState<'vietqr' | 'stripe'>('vietqr');
   const [clientSecret, setClientSecret] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentStep, setPaymentStep] = useState<number | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState(900); // 15 phút đếm ngược
+  const [timeLeft, setTimeLeft] = useState(900);
+  const [isExpired, setIsExpired] = useState(false);
+  const [isPaidSuccess, setIsPaidSuccess] = useState(false);
+  const [useFallbackQr, setUseFallbackQr] = useState(false);
+  const [transactionRef, setTransactionRef] = useState('');
+  const [isSubmittingProof, setIsSubmittingProof] = useState(false);
   
-  const [useTestAmount, setUseTestAmount] = useState(false);
-  
-  const [qrDetails, setQrDetails] = useState<{
+  const [orderState, setOrderState] = useState<{
+    orderId: string;
+    orderCode: string;
+    status: string;
+    amount: number;
+    expiresAt: string;
     qrUrl: string;
+    fallbackQrDataUrl?: string;
     bankInfo: {
+      bankId: string;
       bankName: string;
       accountNumber: string;
       accountName: string;
@@ -89,14 +100,7 @@ const Checkout = () => {
   const queryClient = useQueryClient();
   const { user, refreshProfile } = useAuth();
   const { success: successToast, error: errorToast } = useToast();
-
-  const paymentSteps = [
-    { label: t('checkout.step1'), desc: t('checkout.step1Desc') },
-    { label: t('checkout.step2'), desc: t('checkout.step2Desc') },
-    { label: t('checkout.step3'), desc: t('checkout.step3Desc') },
-    { label: t('checkout.step4'), desc: t('checkout.step4Desc') },
-    { label: t('checkout.step5'), desc: t('checkout.step5Desc') }
-  ];
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: courseData, isLoading: isCourseLoading } = useQuery({
     queryKey: ['course', courseId],
@@ -104,31 +108,46 @@ const Checkout = () => {
     enabled: !!courseId,
   });
 
-  // Đếm ngược 15 phút cho mã QR
-  useEffect(() => {
-    if (timeLeft <= 0) return;
-    const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-    return () => clearInterval(timer);
-  }, [timeLeft]);
+  const loadQROrder = useCallback(async () => {
+    if (!courseId) return;
+    try {
+      setIsExpired(false);
+      setUseFallbackQr(false);
+      const res = await paymentApi.createQROrder(courseId);
+      if (res.data) {
+        setOrderState({
+          orderId: res.data.orderId,
+          orderCode: res.data.orderCode,
+          status: res.data.status,
+          amount: res.data.amount,
+          expiresAt: res.data.expiresAt,
+          qrUrl: res.data.qrUrl,
+          fallbackQrDataUrl: res.data.fallbackQrDataUrl,
+          bankInfo: res.data.bankInfo
+        });
 
-  // Khởi tạo mã VietQR
+        // Tính toán chính xác thời gian còn lại dựa trên expiresAt từ server
+        if (res.data.expiresAt) {
+          const remainingSecs = Math.max(0, Math.floor((new Date(res.data.expiresAt).getTime() - Date.now()) / 1000));
+          setTimeLeft(remainingSecs);
+          if (remainingSecs <= 0) {
+            setIsExpired(true);
+          }
+        }
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Lỗi khởi tạo đơn hàng thanh toán';
+      console.error('Lỗi khởi tạo VietQR:', msg);
+      errorToast(msg, 'Thanh toán');
+    }
+  }, [courseId, errorToast]);
+
+  // Khởi tạo VietQR Order
   useEffect(() => {
     if (courseId && paymentMethod === 'vietqr') {
-      const targetAmount = useTestAmount ? 1000 : undefined;
-      paymentApi.createQROrder(courseId, targetAmount)
-        .then((res) => {
-          if (res.data) {
-            setQrDetails({
-              qrUrl: res.data.qrUrl,
-              bankInfo: res.data.bankInfo
-            });
-          }
-        })
-        .catch((err) => {
-          console.error('Lỗi khởi tạo VietQR:', err);
-        });
+      loadQROrder();
     }
-  }, [courseId, paymentMethod, useTestAmount]);
+  }, [courseId, paymentMethod, loadQROrder]);
 
   // Khởi tạo Stripe Intent nếu chuyển sang Stripe
   useEffect(() => {
@@ -138,6 +157,75 @@ const Checkout = () => {
         .catch((err) => console.error('Lỗi khởi tạo Stripe intent:', err));
     }
   }, [courseId, paymentMethod, clientSecret]);
+
+  // Đếm ngược thời gian hết hạn của đơn hàng (1 giây mỗi lần)
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      setIsExpired(true);
+      return;
+    }
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          setIsExpired(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft]);
+
+  // Real-time Polling: Kiểm tra trạng thái thanh toán từ backend
+  useEffect(() => {
+    const orderId = orderState?.orderId;
+    if (!orderId || isPaidSuccess || isExpired || paymentMethod !== 'vietqr') {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      return;
+    }
+
+    const checkStatus = async () => {
+      try {
+        const res = await paymentApi.getOrderStatus(orderId);
+        const currentOrder = res?.data?.order;
+        if (!currentOrder) return;
+
+        // Nếu trạng thái đã chuyển sang 'paid'
+        if (currentOrder.status === 'paid') {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setIsPaidSuccess(true);
+
+          // Cập nhật cache React Query
+          queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+          queryClient.invalidateQueries({ queryKey: ['my-enrollments'] });
+          queryClient.invalidateQueries({ queryKey: ['learning-statistics'] });
+          queryClient.invalidateQueries({ queryKey: ['course', courseId] });
+          queryClient.invalidateQueries({ queryKey: ['student-dashboard-summary'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-analytics'] });
+
+          refreshProfile();
+          successToast(t('checkout.successToast'), t('checkout.confirmedSuccess'));
+
+          setTimeout(() => {
+            navigate(`/courses/${courseId}/learn`);
+          }, 1800);
+        } else if (currentOrder.status === 'expired') {
+          setIsExpired(true);
+          if (pollingRef.current) clearInterval(pollingRef.current);
+        } else if (currentOrder.status === 'pending_verification') {
+          setOrderState(prev => prev ? { ...prev, status: 'pending_verification' } : null);
+        }
+      } catch (pollErr) {
+        // Polling im lặng trong nền, không làm gián đoạn UI người dùng
+      }
+    };
+
+    pollingRef.current = setInterval(checkStatus, 3500);
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [orderState?.orderId, isPaidSuccess, isExpired, paymentMethod, courseId, navigate, queryClient, refreshProfile, successToast, t]);
 
   if (isCourseLoading || !courseData) {
     return (
@@ -168,56 +256,41 @@ const Checkout = () => {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const handleConfirmQRPayment = async () => {
-    setIsProcessing(true);
-    setPaymentStep(1);
-
-    setTimeout(() => {
-      setPaymentStep(2);
-
-      setTimeout(() => {
-        setPaymentStep(3);
-
-        setTimeout(async () => {
-          setPaymentStep(4);
-
-          try {
-            await paymentApi.confirmQRPayment(courseId!);
-            
-            // Invalidate React Query caches
-            queryClient.invalidateQueries({ queryKey: ['enrollments'] });
-            queryClient.invalidateQueries({ queryKey: ['my-enrollments'] });
-            queryClient.invalidateQueries({ queryKey: ['learning-statistics'] });
-            queryClient.invalidateQueries({ queryKey: ['course', courseId] });
-            queryClient.invalidateQueries({ queryKey: ['student-dashboard-summary'] });
-            queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
-            queryClient.invalidateQueries({ queryKey: ['admin-analytics'] });
-
-            refreshProfile(); // Refresh auth profile
-
-            setPaymentStep(5);
-            successToast(t('checkout.successToast'), t('checkout.confirmedSuccess'));
-
-            setTimeout(() => {
-              setPaymentStep(null);
-              setIsProcessing(false);
-              navigate(`/courses/${courseId}/learn`);
-            }, 1200);
-
-          } catch (err: any) {
-            const msg = err.response?.data?.message || t('checkout.failedToast');
-            console.error('Lỗi xác nhận VietQR:', msg);
-            errorToast(msg, t('checkout.failedToast'));
-            setPaymentStep(null);
-            setIsProcessing(false);
-          }
-        }, 900);
-      }, 900);
-    }, 900);
+  // Học viên gửi thông báo đã chuyển khoản
+  const handleSubmitTransferProof = async () => {
+    if (!orderState?.orderId) return;
+    setIsSubmittingProof(true);
+    try {
+      await paymentApi.confirmTransfer(orderState.orderId, transactionRef);
+      setOrderState(prev => prev ? { ...prev, status: 'pending_verification' } : null);
+      successToast(t('checkout.waitingBankVerification'), 'Đã ghi nhận');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || t('checkout.failedToast');
+      errorToast(msg, t('checkout.failedToast'));
+    } finally {
+      setIsSubmittingProof(false);
+    }
   };
 
-  const transferContent = qrDetails?.bankInfo.transferContent || `EL${courseId?.slice(-6).toUpperCase()}${user?._id?.slice(-4).toUpperCase() || 'USER'}`;
-  const qrCodeImageUrl = qrDetails?.qrUrl || '';
+  // Chế độ Sandbox / Trình chiếu Đồ án
+  const handleDemoSimulate = async () => {
+    if (!orderState?.orderId) return;
+    setIsProcessing(true);
+    try {
+      await paymentApi.demoSimulatePayment(orderState.orderId);
+      successToast('[Demo Sandbox] Đã kích hoạt nhận tiền giả lập thành công!', 'Demo Mode');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Chế độ giả lập chỉ khả dụng trong môi trường thử nghiệm.';
+      errorToast(msg, 'Sandbox Mode');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const transferContent = orderState?.bankInfo.transferContent || (orderState?.orderCode ? `EL ${orderState.orderCode}` : 'EL ELEARNING');
+  const qrCodeImageUrl = useFallbackQr 
+    ? (orderState?.fallbackQrDataUrl || '') 
+    : (orderState?.qrUrl || '');
 
   const appearance = {
     theme: 'stripe' as const,
@@ -232,6 +305,8 @@ const Checkout = () => {
     clientSecret: clientSecret || 'mock_secret',
     appearance,
   };
+
+  const isDemoAllowed = user?.role === 'admin' || import.meta.env.DEV;
 
   return (
     <PageShell>
@@ -280,156 +355,207 @@ const Checkout = () => {
 
             {/* VietQR Payment Method View */}
             {paymentMethod === 'vietqr' ? (
-              <div className="space-y-6 bg-white dark:bg-[#1A1A1A] p-8 rounded-3xl border border-slate-200 dark:border-white/10 shadow-2xl">
+              <div className="space-y-6 bg-white dark:bg-[#1A1A1A] p-8 rounded-3xl border border-slate-200 dark:border-white/10 shadow-2xl relative overflow-hidden">
                 
-                {/* Timer & Test Amount Mode Bar */}
-                <div className="flex items-center justify-between p-4 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded-2xl">
-                  <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-medium text-xs">
-                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
-                    <span>{t('checkout.qrAutoUpdate')}</span>
+                {/* Timer Bar */}
+                <div className={`flex items-center justify-between p-4 rounded-2xl border transition-colors ${
+                  isExpired 
+                    ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/30' 
+                    : orderState?.status === 'pending_verification'
+                    ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/30'
+                    : 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20'
+                }`}>
+                  <div className="flex items-center gap-2 font-medium text-xs">
+                    {isExpired ? (
+                      <span className="text-rose-600 dark:text-rose-400 font-bold">{t('checkout.qrExpiredTitle')}</span>
+                    ) : orderState?.status === 'pending_verification' ? (
+                      <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                        <span>{t('checkout.waitingBankVerification')}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping" />
+                        <span>{t('checkout.qrAutoUpdate')}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{t('checkout.expireIn')}</span>
-                    <span className="text-sm font-mono font-bold text-indigo-600 dark:text-indigo-400">{formatTime(timeLeft)}</span>
+                    <span className={`text-sm font-mono font-bold ${isExpired ? 'text-rose-600' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                      {formatTime(timeLeft)}
+                    </span>
                   </div>
                 </div>
 
-                {/* Amount Mode Selector for Testing with Real Banking App */}
-                <div className="p-3 bg-slate-100 dark:bg-slate-900/80 rounded-2xl border border-slate-200 dark:border-white/5 flex items-center justify-between gap-2">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-slate-900 dark:text-white">{t('checkout.qrMode')}</span>
-                    <span className="text-[11px] text-slate-500">{t('checkout.qrModeDesc')}</span>
+                {/* Expired State Notice */}
+                {isExpired ? (
+                  <div className="p-6 bg-rose-50/50 dark:bg-rose-950/20 rounded-2xl border border-rose-200 dark:border-rose-800/40 text-center space-y-4">
+                    <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-600 flex items-center justify-center mx-auto">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    </div>
+                    <div>
+                      <h4 className="text-base font-bold text-slate-900 dark:text-white">{t('checkout.qrExpiredTitle')}</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">{t('checkout.qrExpiredDesc')}</p>
+                    </div>
+                    <Button onClick={loadQROrder} className="px-6 py-2.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-md">
+                      {t('checkout.createNewQrBtn')}
+                    </Button>
                   </div>
-                  <div className="flex items-center gap-1.5 p-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-white/10 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setUseTestAmount(false)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                        !useTestAmount 
-                          ? 'bg-indigo-600 text-white shadow-sm' 
-                          : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      {t('checkout.originalPriceLabel')} ({price.toLocaleString('vi-VN')}đ)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setUseTestAmount(true)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                        useTestAmount 
-                          ? 'bg-emerald-600 text-white shadow-sm' 
-                          : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      {t('checkout.testPriceLabel')}
-                    </button>
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    {/* QR Code Container */}
+                    <div className="flex flex-col items-center justify-center py-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-white/5 relative group min-h-[280px]">
+                      {qrCodeImageUrl ? (
+                        <>
+                          <img 
+                            src={qrCodeImageUrl} 
+                            alt="VietQR Code" 
+                            onError={() => {
+                              if (!useFallbackQr && orderState?.fallbackQrDataUrl) {
+                                setUseFallbackQr(true);
+                              }
+                            }}
+                            className="w-64 h-64 object-contain rounded-xl shadow-xl border-4 border-white dark:border-slate-800 bg-white" 
+                          />
+                          <div className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            <span>{t('checkout.openBankAppPrompt')}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-60 h-60 rounded-xl bg-slate-100 dark:bg-slate-800/60 animate-pulse flex flex-col items-center justify-center text-slate-400 gap-2">
+                          <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-xs">{t('common.loading')}</span>
+                        </div>
+                      )}
+                    </div>
 
-                {/* QR Code Container */}
-                <div className="flex flex-col items-center justify-center py-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-white/5 relative group min-h-[280px]">
-                  {qrCodeImageUrl ? (
-                    <>
-                      <img 
-                        src={qrCodeImageUrl} 
-                        alt="VietQR Code" 
-                        className="w-60 h-60 object-contain rounded-xl shadow-xl border-4 border-white dark:border-slate-800 bg-white" 
-                      />
-                      <div className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        <span>{t('checkout.openBankAppPrompt')}</span>
+                    {/* Bank Account Details Form Grid */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">{t('checkout.transferDetails')}</h4>
+                        {orderState?.orderCode && (
+                          <span className="text-[11px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
+                            {t('checkout.orderCodeLabel')}: {orderState.orderCode}
+                          </span>
+                        )}
                       </div>
-                    </>
-                  ) : (
-                    <div className="w-60 h-60 rounded-xl bg-slate-100 dark:bg-slate-800/60 animate-pulse flex flex-col items-center justify-center text-slate-400 gap-2">
-                      <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                      <span className="text-xs">{t('common.loading')}</span>
-                    </div>
-                  )}
-                </div>
+                      
+                      {/* Ngân hàng */}
+                      <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5">
+                        <div>
+                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.bankName')}</span>
+                          <span className="text-sm font-bold text-slate-900 dark:text-white">{orderState?.bankInfo.bankName || 'MBBank'}</span>
+                        </div>
+                        <span className="px-2.5 py-1 text-[10px] font-bold bg-indigo-500/10 text-indigo-400 rounded-md uppercase">BANK</span>
+                      </div>
 
-                {/* Bank Account Details Form Grid */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">{t('checkout.transferDetails')}</h4>
-                  
-                  {/* Ngân hàng */}
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5">
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.bankName')}</span>
-                      <span className="text-sm font-bold text-slate-900 dark:text-white">{qrDetails?.bankInfo.bankName || '---'}</span>
-                    </div>
-                    <span className="px-2.5 py-1 text-[10px] font-bold bg-indigo-500/10 text-indigo-400 rounded-md uppercase">BANK</span>
-                  </div>
+                      {/* Số tài khoản */}
+                      <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5">
+                        <div>
+                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.accountNumber')}</span>
+                          <span className="text-base font-mono font-bold text-slate-900 dark:text-white">{orderState?.bankInfo.accountNumber || '---'}</span>
+                        </div>
+                        {orderState?.bankInfo.accountNumber && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(orderState.bankInfo.accountNumber, t('checkout.accountNumber'))}
+                            className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-indigo-50 transition-colors flex items-center gap-1.5"
+                          >
+                            {copiedField === t('checkout.accountNumber') ? t('checkout.copied') : t('checkout.copy')}
+                          </button>
+                        )}
+                      </div>
 
-                  {/* Số tài khoản */}
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5">
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.accountNumber')}</span>
-                      <span className="text-base font-mono font-bold text-slate-900 dark:text-white">{qrDetails?.bankInfo.accountNumber || '---'}</span>
+                      {/* Tên chủ tài khoản */}
+                      <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5">
+                        <div>
+                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.accountName')}</span>
+                          <span className="text-sm font-bold text-slate-900 dark:text-white">{orderState?.bankInfo.accountName || '---'}</span>
+                        </div>
+                      </div>
+
+                      {/* Số tiền */}
+                      <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5">
+                        <div>
+                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.amount')}</span>
+                          <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">{(orderState?.amount || price).toLocaleString('vi-VN')}đ</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy((orderState?.amount || price).toString(), t('checkout.amount'))}
+                          className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-emerald-50 transition-colors flex items-center gap-1.5"
+                        >
+                          {copiedField === t('checkout.amount') ? t('checkout.copied') : t('checkout.copy')}
+                        </button>
+                      </div>
+
+                      {/* Nội dung chuyển khoản duy nhất */}
+                      <div className="flex items-center justify-between p-3.5 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                        <div>
+                          <span className="text-[10px] text-amber-500 uppercase font-bold tracking-wider block">{t('checkout.transferContentRequired')}</span>
+                          <span className="text-base font-mono font-bold text-amber-600 dark:text-amber-400">{transferContent}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(transferContent, t('checkout.transferContent'))}
+                          className="px-3 py-1.5 text-xs font-bold bg-amber-500 text-white rounded-lg hover:bg-amber-400 transition-colors flex items-center gap-1.5 shadow-md shadow-amber-500/20"
+                        >
+                          {copiedField === t('checkout.transferContent') ? t('checkout.copied') : t('checkout.copy')}
+                        </button>
+                      </div>
                     </div>
-                    {qrDetails?.bankInfo.accountNumber && (
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(qrDetails.bankInfo.accountNumber, t('checkout.accountNumber'))}
-                        className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-indigo-50 transition-colors flex items-center gap-1.5"
+
+                    {/* Transaction Reference Input (Tùy chọn) */}
+                    <div className="space-y-1.5 pt-1">
+                      <label htmlFor="tx-ref" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        {t('checkout.enterRefCodePrompt')}
+                      </label>
+                      <input
+                        id="tx-ref"
+                        type="text"
+                        value={transactionRef}
+                        onChange={(e) => setTransactionRef(e.target.value)}
+                        placeholder="VD: FT242888999 hoặc mã giao dịch App ngân hàng"
+                        className="w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-2 space-y-3">
+                      <Button 
+                        onClick={handleSubmitTransferProof}
+                        disabled={isSubmittingProof || orderState?.status === 'pending_verification'}
+                        className="w-full h-14 text-base font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-xl shadow-indigo-500/25 transition-all hover:shadow-indigo-500/40"
                       >
-                        {copiedField === t('checkout.accountNumber') ? t('checkout.copied') : t('checkout.copy')}
-                      </button>
-                    )}
-                  </div>
+                        {isSubmittingProof ? t('checkout.confirming') : orderState?.status === 'pending_verification' ? t('checkout.waitingBankVerification') : t('checkout.confirmTransferBtn')}
+                      </Button>
 
-                  {/* Tên chủ tài khoản */}
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5">
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.accountName')}</span>
-                      <span className="text-sm font-bold text-slate-900 dark:text-white">{qrDetails?.bankInfo.accountName || '---'}</span>
+                      {/* Controlled Demo Simulation Button for Thesis Defense (Chỉ hiện cho Admin hoặc Dev) */}
+                      {isDemoAllowed ? (
+                        <div className="pt-2 space-y-1.5 border-t border-dashed border-amber-300 dark:border-amber-700/50">
+                          <button
+                            type="button"
+                            onClick={handleDemoSimulate}
+                            disabled={isProcessing}
+                            className="w-full py-2.5 px-4 text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700/50 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors flex items-center justify-center gap-2"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            <span>{t('checkout.demoSimulateBtn')}</span>
+                          </button>
+                          <p className="text-[10px] text-center text-amber-600 dark:text-amber-400/80 italic">
+                            {t('checkout.mockNotice')}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-center text-slate-400 dark:text-slate-500">
+                          {t('checkout.autoActivePrompt')}
+                        </p>
+                      )}
                     </div>
-                  </div>
-
-                  {/* Số tiền */}
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5">
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.amount')}</span>
-                      <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">{(qrDetails?.bankInfo.amount || price).toLocaleString('vi-VN')}đ</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy((qrDetails?.bankInfo.amount || price).toString(), t('checkout.amount'))}
-                      className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-emerald-50 transition-colors flex items-center gap-1.5"
-                    >
-                      {copiedField === t('checkout.amount') ? t('checkout.copied') : t('checkout.copy')}
-                    </button>
-                  </div>
-
-                  {/* Nội dung chuyển khoản */}
-                  <div className="flex items-center justify-between p-3.5 bg-amber-500/10 rounded-xl border border-amber-500/20">
-                    <div>
-                      <span className="text-[10px] text-amber-500 uppercase font-bold tracking-wider block">{t('checkout.transferContentRequired')}</span>
-                      <span className="text-base font-mono font-bold text-amber-600 dark:text-amber-400">{transferContent}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(transferContent, t('checkout.transferContent'))}
-                      className="px-3 py-1.5 text-xs font-bold bg-amber-500 text-white rounded-lg hover:bg-amber-400 transition-colors flex items-center gap-1.5 shadow-md shadow-amber-500/20"
-                    >
-                      {copiedField === t('checkout.transferContent') ? t('checkout.copied') : t('checkout.copy')}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Confirm Action Button */}
-                <div className="pt-2">
-                  <Button 
-                    onClick={handleConfirmQRPayment}
-                    disabled={isProcessing}
-                    className="w-full h-14 text-base font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-xl shadow-indigo-500/25 transition-all hover:shadow-indigo-500/40"
-                  >
-                    {isProcessing ? t('checkout.confirming') : t('checkout.confirmQrBtn')}
-                  </Button>
-                  <p className="text-[11px] text-center text-slate-400 mt-2 italic">
-                    {t('checkout.mockNotice')}
-                  </p>
-                </div>
+                  </>
+                )}
 
               </div>
             ) : clientSecret && stripePromise ? (
@@ -485,7 +611,7 @@ const Checkout = () => {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-slate-900 dark:text-white leading-snug line-clamp-2 mb-1">{course?.title}</h4>
+                  <h4 className="font-bold text-slate-900 dark:text-white leading-snug line-clamp-2 mb-1">{lv(course?.title)}</h4>
                   <p className="text-sm text-slate-500 truncate">{course?.instructor?.name || t('course.instructor')}</p>
                 </div>
               </div>
@@ -503,7 +629,9 @@ const Checkout = () => {
                 ) : null}
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">{t('checkout.paymentMethod')}</span>
-                  <span className="font-medium text-indigo-600 dark:text-indigo-400">{paymentMethod === 'vietqr' ? 'VietQR (MBBank)' : 'Stripe Card'}</span>
+                  <span className="font-medium text-indigo-600 dark:text-indigo-400">
+                    {paymentMethod === 'vietqr' ? `VietQR (${orderState?.bankInfo.bankName || 'Vietcombank'})` : 'Stripe Card'}
+                  </span>
                 </div>
                 <div className="flex justify-between pt-4 border-t border-slate-200 dark:border-white/10">
                   <span className="font-bold text-slate-900 dark:text-white">{t('checkout.total')}</span>
@@ -548,72 +676,21 @@ const Checkout = () => {
         </div>
       </div>
 
-      {/* Payment Processing Overlay */}
-      {paymentStep !== null && createPortal(
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
-          <div className="my-auto bg-white dark:bg-[#151515] p-8 rounded-3xl border border-slate-200 dark:border-white/10 w-full max-w-md mx-4 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 animate-pulse" />
-            <div className="space-y-6">
-              <div className="text-center">
-                <h3 className="text-xl font-black text-slate-900 dark:text-white">{t('checkout.processingOverlayTitle')}</h3>
-                <p className="text-xs text-slate-400 mt-1">{t('checkout.processingOverlayDesc')}</p>
-              </div>
-
-              {/* Progress steps */}
-              <div className="space-y-4 py-2">
-                {paymentSteps.map((step, idx) => {
-                  const stepNum = idx + 1;
-                  const isDone = paymentStep > stepNum;
-                  const isCurrent = paymentStep === stepNum;
-
-                  return (
-                    <div key={idx} className="flex gap-4 items-start">
-                      <div className="relative shrink-0">
-                        {isDone ? (
-                          <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                          </div>
-                        ) : isCurrent ? (
-                          <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center">
-                            <span className="relative flex h-2 w-2">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 flex items-center justify-center text-xs font-black">
-                            {stepNum}
-                          </div>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-xs sm:text-sm font-semibold transition-colors ${isCurrent ? 'text-indigo-600 dark:text-indigo-400' : isDone ? 'text-slate-900 dark:text-white opacity-80' : 'text-slate-400'}`}>
-                          {step.label}
-                        </p>
-                        {isCurrent && (
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 animate-pulse leading-snug">
-                            {step.desc}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Loader ring for step 1-4, success check for step 5 */}
-              <div className="flex justify-center pt-2">
-                {paymentStep < 5 ? (
-                  <div className="w-9 h-9 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-500 flex items-center justify-center animate-bounce">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                    </div>
-                    <span className="text-sm font-bold text-emerald-500">{t('checkout.confirmedSuccess')}</span>
-                  </div>
-                )}
-              </div>
+      {/* Success Celebration Overlay when Polling detects Paid status */}
+      {isPaidSuccess && createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-[#151515] p-8 rounded-3xl border border-slate-200 dark:border-white/10 w-full max-w-sm mx-4 text-center shadow-2xl space-y-4">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-500 flex items-center justify-center mx-auto animate-bounce">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">{t('checkout.confirmedSuccess')}</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('checkout.successToast')}</p>
+            </div>
+            <div className="pt-2">
+              <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 animate-pulse">
+                {t('checkout.goToCourse')}...
+              </span>
             </div>
           </div>
         </div>,

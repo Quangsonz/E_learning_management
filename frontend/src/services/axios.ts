@@ -39,9 +39,14 @@ axiosInstance.interceptors.request.use((config) => {
 axiosInstance.interceptors.response.use(
   (res) => res,
   (err) => {
+    const isSuspended = err.response?.status === 403 && (
+      err.response?.data?.message?.includes('tạm ngưng') ||
+      err.response?.data?.code === 'ACCOUNT_SUSPENDED'
+    );
+
     if (
       err.response && 
-      err.response.status === 401 && 
+      (err.response.status === 401 || isSuspended) && 
       !err.config.url?.includes('/auth/login') && 
       !err.config.url?.includes('/auth/register')
     ) {
@@ -49,7 +54,7 @@ axiosInstance.interceptors.response.use(
       delete axiosInstance.defaults.headers.common['Authorization'];
       
       if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
-        window.location.href = '/login?expired=true';
+        window.location.href = isSuspended ? '/login?suspended=true' : '/login?expired=true';
       }
     }
     return Promise.reject(err);

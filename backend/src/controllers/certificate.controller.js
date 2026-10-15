@@ -51,6 +51,7 @@ class CertificateController {
     }
 
     const { setupPDFFont, removeVietnameseTones } = require('../utils/pdfGenerator');
+    const { getLocalizedText } = require('../utils/localizedHelper');
 
     // Dynamic PDF Kit stream generation
     const PDFDocument = require('pdfkit');
@@ -65,7 +66,7 @@ class CertificateController {
     doc.pipe(res);
 
     const studentName = certificate.student?.name || 'Hoc vien E-Learning';
-    const courseTitle = certificate.course?.title || 'Khoa hoc Chuyen nghiep';
+    const courseTitle = getLocalizedText(certificate.course?.title, 'vi') || 'Khoa hoc Chuyen nghiep';
 
     // Draw Certificate Border
     const margin = 50;

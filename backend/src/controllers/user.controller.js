@@ -39,14 +39,20 @@ class UserController {
       .select('wishlist')
       .populate({
         path: 'wishlist',
-        select: '-__v'
+        populate: [
+          { path: 'category', select: 'name slug' },
+          { path: 'instructor', select: 'name role avatar' }
+        ]
       })
       .lean();
+
+    // Loại bỏ các khóa học đã bị xóa khỏi cơ sở dữ liệu (null references)
+    const cleanWishlist = (user?.wishlist || []).filter(item => Boolean(item && item._id));
 
     res.status(200).json({
       status: 'success',
       data: {
-        wishlist: user?.wishlist || []
+        wishlist: cleanWishlist
       }
     });
   });
@@ -57,23 +63,36 @@ class UserController {
    */
   toggleWishlist = catchAsync(async (req, res, next) => {
     const userRepository = require('../repositories/user.repository');
+    const Course = require('../models/Course');
     const { courseId } = req.body;
     
     if (!courseId) {
       return next(new AppError('Vui lòng cung cấp ID khóa học', 400));
     }
 
+    const courseIdStr = courseId.toString();
     const user = await userRepository.findById(req.user.id);
+    if (!user) {
+      return next(new AppError('Không tìm thấy người dùng', 404));
+    }
+
     let wishlist = user.wishlist || [];
     
-    const index = wishlist.indexOf(courseId);
+    // So sánh chuỗi an toàn giữa ObjectId và String ID
+    const index = wishlist.findIndex(item => (item?._id || item)?.toString() === courseIdStr);
     let isAdded = false;
 
     if (index > -1) {
-      // Đã có thì xóa đi
+      // Đã có trong wishlist -> Gỡ ra
       wishlist.splice(index, 1);
     } else {
-      // Chưa có thì thêm vào
+      // Kiểm tra khóa học có tồn tại trong hệ thống không trước khi thêm
+      const course = await Course.findById(courseIdStr);
+      if (!course) {
+        return next(new AppError('Khóa học không tồn tại', 404));
+      }
+
+      // Chưa có -> Thêm vào
       wishlist.push(courseId);
       isAdded = true;
     }

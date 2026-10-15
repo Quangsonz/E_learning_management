@@ -41,9 +41,22 @@ class ProgressService {
       });
     }
 
-    // 4. Đánh dấu bài giảng hoàn thành (nếu chưa có trong mảng)
+    // 4. Lấy danh sách toàn bộ bài học hợp lệ của khóa học
+    const allLessons = await lessonRepository.find({ course: courseId });
+    const totalLessonsCount = allLessons.length;
+    const activeLessonIdSet = new Set(allLessons.map(l => l._id.toString()));
+
+    // Dọn dẹp các ID bài học mồ côi (nếu giáo viên đã xóa bài học trước đó)
+    progress.completedLessons = (progress.completedLessons || []).filter(id => 
+      id && activeLessonIdSet.has(id.toString())
+    );
+
+    // 5. Đánh dấu bài giảng hoàn thành (so sánh theo chuỗi an toàn giữa ObjectId và String)
+    const lessonIdStr = lessonId.toString();
+    const isAlreadyCompleted = progress.completedLessons.some(id => id.toString() === lessonIdStr);
     let newlyCompleted = false;
-    if (!progress.completedLessons.includes(lessonId)) {
+
+    if (!isAlreadyCompleted) {
       progress.completedLessons.push(lessonId);
       newlyCompleted = true;
       
@@ -81,18 +94,17 @@ class ProgressService {
       }
     }
 
-    // 5. Tính toán phần trăm hoàn thành
-    const allLessons = await lessonRepository.find({ course: courseId });
-    const totalLessonsCount = allLessons.length;
-
+    // 6. Tính toán phần trăm hoàn thành và ép chặn trong khoảng [0, 100] tránh lỗi validation Mongoose
     if (totalLessonsCount > 0) {
-      progress.progressPercentage = Math.round((progress.completedLessons.length / totalLessonsCount) * 100);
+      const rawPercentage = Math.round((progress.completedLessons.length / totalLessonsCount) * 100);
+      progress.progressPercentage = Math.min(100, Math.max(0, rawPercentage));
     } else {
       progress.progressPercentage = 100;
     }
 
     // Cập nhật ngày học cuối cùng
     progress.lastAccessedLesson = lessonId;
+    progress.lastStudiedAt = new Date();
     progress.isCompleted = progress.progressPercentage === 100;
 
     await progress.save();

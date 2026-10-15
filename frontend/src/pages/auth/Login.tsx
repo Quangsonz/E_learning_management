@@ -30,6 +30,11 @@ const Login: React.FC = () => {
         error(t('auth.toast.sessionExpired'), t('auth.login.sessionExpiredTitle'));
       }, 100);
       navigate(location.pathname, { replace: true });
+    } else if (params.get('suspended') === 'true') {
+      setTimeout(() => {
+        error(t('auth.login.accountSuspended', 'Tài khoản của bạn đã bị tạm ngưng. Vui lòng liên hệ Quản trị viên.'), t('common.error'));
+      }, 100);
+      navigate(location.pathname, { replace: true });
     }
   }, [location, error, navigate, t]);
 

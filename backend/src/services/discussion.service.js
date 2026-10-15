@@ -5,6 +5,7 @@ const notificationService = require('./notification.service');
 const xpService = require('./xp.service');
 const Course = require('../models/Course');
 const enrollmentRepository = require('../repositories/enrollment.repository');
+const { getLocalizedText } = require('../utils/localizedHelper');
 
 class DiscussionService {
   async getDiscussionsByLesson(lessonId) {
@@ -38,10 +39,11 @@ class DiscussionService {
 
     // Notify instructor
     if (course && course.instructor.toString() !== userId.toString()) {
+      const courseTitleStr = getLocalizedText(course.title, 'vi');
       await notificationService.createNotification({
         recipient: course.instructor,
         title: 'Có câu hỏi mới trong khóa học của bạn',
-        message: `Một học viên vừa đặt câu hỏi trong khóa học "${course.title}".`,
+        message: `Một học viên vừa đặt câu hỏi trong khóa học "${courseTitleStr}".`,
         type: 'course',
         link: `/courses/${courseId}/learn`
       });

@@ -169,7 +169,7 @@ class ModuleService {
     const bulkOps = orderedModules.map((item) => ({
       updateOne: {
         filter: { _id: item.id, course: courseId },
-        update: { order: item.order }
+        update: { $set: { order: item.order } }
       }
     }));
 

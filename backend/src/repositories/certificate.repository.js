@@ -7,7 +7,15 @@ class CertificateRepository extends BaseRepository {
   }
 
   async findByStudentAndCourse(studentId, courseId) {
-    return await this.model.findOne({ student: studentId, course: courseId }).populate('course', 'title');
+    return await this.model.findOne({ student: studentId, course: courseId })
+      .populate({
+        path: 'course',
+        select: 'title category instructor thumbnail',
+        populate: [
+          { path: 'instructor', select: 'name email avatar' },
+          { path: 'category', select: 'name' }
+        ]
+      });
   }
 
   async findByStudent(studentId) {
@@ -15,7 +23,16 @@ class CertificateRepository extends BaseRepository {
   }
 
   async findByCertificateId(certificateId) {
-    return await this.model.findOne({ certificateId }).populate('student', 'name email').populate('course', 'title');
+    return await this.model.findOne({ certificateId })
+      .populate('student', 'name email')
+      .populate({
+        path: 'course',
+        select: 'title category instructor thumbnail',
+        populate: [
+          { path: 'instructor', select: 'name email avatar' },
+          { path: 'category', select: 'name' }
+        ]
+      });
   }
 }
 

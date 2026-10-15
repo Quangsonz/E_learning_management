@@ -57,6 +57,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
+  // Tài khoản bị tạm ngưng → redirect về login
+  if (user && (user as any).isActive === false) {
+    return (
+      <Navigate
+        to="/login?suspended=true"
+        replace
+      />
+    );
+  }
+
   // Kiểm tra role nếu được chỉ định
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     return (

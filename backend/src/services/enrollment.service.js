@@ -4,16 +4,31 @@ const progressRepository = require('../repositories/progress.repository');
 const notificationService = require('./notification.service');
 const AppError = require('../utils/appError');
 const Order = require('../models/Order');
+const { getLocalizedText } = require('../utils/localizedHelper');
+
+const extractUserId = (user) => {
+  if (!user) return '';
+  if (typeof user === 'string') return user;
+  if (user._id) return user._id.toString();
+  if (typeof user.id === 'string') return user.id;
+  if (typeof user.toString === 'function') return user.toString();
+  return '';
+};
 
 class EnrollmentService {
   async enrollCourse(courseId, user, options = {}) {
+    const studentId = extractUserId(user);
+    if (!studentId) {
+      throw new AppError('Xác thực học viên không hợp lệ', 401);
+    }
+
     const course = await courseRepository.findById(courseId);
     if (!course) {
       throw new AppError('Không tìm thấy khóa học', 404);
     }
 
     // Kiểm tra xem user đã đăng ký khóa này chưa
-    const existingEnrollment = await enrollmentRepository.findByStudentAndCourse(user.id, courseId);
+    const existingEnrollment = await enrollmentRepository.findByStudentAndCourse(studentId, courseId);
     if (existingEnrollment) {
       throw new AppError('Bạn đã đăng ký khóa học này rồi!', 400);
     }
@@ -26,7 +41,7 @@ class EnrollmentService {
     // Nếu khóa học có phí và không phải được gọi từ payment webhook/controller đã xác thực
     if (!isFree && !isTrustedPayment) {
       const existingPaidOrder = await Order.findOne({
-        user: user.id,
+        user: studentId,
         course: courseId,
         status: 'paid'
       });
@@ -36,7 +51,7 @@ class EnrollmentService {
     }
 
     const enrollmentData = {
-      student: user.id,
+      student: studentId,
       course: courseId,
       paymentStatus: 'completed'
     };
@@ -45,10 +60,10 @@ class EnrollmentService {
 
     // 4. Persist Order document chỉ khi chưa có Order từ trước (tránh duplicate với Stripe/VietQR)
     if (!options.existingOrderId) {
-      const existingOrder = await Order.findOne({ user: user.id, course: courseId, status: 'paid' });
+      const existingOrder = await Order.findOne({ user: studentId, course: courseId, status: 'paid' });
       if (!existingOrder) {
         await Order.create({
-          user: user.id,
+          user: studentId,
           course: courseId,
           amount: coursePrice,
           currency: 'vnd',
@@ -57,18 +72,23 @@ class EnrollmentService {
       }
     }
 
-    // 5. Khởi tạo Tiến độ học tập (Progress)
-    await progressRepository.create({
-      student: user.id,
-      course: courseId,
-      progressPercentage: 0
-    });
+    // 5. Khởi tạo Tiến độ học tập (Progress) nếu chưa có bản ghi (tránh lỗi E11000 duplicate key)
+    let progress = await progressRepository.findByStudentAndCourse(studentId, courseId);
+    if (!progress) {
+      await progressRepository.create({
+        student: studentId,
+        course: courseId,
+        progressPercentage: 0,
+        completedLessons: []
+      });
+    }
 
     // 6. Gửi Notification
+    const courseTitleStr = getLocalizedText(course.title, 'vi');
     await notificationService.createNotification({
-      recipient: user.id,
+      recipient: studentId,
       title: 'Đăng ký khóa học thành công!',
-      message: `Bạn đã đăng ký thành công khóa học "${course.title}". Hãy bắt đầu học ngay nhé.`,
+      message: `Bạn đã đăng ký thành công khóa học "${courseTitleStr}". Hãy bắt đầu học ngay nhé.`,
       type: 'course',
       link: `/courses/${courseId}/learn`
     });
@@ -77,7 +97,8 @@ class EnrollmentService {
   }
 
   async unenrollCourse(courseId, user) {
-    const enrollment = await enrollmentRepository.findByStudentAndCourse(user.id, courseId);
+    const studentId = extractUserId(user);
+    const enrollment = await enrollmentRepository.findByStudentAndCourse(studentId, courseId);
     
     if (!enrollment) {
       throw new AppError('Bạn chưa đăng ký khóa học này', 400);
@@ -88,7 +109,8 @@ class EnrollmentService {
   }
 
   async getMyEnrollments(user) {
-    return await enrollmentRepository.findByStudent(user.id);
+    const studentId = extractUserId(user);
+    return await enrollmentRepository.findByStudent(studentId);
   }
 }
 

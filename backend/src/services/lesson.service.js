@@ -266,7 +266,7 @@ class LessonService {
       return {
         updateOne: {
           filter: { _id: item.id, course: courseId },
-          update: updateFields
+          update: { $set: updateFields }
         }
       };
     });

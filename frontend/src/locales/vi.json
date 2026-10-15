@@ -519,7 +519,8 @@
     "testPriceLabel": "Test (1.000đ)",
     "transferDetails": "Thông tin chuyển khoản",
     "confirmQrBtn": "Xác nhận đã quét & thanh toán thành công",
-    "mockNotice": "* Trong môi trường thử nghiệm Đồ án: Nhấn nút trên để giả lập nhận tiền tự động và kích hoạt khóa học ngay lập tức.",
+    "mockNotice": "* Dành cho Quản trị viên / Hội đồng: Nhấn nút trên để giả lập nhận tiền trong môi trường Sandbox trình chiếu đồ án.",
+    "autoActivePrompt": "Hệ thống sẽ tự động xác thực và kích hoạt khóa học ngay khi tài khoản nhận được tiền (thường từ 1-30 giây).",
     "connectingStripe": "Đang kết nối cổng Stripe...",
     "securityBadge": "Bảo mật tuyệt đối",
     "securityBadgeDesc": "Mã hóa chuẩn VietQR SSL",
@@ -545,7 +546,16 @@
     "step5Desc": "Chào mừng bạn đến với khóa học!",
     "successToast": "Thanh toán VietQR thành công! Chào mừng bạn đến với khóa học.",
     "failedToast": "Xác nhận thanh toán thất bại",
-    "goToCourse": "Vào học ngay"
+    "goToCourse": "Vào học ngay",
+    "waitingBankVerification": "Đang chờ đối soát giao dịch ngân hàng...",
+    "orderCodeLabel": "Mã đơn hàng",
+    "enterRefCodePrompt": "Mã tham chiếu / Mã giao dịch ngân hàng (Tùy chọn)",
+    "confirmTransferBtn": "Tôi đã chuyển khoản thành công",
+    "demoSimulateBtn": "Trình chiếu Đồ án: Giả lập tiền về ngay (Sandbox)",
+    "qrExpiredTitle": "Mã thanh toán đã hết hạn",
+    "qrExpiredDesc": "Đơn hàng này đã quá thời hạn 15 phút. Vui lòng tạo mã mới để đảm bảo tính an toàn giao dịch.",
+    "createNewQrBtn": "Tạo mã thanh toán mới",
+    "verifyingToast": "Đang kiểm tra biến động số dư ngân hàng..."
   },
   "auth": {
     "login": {
@@ -564,7 +574,8 @@
       "loginFailed": "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.",
       "failedTitle": "Đăng nhập thất bại",
       "welcomeBack": "Chào mừng trở lại",
-      "sessionExpiredTitle": "Phiên hết hạn"
+      "sessionExpiredTitle": "Phiên hết hạn",
+      "accountSuspended": "Tài khoản của bạn đã bị tạm ngưng. Vui lòng liên hệ Quản trị viên."
     },
     "register": {
       "badge": "Tạo không gian học",

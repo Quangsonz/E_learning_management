@@ -4,8 +4,13 @@ const PDFDocument = require('pdfkit');
 const cloudinary = require('../config/cloudinary');
 const streamifier = require('streamifier');
 
+const { getLocalizedText } = require('./localizedHelper');
+
 function removeVietnameseTones(str) {
   if (!str) return '';
+  if (typeof str === 'object') {
+    str = getLocalizedText(str, 'vi');
+  }
   str = String(str);
   str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, 'a');
   str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, 'e');
@@ -53,6 +58,7 @@ exports.removeVietnameseTones = removeVietnameseTones;
 exports.generateCertificate = (studentName, courseTitle, certificateId, qrCodeDataUrl) => {
   return new Promise((resolve, reject) => {
     try {
+      const resolvedCourseTitle = getLocalizedText(courseTitle, 'vi');
       const doc = new PDFDocument({
         layout: 'landscape',
         size: 'A4',
@@ -108,7 +114,7 @@ exports.generateCertificate = (studentName, courseTitle, certificateId, qrCodeDa
       doc.fontSize(18).fillColor('#000').text(clean('Đã hoàn thành xuất sắc khóa học'), { align: 'center' });
       
       doc.moveDown(0.5);
-      doc.fontSize(26).fillColor('#28a745').text(clean(courseTitle), { align: 'center' });
+      doc.fontSize(26).fillColor('#28a745').text(clean(resolvedCourseTitle), { align: 'center' });
       
       doc.moveDown(2);
       doc.fontSize(12).fillColor('#666').text(clean(`Mã chứng chỉ: ${certificateId}`), { align: 'center' });

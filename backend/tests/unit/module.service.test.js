@@ -115,11 +115,23 @@ describe('ModuleService', () => {
     it('should bulk update module orders', async () => {
       const mockCourse = { _id: 'c1', instructor: { _id: 't1' } };
       courseRepository.findById.mockResolvedValue(mockCourse);
-      moduleRepository.bulkWrite.mockResolvedValue({ modifiedCount: 2 });
-
       const result = await moduleService.reorderModules('c1', [{ id: 'm1', order: 2 }, { id: 'm2', order: 1 }], { id: 't1', role: 'teacher' });
       expect(result.message).toContain('thành công');
       expect(moduleRepository.bulkWrite).toHaveBeenCalledTimes(1);
+      expect(moduleRepository.bulkWrite).toHaveBeenCalledWith([
+        {
+          updateOne: {
+            filter: { _id: 'm1', course: 'c1' },
+            update: { $set: { order: 2 } }
+          }
+        },
+        {
+          updateOne: {
+            filter: { _id: 'm2', course: 'c1' },
+            update: { $set: { order: 1 } }
+          }
+        }
+      ]);
     });
   });
 });

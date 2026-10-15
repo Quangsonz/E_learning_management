@@ -1,5 +1,6 @@
 const lessonService = require('../services/lesson.service');
 const catchAsync = require('../utils/catchAsync');
+const AppError = require('../utils/appError');
 
 class LessonController {
   getLessons = catchAsync(async (req, res, next) => {

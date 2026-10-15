@@ -462,7 +462,7 @@ class AnalyticsService {
     const skip = (pageNum - 1) * limitNum;
 
     const filter = {};
-    if (status && ['pending', 'paid', 'failed'].includes(status)) {
+    if (status && ['pending', 'pending_verification', 'paid', 'failed', 'expired', 'cancelled'].includes(status)) {
       filter.status = status;
     }
 

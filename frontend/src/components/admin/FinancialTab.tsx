@@ -7,12 +7,17 @@ import { adminApi } from '../../services/admin.api';
 import { CountUpValue } from '../../hooks/useCountUp';
 import axiosInstance from '../../services/axios';
 
-type OrderStatus = 'all' | 'pending' | 'paid' | 'failed';
+import { paymentApi } from '../../services/payment.api';
+
+type OrderStatus = 'all' | 'pending' | 'pending_verification' | 'paid' | 'failed' | 'expired' | 'cancelled';
 
 const STATUS_STYLE: Record<string, string> = {
-  paid:    'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20',
-  pending: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20',
-  failed:  'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20',
+  paid:                 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20',
+  pending:              'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20',
+  pending_verification: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 font-bold',
+  expired:              'bg-slate-500/10 text-slate-500 dark:text-slate-400 border border-slate-500/20',
+  failed:               'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20',
+  cancelled:            'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20',
 };
 
 import { Toast } from '../ui';
@@ -59,6 +64,18 @@ export const FinancialTab = () => {
     }
   });
 
+  // Verify Order Mutation
+  const verifyOrderMutation = useMutation({
+    mutationFn: (orderId: string) => paymentApi.adminVerifyOrder(orderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+      setToast('Đã xác nhận thanh toán và kích hoạt khóa học thành công!');
+    },
+    onError: (err: any) => {
+      setToast(err.response?.data?.message || 'Lỗi khi duyệt đơn hàng.');
+    }
+  });
+
   const handleExportPDF = async () => {
     try {
       setToast('Đang tạo báo cáo PDF...');
@@ -97,7 +114,9 @@ export const FinancialTab = () => {
   const orderTabs: { label: string; value: OrderStatus }[] = [
     { label: 'All', value: 'all' },
     { label: 'Paid', value: 'paid' },
+    { label: 'Pending Verification', value: 'pending_verification' },
     { label: 'Pending', value: 'pending' },
+    { label: 'Expired', value: 'expired' },
     { label: 'Failed', value: 'failed' },
   ];
 
@@ -198,17 +217,19 @@ export const FinancialTab = () => {
               <thead>
                 <tr className="border-b border-slate-200 dark:border-white/10 text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white/30">
                   <th className="pb-3">User</th>
+                  <th className="pb-3">Order Code</th>
                   <th className="pb-3">Course</th>
                   <th className="pb-3">Amount</th>
                   <th className="pb-3">Status</th>
                   <th className="pb-3">Date</th>
+                  <th className="pb-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {ordersLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i}>
-                      {Array.from({ length: 5 }).map((__, j) => (
+                      {Array.from({ length: 7 }).map((__, j) => (
                         <td key={j} className="py-3 border-b border-slate-100 dark:border-white/5">
                           <div className="h-3 bg-slate-200 dark:bg-white/5 rounded animate-pulse w-3/4" />
                         </td>
@@ -217,7 +238,7 @@ export const FinancialTab = () => {
                   ))
                 ) : orders.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center text-slate-400 dark:text-white/30 text-sm">
+                    <td colSpan={7} className="py-12 text-center text-slate-400 dark:text-white/30 text-sm">
                       No orders found.
                     </td>
                   </tr>
@@ -245,6 +266,11 @@ export const FinancialTab = () => {
                         </div>
                       </td>
                       <td className="py-3">
+                        <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                          {order.orderCode || order._id?.slice(-6)?.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="py-3">
                         <span className="text-xs text-slate-700 dark:text-white/70 truncate max-w-[180px] block">{order.course?.title || 'N/A'}</span>
                       </td>
                       <td className="py-3">
@@ -259,6 +285,18 @@ export const FinancialTab = () => {
                         <span className="text-xs text-slate-500 dark:text-white/40">
                           {order.createdAt ? new Date(order.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
                         </span>
+                      </td>
+                      <td className="py-3 text-right">
+                        {(order.status === 'pending' || order.status === 'pending_verification') && (
+                          <button
+                            type="button"
+                            onClick={() => verifyOrderMutation.mutate(order._id)}
+                            disabled={verifyOrderMutation.isLoading}
+                            className="px-2.5 py-1 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                          >
+                            Duyệt
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))

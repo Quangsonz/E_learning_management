@@ -519,7 +519,8 @@
     "testPriceLabel": "Test (1,000đ)",
     "transferDetails": "Transfer Details",
     "confirmQrBtn": "Confirm Scanned & Paid Successfully",
-    "mockNotice": "* Academic test mode: Click above to simulate payment and instantly unlock course.",
+    "mockNotice": "* For Administrators / Defense Committee: Click above to simulate payment in sandbox mode.",
+    "autoActivePrompt": "The system will automatically verify and activate your course once funds arrive (typically 1-30s).",
     "connectingStripe": "Connecting to Stripe gateway...",
     "securityBadge": "Absolute Security",
     "securityBadgeDesc": "VietQR SSL Standard Encryption",
@@ -545,7 +546,16 @@
     "step5Desc": "Welcome to the course!",
     "successToast": "VietQR payment successful! Welcome to the course.",
     "failedToast": "Payment confirmation failed",
-    "goToCourse": "Go to Course"
+    "goToCourse": "Go to Course",
+    "waitingBankVerification": "Waiting for bank transaction reconciliation...",
+    "orderCodeLabel": "Order Code",
+    "enterRefCodePrompt": "Transaction Reference / Transfer Memo (Optional)",
+    "confirmTransferBtn": "I have completed the bank transfer",
+    "demoSimulateBtn": "Thesis Defense: Simulate Payment (Sandbox)",
+    "qrExpiredTitle": "Payment QR Expired",
+    "qrExpiredDesc": "This order has exceeded the 15-minute validity window. Please create a fresh QR code.",
+    "createNewQrBtn": "Generate New Payment QR",
+    "verifyingToast": "Checking bank balance updates..."
   },
   "auth": {
     "login": {
@@ -564,7 +574,8 @@
       "loginFailed": "Login failed. Please check your credentials.",
       "failedTitle": "Login failed",
       "welcomeBack": "Welcome back",
-      "sessionExpiredTitle": "Session Expired"
+      "sessionExpiredTitle": "Session Expired",
+      "accountSuspended": "Your account has been suspended. Please contact the administrator."
     },
     "register": {
       "badge": "Create Your Space",
