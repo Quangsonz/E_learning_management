@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useTranslation } from 'react-i18next';
@@ -242,6 +242,9 @@ const Checkout = () => {
   const price = course?.price || 0;
   const estimatedPrice = course?.estimatedPrice || price;
   const discountAmount = estimatedPrice - price;
+  const discountPercentage = estimatedPrice > price
+    ? Math.round(((estimatedPrice - price) / estimatedPrice) * 100)
+    : (course?.discountPercentage || 0);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -287,6 +290,8 @@ const Checkout = () => {
     }
   };
 
+  const rawBankName = orderState?.bankInfo?.bankName || 'Techcombank';
+  const cleanBankName = rawBankName.split('(')[0].trim() || rawBankName;
   const transferContent = orderState?.bankInfo.transferContent || (orderState?.orderCode ? `EL ${orderState.orderCode}` : 'EL ELEARNING');
   const qrCodeImageUrl = useFallbackQr 
     ? (orderState?.fallbackQrDataUrl || '') 
@@ -310,19 +315,36 @@ const Checkout = () => {
 
   return (
     <PageShell>
-      <div className="max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto pt-4 pb-16 px-4 sm:px-6 lg:px-8">
         
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+        {/* Top Navigation & Trust Badge */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+          <button
+            type="button"
+            onClick={() => courseId ? navigate(`/courses/${courseId}`) : navigate(-1)}
+            className="group inline-flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+          >
+            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center group-hover:-translate-x-0.5 transition-transform">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6"/></svg>
+            </div>
+            <span>{t('course.backToCourse', 'Quay lại khóa học')}</span>
+          </button>
+
+          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3.5 py-1.5 rounded-full border border-emerald-500/20">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>{t('checkout.secure256')}</span>
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-2">{t('checkout.title')}</h1>
+          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400">{t('checkout.pageDesc')}</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           
           {/* Left Column: Payment Details & QR Code */}
           <div className="lg:col-span-7 space-y-8">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-widest text-indigo-500 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                {t('checkout.secure256')}
-              </span>
-              <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-3 mb-2">{t('checkout.title')}</h1>
-              <p className="text-slate-500 dark:text-slate-400">{t('checkout.pageDesc')}</p>
-            </div>
 
             {/* Payment Method Switcher Tabs */}
             <div className="grid grid-cols-2 gap-3 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10">
@@ -355,35 +377,37 @@ const Checkout = () => {
 
             {/* VietQR Payment Method View */}
             {paymentMethod === 'vietqr' ? (
-              <div className="space-y-6 bg-white dark:bg-[#1A1A1A] p-8 rounded-3xl border border-slate-200 dark:border-white/10 shadow-2xl relative overflow-hidden">
+              <div className="space-y-6 bg-white dark:bg-[#1A1A1A] p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-white/10 shadow-2xl relative overflow-hidden">
                 
                 {/* Timer Bar */}
-                <div className={`flex items-center justify-between p-4 rounded-2xl border transition-colors ${
+                <div className={`flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border transition-colors ${
                   isExpired 
                     ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/30' 
                     : orderState?.status === 'pending_verification'
                     ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/30'
-                    : 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20'
+                    : 'bg-indigo-50/70 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20'
                 }`}>
-                  <div className="flex items-center gap-2 font-medium text-xs">
+                  <div className="flex items-center gap-2.5 font-medium text-xs">
                     {isExpired ? (
                       <span className="text-rose-600 dark:text-rose-400 font-bold">{t('checkout.qrExpiredTitle')}</span>
                     ) : orderState?.status === 'pending_verification' ? (
-                      <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                      <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-semibold">
                         <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
                         <span>{t('checkout.waitingBankVerification')}</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                      <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold">
                         <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping" />
                         <span>{t('checkout.qrAutoUpdate')}</span>
                       </div>
                     )}
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{t('checkout.expireIn')}</span>
-                    <span className={`text-sm font-mono font-bold ${isExpired ? 'text-rose-600' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                      {formatTime(timeLeft)}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline-block">{t('checkout.expireIn')}</span>
+                    <span className={`px-2.5 py-1 rounded-lg text-xs sm:text-sm font-mono font-bold ${
+                      isExpired ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/40' : 'bg-white dark:bg-white/10 text-indigo-600 dark:text-indigo-400 border border-slate-200 dark:border-white/10'
+                    }`}>
+                      ⏱ {formatTime(timeLeft)}
                     </span>
                   </div>
                 </div>
@@ -404,111 +428,134 @@ const Checkout = () => {
                   </div>
                 ) : (
                   <>
-                    {/* QR Code Container */}
-                    <div className="flex flex-col items-center justify-center py-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-white/5 relative group min-h-[280px]">
-                      {qrCodeImageUrl ? (
-                        <>
-                          <img 
-                            src={qrCodeImageUrl} 
-                            alt="VietQR Code" 
-                            onError={() => {
-                              if (!useFallbackQr && orderState?.fallbackQrDataUrl) {
-                                setUseFallbackQr(true);
-                              }
-                            }}
-                            className="w-64 h-64 object-contain rounded-xl shadow-xl border-4 border-white dark:border-slate-800 bg-white" 
-                          />
-                          <div className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            <span>{t('checkout.openBankAppPrompt')}</span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="w-60 h-60 rounded-xl bg-slate-100 dark:bg-slate-800/60 animate-pulse flex flex-col items-center justify-center text-slate-400 gap-2">
-                          <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                          <span className="text-xs">{t('common.loading')}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Bank Account Details Form Grid */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">{t('checkout.transferDetails')}</h4>
-                        {orderState?.orderCode && (
-                          <span className="text-[11px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
-                            {t('checkout.orderCodeLabel')}: {orderState.orderCode}
-                          </span>
-                        )}
-                      </div>
+                    {/* Bento Split: QR Code + Bank Details Side-by-Side */}
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
                       
-                      {/* Ngân hàng */}
-                      <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5">
-                        <div>
-                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.bankName')}</span>
-                          <span className="text-sm font-bold text-slate-900 dark:text-white">{orderState?.bankInfo.bankName || 'MBBank'}</span>
+                      {/* Left Sub-column: QR Code Container */}
+                      <div className="md:col-span-5 flex flex-col items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-white/5">
+                        <div className="w-full flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">VietQR Napas 247</span>
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Sẵn sàng quét" />
                         </div>
-                        <span className="px-2.5 py-1 text-[10px] font-bold bg-indigo-500/10 text-indigo-400 rounded-md uppercase">BANK</span>
+
+                        <div className="p-2.5 bg-white rounded-2xl shadow-md border border-slate-200/80 ring-4 ring-black/[0.03] dark:ring-white/[0.05] relative group">
+                          {qrCodeImageUrl ? (
+                            <img 
+                              src={qrCodeImageUrl} 
+                              alt="VietQR Code" 
+                              onError={() => {
+                                if (!useFallbackQr && orderState?.fallbackQrDataUrl) {
+                                  setUseFallbackQr(true);
+                                }
+                              }}
+                              className="w-44 h-44 sm:w-48 sm:h-48 object-contain rounded-xl" 
+                            />
+                          ) : (
+                            <div className="w-44 h-44 sm:w-48 sm:h-48 rounded-xl bg-slate-100 flex flex-col items-center justify-center text-slate-400 gap-2">
+                              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                              <span className="text-xs">{t('common.loading')}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mt-3 text-center">
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium flex items-center justify-center gap-1.5">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            <span>Mở App ngân hàng để quét</span>
+                          </div>
+                          {qrCodeImageUrl && (
+                            <a 
+                              href={qrCodeImageUrl} 
+                              download={`vietqr-${orderState?.orderCode || 'payment'}.png`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-1 text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold inline-block"
+                            >
+                              Tải ảnh mã QR
+                            </a>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Số tài khoản */}
-                      <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5">
-                        <div>
-                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.accountNumber')}</span>
-                          <span className="text-base font-mono font-bold text-slate-900 dark:text-white">{orderState?.bankInfo.accountNumber || '---'}</span>
+                      {/* Right Sub-column: Bank Account Details Grid */}
+                      <div className="md:col-span-7 flex flex-col justify-between space-y-2">
+                        <div className="flex items-center justify-between pb-1">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('checkout.transferDetails')}</h4>
+                          {orderState?.orderCode && (
+                            <span className="text-[11px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
+                              {orderState.orderCode}
+                            </span>
+                          )}
                         </div>
-                        {orderState?.bankInfo.accountNumber && (
+
+                        {/* Ngân hàng */}
+                        <div className="p-2.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5 flex items-center justify-between">
+                          <div className="min-w-0 pr-2">
+                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.bankName')}</span>
+                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate block">{cleanBankName}</span>
+                          </div>
+                          <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-500/10 text-indigo-400 rounded-md uppercase shrink-0">BANK</span>
+                        </div>
+
+                        {/* Số tài khoản */}
+                        <div className="p-2.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5 flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.accountNumber')}</span>
+                            <span className="text-sm sm:text-base font-mono font-bold text-slate-900 dark:text-white tracking-wider">{orderState?.bankInfo.accountNumber || '---'}</span>
+                          </div>
+                          {orderState?.bankInfo.accountNumber && (
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(orderState.bankInfo.accountNumber, t('checkout.accountNumber'))}
+                              className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-indigo-50 transition-colors flex items-center gap-1 shadow-sm shrink-0"
+                            >
+                              {copiedField === t('checkout.accountNumber') ? t('checkout.copied') : t('checkout.copy')}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Tên chủ tài khoản */}
+                        <div className="p-2.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5 flex items-center justify-between">
+                          <div className="min-w-0">
+                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.accountName')}</span>
+                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase truncate block">{orderState?.bankInfo.accountName || '---'}</span>
+                          </div>
+                        </div>
+
+                        {/* Số tiền */}
+                        <div className="p-2.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5 flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.amount')}</span>
+                            <span className="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400">{(orderState?.amount || price).toLocaleString('vi-VN')}đ</span>
+                          </div>
                           <button
                             type="button"
-                            onClick={() => handleCopy(orderState.bankInfo.accountNumber, t('checkout.accountNumber'))}
-                            className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-indigo-50 transition-colors flex items-center gap-1.5"
+                            onClick={() => handleCopy((orderState?.amount || price).toString(), t('checkout.amount'))}
+                            className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-emerald-50 transition-colors flex items-center gap-1 shadow-sm shrink-0"
                           >
-                            {copiedField === t('checkout.accountNumber') ? t('checkout.copied') : t('checkout.copy')}
+                            {copiedField === t('checkout.amount') ? t('checkout.copied') : t('checkout.copy')}
                           </button>
-                        )}
-                      </div>
-
-                      {/* Tên chủ tài khoản */}
-                      <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5">
-                        <div>
-                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.accountName')}</span>
-                          <span className="text-sm font-bold text-slate-900 dark:text-white">{orderState?.bankInfo.accountName || '---'}</span>
                         </div>
-                      </div>
 
-                      {/* Số tiền */}
-                      <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5">
-                        <div>
-                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">{t('checkout.amount')}</span>
-                          <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">{(orderState?.amount || price).toLocaleString('vi-VN')}đ</span>
+                        {/* Nội dung chuyển khoản duy nhất */}
+                        <div className="p-2.5 bg-amber-500/10 dark:bg-amber-500/15 rounded-xl border border-amber-500/30 flex items-center justify-between">
+                          <div className="min-w-0 pr-2">
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold tracking-wider block">{t('checkout.transferContentRequired')}</span>
+                            <span className="text-xs sm:text-sm font-mono font-bold text-amber-700 dark:text-amber-300 tracking-wider truncate block">{transferContent}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(transferContent, t('checkout.transferContent'))}
+                            className="px-2.5 py-1 text-xs font-bold bg-amber-500 text-white rounded-lg hover:bg-amber-400 transition-colors flex items-center gap-1 shadow-md shadow-amber-500/20 shrink-0"
+                          >
+                            {copiedField === t('checkout.transferContent') ? t('checkout.copied') : t('checkout.copy')}
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy((orderState?.amount || price).toString(), t('checkout.amount'))}
-                          className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-emerald-50 transition-colors flex items-center gap-1.5"
-                        >
-                          {copiedField === t('checkout.amount') ? t('checkout.copied') : t('checkout.copy')}
-                        </button>
-                      </div>
-
-                      {/* Nội dung chuyển khoản duy nhất */}
-                      <div className="flex items-center justify-between p-3.5 bg-amber-500/10 rounded-xl border border-amber-500/20">
-                        <div>
-                          <span className="text-[10px] text-amber-500 uppercase font-bold tracking-wider block">{t('checkout.transferContentRequired')}</span>
-                          <span className="text-base font-mono font-bold text-amber-600 dark:text-amber-400">{transferContent}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(transferContent, t('checkout.transferContent'))}
-                          className="px-3 py-1.5 text-xs font-bold bg-amber-500 text-white rounded-lg hover:bg-amber-400 transition-colors flex items-center gap-1.5 shadow-md shadow-amber-500/20"
-                        >
-                          {copiedField === t('checkout.transferContent') ? t('checkout.copied') : t('checkout.copy')}
-                        </button>
                       </div>
                     </div>
 
                     {/* Transaction Reference Input (Tùy chọn) */}
-                    <div className="space-y-1.5 pt-1">
+                    <div className="space-y-1.5 pt-2">
                       <label htmlFor="tx-ref" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                         {t('checkout.enterRefCodePrompt')}
                       </label>
@@ -596,17 +643,17 @@ const Checkout = () => {
           </div>
 
           {/* Right Column: Order Summary & Course Features */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-24">
             
             {/* Order Summary Card */}
-            <div className="bg-slate-50 dark:bg-[#1A1A1A] p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-white/10 sticky top-24 shadow-xl">
+            <div className="bg-slate-50 dark:bg-[#1A1A1A] p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-white/10 shadow-xl">
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6">{t('checkout.orderSummary')}</h3>
               
               <div className="flex gap-4 items-start pb-6 border-b border-slate-200 dark:border-white/10">
                 {course?.thumbnailUrl || course?.thumbnail ? (
-                  <img src={course?.thumbnailUrl || course?.thumbnail} alt="" className="w-28 h-20 object-cover rounded-xl shadow-sm shrink-0" />
+                  <img src={course?.thumbnailUrl || course?.thumbnail} alt="" className="w-24 h-16 sm:w-28 sm:h-20 object-cover rounded-xl shadow-sm shrink-0" />
                 ) : (
-                  <div className="w-28 h-20 bg-slate-200 dark:bg-slate-800 rounded-xl shrink-0 flex items-center justify-center">
+                  <div className="w-24 h-16 sm:w-28 sm:h-20 bg-slate-200 dark:bg-slate-800 rounded-xl shrink-0 flex items-center justify-center">
                     <span className="text-xs text-slate-500">Course Image</span>
                   </div>
                 )}
@@ -623,17 +670,17 @@ const Checkout = () => {
                 </div>
                 {discountAmount > 0 ? (
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">{t('checkout.discount')} ({course?.discountPercentage}%)</span>
+                    <span className="text-slate-500">{t('checkout.discount')} ({discountPercentage}%)</span>
                     <span className="font-medium text-rose-500">-{discountAmount.toLocaleString('vi-VN')}đ</span>
                   </div>
                 ) : null}
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm items-center">
                   <span className="text-slate-500">{t('checkout.paymentMethod')}</span>
-                  <span className="font-medium text-indigo-600 dark:text-indigo-400">
-                    {paymentMethod === 'vietqr' ? `VietQR (${orderState?.bankInfo.bankName || 'Vietcombank'})` : 'Stripe Card'}
+                  <span className="font-semibold text-indigo-600 dark:text-indigo-400 text-right">
+                    {paymentMethod === 'vietqr' ? `VietQR • ${cleanBankName}` : 'Stripe Card'}
                   </span>
                 </div>
-                <div className="flex justify-between pt-4 border-t border-slate-200 dark:border-white/10">
+                <div className="flex justify-between pt-4 border-t border-slate-200 dark:border-white/10 items-baseline">
                   <span className="font-bold text-slate-900 dark:text-white">{t('checkout.total')}</span>
                   <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{price.toLocaleString('vi-VN')}đ</span>
                 </div>
