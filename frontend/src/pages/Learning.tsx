@@ -1669,7 +1669,15 @@ const Learning: React.FC = () => {
                 <div className="mt-4">
                   {claimedCertificate ? (
                     <a
-                      href={claimedCertificate.pdfUrl || claimedCertificate.validationUrl || '#'}
+                      href={
+                        claimedCertificate.certificateId
+                          ? `${API_BASE}/certificates/${claimedCertificate.certificateId}/pdf`
+                          : (claimedCertificate.pdfUrl?.startsWith('http')
+                              ? claimedCertificate.pdfUrl
+                              : claimedCertificate.pdfUrl
+                                ? `${API_BASE}${claimedCertificate.pdfUrl}`
+                                : claimedCertificate.validationUrl || '#')
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 rounded-xl text-sm font-semibold border border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"

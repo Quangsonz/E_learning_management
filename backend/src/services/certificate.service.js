@@ -41,16 +41,21 @@ class CertificateService {
     const validationUrl = `${frontendUrl}/certificates/verify/${certId}`;
     const qrCodeDataUrl = await QRCode.toDataURL(validationUrl);
 
-    // 6. Sinh PDF và Upload (Sẽ mất vài giây tùy mạng)
+    // 6. Sinh PDF (tùy chọn backup lên Cloudinary nếu cần)
     const courseTitleStr = getLocalizedText(course.title, 'vi');
-    const pdfUrl = await generateCertificate(userName, courseTitleStr, certId, qrCodeDataUrl);
+    let backendPdfUrl = `/api/certificates/${certId}/pdf`;
+    try {
+      await generateCertificate(userName, courseTitleStr, certId, qrCodeDataUrl);
+    } catch (uploadErr) {
+      console.warn('[CertificateService] Cloudinary background sync skipped, serving via internal API route:', uploadErr.message);
+    }
 
-    // 7. Lưu dữ liệu vào Database
+    // 7. Lưu dữ liệu vào Database với endpoint tải PDF an toàn từ hệ thống
     const newCertificate = await certificateRepository.create({
       student: userId,
       course: courseId,
-      certificateUrl: pdfUrl,
-      pdfUrl: pdfUrl,
+      certificateUrl: backendPdfUrl,
+      pdfUrl: backendPdfUrl,
       certificateId: certId,
       validationUrl: validationUrl,
       qrCode: qrCodeDataUrl,
@@ -75,7 +80,13 @@ class CertificateService {
 
   async getMyCertificates(user) {
     const userId = typeof user === 'string' ? user : (user?.id || user?._id || '').toString();
-    return await certificateRepository.findByStudent(userId);
+    const certificates = await certificateRepository.findByStudent(userId);
+    return certificates.map(cert => {
+      const c = cert.toObject ? cert.toObject() : cert;
+      c.pdfUrl = `/api/certificates/${c.certificateId}/pdf`;
+      c.certificateUrl = `/api/certificates/${c.certificateId}/pdf`;
+      return c;
+    });
   }
 
   async verifyCertificate(certificateId) {
@@ -83,7 +94,10 @@ class CertificateService {
     if (!certificate) {
       throw new AppError('Chứng chỉ này không hợp lệ hoặc không tồn tại trong hệ thống', 404);
     }
-    return certificate;
+    const certObj = certificate.toObject ? certificate.toObject() : certificate;
+    certObj.pdfUrl = `/api/certificates/${certificate.certificateId}/pdf`;
+    certObj.certificateUrl = `/api/certificates/${certificate.certificateId}/pdf`;
+    return certObj;
   }
 }
 

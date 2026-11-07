@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import axiosInstance from '../services/axios';
+import axiosInstance, { API_BASE } from '../services/axios';
 import { Button } from '../components/ui';
 import { 
   Award, 
@@ -276,18 +276,16 @@ const CertificateVerify: React.FC = () => {
                   <Copy size={16} /> {copied ? 'Đã chép!' : 'Copy'}
                 </button>
 
-                {data.pdfUrl && (
-                  <a 
-                    href={data.pdfUrl} 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    className="flex-1 sm:flex-initial"
-                  >
-                    <Button variant="pill" className="w-full text-xs font-bold py-2.5 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 hover:from-amber-400 hover:to-yellow-400">
-                      <Download size={16} /> Tải PDF gốc
-                    </Button>
-                  </a>
-                )}
+                <a 
+                  href={data.certificateId ? `${API_BASE}/certificates/${data.certificateId}/pdf` : (data.pdfUrl?.startsWith('http') ? data.pdfUrl : `${API_BASE}${data.pdfUrl || ''}`)} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="flex-1 sm:flex-initial"
+                >
+                  <Button variant="pill" className="w-full text-xs font-bold py-2.5 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 hover:from-amber-400 hover:to-yellow-400">
+                    <Download size={16} /> Tải PDF gốc
+                  </Button>
+                </a>
               </div>
             </div>
 

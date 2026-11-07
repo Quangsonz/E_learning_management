@@ -14,6 +14,7 @@ import { analyticsApi } from '../services/analytics.api';
 import { enrollmentApi } from '../services/enrollment.api';
 import { certificateApi } from '../services/certificate.api';
 import { adminApi } from '../services/admin.api';
+import { API_BASE } from '../services/axios';
 import { useLocalizedValue } from '../utils/localized';
 import { useToast } from '../contexts/ToastContext';
 import {
@@ -1004,11 +1005,14 @@ const Profile: React.FC = () => {
                           <h3 className="font-bold text-lg text-slate-900 dark:text-white line-clamp-1">{lv(c.title)}</h3>
                           <p className="text-xs text-slate-500">{t('profile.issuedOn')} {new Date(cert.issueDate).toLocaleDateString()}</p>
                         </div>
-                        {cert.pdfUrl && (
-                          <a href={cert.pdfUrl} target="_blank" rel="noopener noreferrer" className="w-full">
-                            <Button className="w-full" variant="outline">{t('profile.viewPdf')}</Button>
-                          </a>
-                        )}
+                        <a 
+                          href={cert.certificateId ? `${API_BASE}/certificates/${cert.certificateId}/pdf` : (cert.pdfUrl?.startsWith('http') ? cert.pdfUrl : `${API_BASE}${cert.pdfUrl || ''}`)} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="w-full"
+                        >
+                          <Button className="w-full" variant="outline">{t('profile.viewPdf')}</Button>
+                        </a>
                       </div>
                     );
                   })}

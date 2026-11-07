@@ -45,15 +45,10 @@ class CertificateController {
     const { certificateId } = req.params;
     const certificate = await certificateService.verifyCertificate(certificateId);
 
-    // If Cloudinary or direct external URL exists, redirect
-    if (certificate.pdfUrl && certificate.pdfUrl.startsWith('https://res.cloudinary.com')) {
-      return res.redirect(certificate.pdfUrl);
-    }
-
     const { setupPDFFont, removeVietnameseTones } = require('../utils/pdfGenerator');
     const { getLocalizedText } = require('../utils/localizedHelper');
 
-    // Dynamic PDF Kit stream generation
+    // Dynamic PDF Kit stream generation (Direct stream to client, avoid Cloudinary 401 ACL block)
     const PDFDocument = require('pdfkit');
     const doc = new PDFDocument({ layout: 'landscape', size: 'A4', margin: 50 });
 
@@ -88,6 +83,17 @@ class CertificateController {
     doc.moveDown(1.5);
     doc.fontSize(12).fillColor('#64748b').text(clean(`Mã chứng chỉ: ${certificate.certificateId}`), { align: 'center' });
     doc.text(clean(`Ngày cấp: ${new Date(certificate.issueDate || certificate.createdAt).toLocaleDateString('vi-VN')}`), { align: 'center' });
+
+    // Draw QR Code on bottom right if available
+    if (certificate.qrCode && typeof certificate.qrCode === 'string' && certificate.qrCode.startsWith('data:image')) {
+      try {
+        const base64Data = certificate.qrCode.replace(/^data:image\/\w+;base64,/, '');
+        const imgBuffer = Buffer.from(base64Data, 'base64');
+        doc.image(imgBuffer, doc.page.width - 150, doc.page.height - 150, { width: 80 });
+      } catch (qrErr) {
+        // Fallback silently if QR buffer fails
+      }
+    }
 
     doc.end();
   });
