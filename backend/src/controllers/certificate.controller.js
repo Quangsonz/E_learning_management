@@ -45,15 +45,11 @@ class CertificateController {
     const { certificateId } = req.params;
     const certificate = await certificateService.verifyCertificate(certificateId);
 
-    const { setupPDFFont, removeVietnameseTones } = require('../utils/pdfGenerator');
-    const { getLocalizedText } = require('../utils/localizedHelper');
+    const { renderLuxuryCertificate } = require('../utils/pdfGenerator');
 
     // Dynamic PDF Kit stream generation (Direct stream to client, avoid Cloudinary 401 ACL block)
     const PDFDocument = require('pdfkit');
-    const doc = new PDFDocument({ layout: 'landscape', size: 'A4', margin: 50 });
-
-    const hasTTF = setupPDFFont(doc);
-    const clean = (str) => hasTTF ? str : removeVietnameseTones(str);
+    const doc = new PDFDocument({ layout: 'landscape', size: 'A4', margin: 0 });
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="Certificate-${certificateId}.pdf"`);
@@ -61,39 +57,15 @@ class CertificateController {
     doc.pipe(res);
 
     const studentName = certificate.student?.name || 'Hoc vien E-Learning';
-    const courseTitle = getLocalizedText(certificate.course?.title, 'vi') || 'Khoa hoc Chuyen nghiep';
+    const courseTitle = certificate.course?.title || 'Khoa hoc Chuyen nghiep';
 
-    // Draw Certificate Border
-    const margin = 50;
-    doc.fillAndStroke('#021c27')
-       .lineWidth(16)
-       .rect(margin, margin, doc.page.width - margin * 2, doc.page.height - margin * 2)
-       .stroke();
-
-    doc.moveDown(2);
-    doc.fontSize(40).fillColor('#0f172a').text(clean('CHỨNG NHẬN HOÀN THÀNH'), { align: 'center' });
-    doc.moveDown(0.8);
-    doc.fontSize(18).fillColor('#475569').text(clean('Chứng nhận này được trân trọng trao cho học viên'), { align: 'center' });
-    doc.moveDown(0.5);
-    doc.fontSize(32).fillColor('#4f46e5').text(clean(studentName), { align: 'center' });
-    doc.moveDown(0.8);
-    doc.fontSize(18).fillColor('#475569').text(clean('Đã hoàn thành xuất sắc khóa học'), { align: 'center' });
-    doc.moveDown(0.5);
-    doc.fontSize(24).fillColor('#059669').text(clean(courseTitle), { align: 'center' });
-    doc.moveDown(1.5);
-    doc.fontSize(12).fillColor('#64748b').text(clean(`Mã chứng chỉ: ${certificate.certificateId}`), { align: 'center' });
-    doc.text(clean(`Ngày cấp: ${new Date(certificate.issueDate || certificate.createdAt).toLocaleDateString('vi-VN')}`), { align: 'center' });
-
-    // Draw QR Code on bottom right if available
-    if (certificate.qrCode && typeof certificate.qrCode === 'string' && certificate.qrCode.startsWith('data:image')) {
-      try {
-        const base64Data = certificate.qrCode.replace(/^data:image\/\w+;base64,/, '');
-        const imgBuffer = Buffer.from(base64Data, 'base64');
-        doc.image(imgBuffer, doc.page.width - 150, doc.page.height - 150, { width: 80 });
-      } catch (qrErr) {
-        // Fallback silently if QR buffer fails
-      }
-    }
+    renderLuxuryCertificate(doc, {
+      studentName,
+      courseTitle,
+      certificateId: certificate.certificateId,
+      qrCodeDataUrl: certificate.qrCode,
+      issueDate: certificate.issueDate || certificate.createdAt
+    });
 
     doc.end();
   });

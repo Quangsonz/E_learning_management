@@ -48,6 +48,190 @@ function setupPDFFont(doc) {
   return false;
 }
 
+function renderLuxuryCertificate(doc, { studentName, courseTitle, certificateId, qrCodeDataUrl, issueDate }) {
+  const w = doc.page.width;
+  const h = doc.page.height;
+  const hasTTF = setupPDFFont(doc);
+  const clean = (str) => hasTTF ? str : removeVietnameseTones(str);
+
+  // 1. Warm Luxury Ivory/Parchment Background
+  doc.save();
+  doc.rect(0, 0, w, h).fillColor('#FDFCF9').fill();
+
+  // 2. Multi-tier Royal Borders
+  // Outer Navy Border
+  doc.lineWidth(3).strokeColor('#0F172A').rect(26, 26, w - 52, h - 52).stroke();
+  // Gold Accent Border
+  doc.lineWidth(1.5).strokeColor('#C5A059').rect(33, 33, w - 66, h - 66).stroke();
+  // Thin Inner Slate Border
+  doc.lineWidth(0.5).strokeColor('#E2E8F0').rect(38, 38, w - 76, h - 76).stroke();
+
+  // Corner Ornaments (Guilloche / Diamonds at all 4 corners)
+  const drawCornerFlourish = (cx, cy, dirX, dirY) => {
+    doc.save();
+    doc.lineWidth(1.2).strokeColor('#C5A059');
+    doc.moveTo(cx, cy).lineTo(cx + dirX * 32, cy).stroke();
+    doc.moveTo(cx, cy).lineTo(cx, cy + dirY * 32).stroke();
+    doc.polygon(
+      [cx + dirX * 4, cy],
+      [cx, cy + dirY * 4],
+      [cx - dirX * 4, cy],
+      [cx, cy - dirY * 4]
+    ).fillColor('#C5A059').fill();
+    doc.restore();
+  };
+
+  drawCornerFlourish(38, 38, 1, 1);
+  drawCornerFlourish(w - 38, 38, -1, 1);
+  drawCornerFlourish(38, h - 38, 1, -1);
+  drawCornerFlourish(w - 38, h - 38, -1, -1);
+
+  // Top Crest Emblem
+  const centerX = w / 2;
+  doc.save();
+  // Small gold star in header
+  doc.polygon(
+    [centerX, 50],
+    [centerX + 3, 56],
+    [centerX + 9, 56],
+    [centerX + 4, 60],
+    [centerX + 6, 66],
+    [centerX, 62],
+    [centerX - 6, 66],
+    [centerX - 4, 60],
+    [centerX - 9, 56],
+    [centerX - 3, 56]
+  ).fillColor('#C5A059').fill();
+  doc.restore();
+
+  // Organization Header
+  doc.fontSize(10).fillColor('#64748B').text(clean('E - L E A R N I N G   A C A D E M Y   S Y S T E M'), 0, 72, { align: 'center' });
+  doc.fontSize(7.5).fillColor('#94A3B8').text(clean('INTERNATIONAL ACCREDITED CREDENTIAL PROGRAM'), 0, 86, { align: 'center' });
+
+  // Divider line under crest
+  doc.lineWidth(0.8).strokeColor('#C5A059');
+  doc.moveTo(centerX - 110, 100).lineTo(centerX + 110, 100).stroke();
+  doc.polygon([centerX, 98], [centerX + 2.5, 100], [centerX, 102], [centerX - 2.5, 100]).fillColor('#C5A059').fill();
+
+  // Main Header: CHỨNG CHỈ TỐT NGHIỆP
+  doc.fontSize(27).fillColor('#0F172A').text(clean('CHỨNG CHỈ TỐT NGHIỆP'), 0, 114, { align: 'center' });
+  doc.fontSize(10).fillColor('#C5A059').text(clean('CERTIFICATE OF ACADEMIC ACHIEVEMENT'), 0, 146, { align: 'center' });
+
+  // Subtitle
+  doc.fontSize(11).fillColor('#64748B').text(clean('Chứng nhận này được trân trọng trao tặng cho'), 0, 170, { align: 'center' });
+
+  // Student Name (Prominent & Majestic)
+  doc.fontSize(32).fillColor('#1E3A8A').text(clean(studentName || 'Học viên E-Learning'), 0, 192, { align: 'center' });
+
+  // Golden underline accent for student name
+  const nameLineWidth = 180;
+  doc.lineWidth(1).strokeColor('#C5A059');
+  doc.moveTo(centerX - nameLineWidth, 232).lineTo(centerX + nameLineWidth, 232).stroke();
+  doc.polygon([centerX, 230], [centerX + 3, 232], [centerX, 234], [centerX - 3, 232]).fillColor('#C5A059').fill();
+
+  // Achievement Description
+  doc.fontSize(11).fillColor('#475569').text(
+    clean('Đã hoàn thành xuất sắc toàn diện chương trình đào tạo chuyên sâu và vượt qua đồ án tốt nghiệp:'),
+    80,
+    246,
+    { align: 'center', width: w - 160 }
+  );
+
+  // Course Title Box
+  const resolvedCourseTitle = courseTitle ? (typeof courseTitle === 'object' ? getLocalizedText(courseTitle, 'vi') : courseTitle) : 'Khóa học Chuyên nghiệp';
+  doc.save();
+  const boxWidth = Math.min(540, w - 160);
+  const boxX = (w - boxWidth) / 2;
+  doc.roundedRect(boxX, 276, boxWidth, 42, 6).fillColor('#F1F5F9').fill();
+  doc.roundedRect(boxX, 276, boxWidth, 42, 6).lineWidth(0.8).strokeColor('#CBD5E1').stroke();
+  doc.restore();
+
+  doc.fontSize(17).fillColor('#065F46').text(clean(resolvedCourseTitle), boxX + 10, 288, {
+    align: 'center',
+    width: boxWidth - 20
+  });
+
+  // Footer: 3 Columns
+  // --- COLUMN 1: Academic Director Signature (Left) ---
+  const col1X = 75;
+  const footerY = 355;
+
+  // Signature flourish line
+  doc.save();
+  doc.lineWidth(1.2).strokeColor('#1E293B');
+  doc.moveTo(col1X + 15, footerY + 38)
+     .bezierCurveTo(col1X + 45, footerY + 15, col1X + 75, footerY + 50, col1X + 120, footerY + 28)
+     .bezierCurveTo(col1X + 140, footerY + 18, col1X + 160, footerY + 45, col1X + 185, footerY + 32)
+     .stroke();
+  doc.restore();
+
+  // Signature rule
+  doc.lineWidth(0.8).strokeColor('#94A3B8').moveTo(col1X, footerY + 55).lineTo(col1X + 200, footerY + 55).stroke();
+  doc.fontSize(9.5).fillColor('#0F172A').text(clean('TS. NGUYỄN VĂN AN'), col1X, footerY + 62, { width: 200, align: 'center' });
+  doc.fontSize(7.5).fillColor('#64748B').text(clean('GIÁM ĐỐC HỌC THUẬT & ĐÀO TẠO'), col1X, footerY + 75, { width: 200, align: 'center' });
+  doc.fontSize(7.5).fillColor('#94A3B8').text(clean('E-Learning Academy System'), col1X, footerY + 86, { width: 200, align: 'center' });
+
+  // --- COLUMN 2: Gold Wax Seal (Center) ---
+  const sealX = centerX;
+  const sealY = footerY + 45;
+  const sealR = 36;
+
+  doc.save();
+  // Seal shadow
+  doc.circle(sealX, sealY + 2, sealR).fillColor('#FDE68A').fill();
+  // Outer gold scalloped ring
+  doc.circle(sealX, sealY, sealR).fillColor('#C5A059').fill();
+  doc.circle(sealX, sealY, sealR - 3).lineWidth(1).strokeColor('#FFF').stroke();
+  doc.circle(sealX, sealY, sealR - 6).fillColor('#D97706').fill();
+  doc.circle(sealX, sealY, sealR - 8).lineWidth(0.8).strokeColor('#FDE68A').stroke();
+  
+  // Star in seal
+  doc.polygon(
+    [sealX, sealY - 14],
+    [sealX + 3.5, sealY - 6],
+    [sealX + 12, sealY - 6],
+    [sealX + 5, sealY - 1],
+    [sealX + 8, sealY + 7],
+    [sealX, sealY + 2],
+    [sealX - 8, sealY + 7],
+    [sealX - 5, sealY - 1],
+    [sealX - 12, sealY - 6],
+    [sealX - 3.5, sealY - 6]
+  ).fillColor('#FFF').fill();
+
+  doc.fontSize(6).fillColor('#FFF').text(clean('VERIFIED'), sealX - 25, sealY + 7, { width: 50, align: 'center' });
+  doc.fontSize(4.8).fillColor('#FDE68A').text(clean('OFFICIAL SEAL'), sealX - 25, sealY + 16, { width: 50, align: 'center' });
+
+  // Ribbon tails beneath seal
+  doc.polygon([sealX - 10, sealY + sealR - 4], [sealX - 18, sealY + sealR + 24], [sealX - 10, sealY + sealR + 18], [sealX - 2, sealY + sealR + 24], [sealX - 2, sealY + sealR - 4]).fillColor('#B45309').fill();
+  doc.polygon([sealX + 2, sealY + sealR - 4], [sealX + 2, sealY + sealR + 24], [sealX + 10, sealY + sealR + 18], [sealX + 18, sealY + sealR + 24], [sealX + 10, sealY + sealR - 4]).fillColor('#D97706').fill();
+  doc.restore();
+
+  // --- COLUMN 3: QR Code & Verification (Right) ---
+  const col3X = w - 75 - 190;
+  
+  if (qrCodeDataUrl) {
+    try {
+      const qrBase64 = qrCodeDataUrl.replace(/^data:image\/\w+;base64,/, '');
+      const qrBuffer = Buffer.from(qrBase64, 'base64');
+      const qrSize = 68;
+      doc.save();
+      doc.roundedRect(col3X + 60, footerY + 2, qrSize + 8, qrSize + 8, 4).fillColor('#FFF').fill();
+      doc.roundedRect(col3X + 60, footerY + 2, qrSize + 8, qrSize + 8, 4).lineWidth(0.8).strokeColor('#CBD5E1').stroke();
+      doc.image(qrBuffer, col3X + 64, footerY + 6, { fit: [qrSize, qrSize] });
+      doc.restore();
+    } catch (e) {}
+  }
+
+  const dateStr = issueDate ? new Date(issueDate).toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN');
+  doc.fontSize(7.5).fillColor('#0F172A').text(clean(`MÃ SỐ: ${certificateId}`), col3X, footerY + 78, { width: 200, align: 'center' });
+  doc.fontSize(7).fillColor('#64748B').text(clean(`NGÀY CẤP: ${dateStr}`), col3X, footerY + 88, { width: 200, align: 'center' });
+  doc.fontSize(6.5).fillColor('#059669').text(clean('✓ CHỨNG THỰC BẢN QUYỀN SỐ'), col3X, footerY + 98, { width: 200, align: 'center' });
+
+  doc.restore();
+}
+
+exports.renderLuxuryCertificate = renderLuxuryCertificate;
 exports.setupPDFFont = setupPDFFont;
 exports.removeVietnameseTones = removeVietnameseTones;
 
@@ -58,14 +242,11 @@ exports.removeVietnameseTones = removeVietnameseTones;
 exports.generateCertificate = (studentName, courseTitle, certificateId, qrCodeDataUrl) => {
   return new Promise((resolve, reject) => {
     try {
-      const resolvedCourseTitle = getLocalizedText(courseTitle, 'vi');
       const doc = new PDFDocument({
         layout: 'landscape',
         size: 'A4',
+        margin: 0
       });
-
-      const hasTTF = setupPDFFont(doc);
-      const clean = (str) => hasTTF ? str : removeVietnameseTones(str);
 
       // Thu thập dữ liệu chunk vào một mảng Buffer
       const buffers = [];
@@ -91,48 +272,8 @@ exports.generateCertificate = (studentName, courseTitle, certificateId, qrCodeDa
         streamifier.createReadStream(pdfData).pipe(stream);
       });
 
-      // ----------------------------------------------------
       // VẼ GIAO DIỆN CHỨNG CHỈ LÊN PDF
-      // ----------------------------------------------------
-      const distanceMargin = 50;
-      doc.fillAndStroke('#021c27')
-         .lineWidth(20)
-         .rect(distanceMargin, distanceMargin, doc.page.width - distanceMargin * 2, doc.page.height - distanceMargin * 2)
-         .stroke();
-
-      // Tiêu đề
-      doc.moveDown(3);
-      doc.fontSize(45).fillColor('#000').text(clean('CHỨNG NHẬN HOÀN THÀNH'), { align: 'center' });
-      
-      doc.moveDown(1);
-      doc.fontSize(18).text(clean('Chứng nhận này được cấp cho học viên'), { align: 'center' });
-      
-      doc.moveDown(0.5);
-      doc.fontSize(36).fillColor('#007bff').text(clean(studentName), { align: 'center' });
-      
-      doc.moveDown(1);
-      doc.fontSize(18).fillColor('#000').text(clean('Đã hoàn thành xuất sắc khóa học'), { align: 'center' });
-      
-      doc.moveDown(0.5);
-      doc.fontSize(26).fillColor('#28a745').text(clean(resolvedCourseTitle), { align: 'center' });
-      
-      doc.moveDown(2);
-      doc.fontSize(12).fillColor('#666').text(clean(`Mã chứng chỉ: ${certificateId}`), { align: 'center' });
-      
-      const dateStr = new Date().toLocaleDateString('vi-VN');
-      doc.text(clean(`Ngày cấp: ${dateStr}`), { align: 'center' });
-
-      // Nếu có QR Code thì vẽ lên góc dưới bên phải
-      if (qrCodeDataUrl) {
-        // Tách phần Data URL để lấy buffer (data:image/png;base64,....)
-        const qrBase64Data = qrCodeDataUrl.replace(/^data:image\/png;base64,/, '');
-        const qrBuffer = Buffer.from(qrBase64Data, 'base64');
-        
-        const qrSize = 100;
-        doc.image(qrBuffer, doc.page.width - distanceMargin - qrSize - 20, doc.page.height - distanceMargin - qrSize - 20, {
-          fit: [qrSize, qrSize]
-        });
-      }
+      renderLuxuryCertificate(doc, { studentName, courseTitle, certificateId, qrCodeDataUrl });
 
       // Kết thúc stream (kích hoạt sự kiện doc.on('end'))
       doc.end();

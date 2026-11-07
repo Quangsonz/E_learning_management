@@ -9,6 +9,7 @@ vi.mock('../services/axios', () => ({
   default: {
     get: vi.fn(),
   },
+  API_BASE: '/api',
 }));
 
 vi.mock('react-i18next', () => ({
