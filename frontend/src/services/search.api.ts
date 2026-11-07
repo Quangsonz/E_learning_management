@@ -57,6 +57,7 @@ export interface SearchOrderItem {
   currency: string;
   status: string;
   createdAt: string;
+  orderCode?: string;
   stripePaymentIntentId?: string;
   user?: { name: string; email: string };
   course?: { title: string | { vi?: string; en?: string }; slug: string };

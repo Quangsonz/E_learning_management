@@ -201,6 +201,7 @@ class SearchRepository {
     const courseIds = matchingCourses.map(c => c._id);
 
     const orClauses = [
+      { orderCode: idRegex },
       { stripePaymentIntentId: idRegex }
     ];
 
@@ -212,7 +213,7 @@ class SearchRepository {
     }
 
     return await Order.find({ $or: orClauses })
-      .select('_id amount currency status createdAt stripePaymentIntentId user course')
+      .select('_id orderCode amount currency status createdAt stripePaymentIntentId user course')
       .populate('user', 'name email')
       .populate('course', 'title slug')
       .sort({ createdAt: -1 })

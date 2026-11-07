@@ -590,7 +590,7 @@ const SystemMonitoring = () => {
     { label: t('admin.config.database'), value: 'MongoDB Atlas', badge: 'Mongoose ODM' },
     { label: t('admin.config.storage'), value: 'Cloudinary', badge: 'CDN' },
     { label: t('admin.config.realtime'), value: 'Socket.IO v4', badge: 'WebSocket' },
-    { label: t('admin.config.payment'), value: 'Stripe', badge: 'Webhook' },
+    { label: t('admin.config.payment'), value: 'VietQR', badge: 'Napas 24/7' },
     { label: t('admin.config.frontend'), value: 'React 18 + Vite', badge: 'TypeScript' },
   ];
 
@@ -773,7 +773,7 @@ const SystemConfig = () => {
     { key: 'RATE_LIMIT', value: '100 req/hour', label: 'API Rate Limit' },
     { key: 'DB', value: 'MongoDB Atlas', label: t('admin.config.database') },
     { key: 'STORAGE', value: 'Cloudinary', label: t('admin.config.storage') },
-    { key: 'PAYMENT', value: 'Stripe', label: t('admin.config.payment') },
+    { key: 'PAYMENT', value: 'VietQR (Napas 24/7)', label: t('admin.config.payment') },
   ];
 
   return (

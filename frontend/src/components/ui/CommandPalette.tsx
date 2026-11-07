@@ -289,7 +289,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             id: `order-${o._id}`,
             group: 'orders',
             label: `${o.amount?.toLocaleString('vi-VN')} ${o.currency?.toUpperCase() || 'VND'} — ${o.user?.name || 'Khách hàng'}`,
-            sublabel: o.course ? lv(o.course.title) : o.stripePaymentIntentId || '',
+            sublabel: o.course ? lv(o.course.title) : (o.orderCode || ''),
             onSelect: () => {
               saveRecentSearch(query);
               handleClose();
@@ -891,7 +891,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                                 {order.user?.name || 'Khách'} • {order.amount?.toLocaleString('vi-VN')} {order.currency?.toUpperCase()}
                               </div>
                               <div className="text-xs text-slate-500 dark:text-slate-400">
-                                {order.course ? lv(order.course.title) : order.stripePaymentIntentId || ''}
+                                {order.course ? lv(order.course.title) : (order.orderCode || '')}
                               </div>
                             </div>
                             <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
