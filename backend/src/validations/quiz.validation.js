@@ -1,24 +1,22 @@
 const Joi = require('joi');
 const { objectId } = require('./custom.validation');
 
+const answerItemSchema = Joi.object().keys({
+  questionId: Joi.string().required(),
+  selectedOptionId: Joi.alternatives().try(Joi.number(), Joi.string()).allow(null, '').optional(),
+  selectedOption: Joi.alternatives().try(Joi.number(), Joi.string()).allow(null, '').optional()
+}).unknown(true);
+
 const submitQuiz = {
   params: Joi.object().keys({
     quizId: Joi.string().required().custom(objectId)
   }),
-  body: Joi.object().keys({
-    answers: Joi.array()
-      .items(
-        Joi.object().keys({
-          questionId: Joi.string().required(),
-          selectedOption: Joi.alternatives().try(Joi.number(), Joi.string()).required()
-        })
-      )
-      .min(1)
-      .required()
-      .messages({
-        'any.required': 'Danh sách câu trả lời là bắt buộc'
-      })
-  })
+  body: Joi.alternatives().try(
+    Joi.object().keys({
+      answers: Joi.array().items(answerItemSchema).default([])
+    }).unknown(true),
+    Joi.array().items(answerItemSchema)
+  )
 };
 
 const quizIdParam = {

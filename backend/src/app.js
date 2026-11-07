@@ -26,6 +26,7 @@ app.use(compression());
 const allowedOrigins = [
   process.env.CLIENT_URL,
   process.env.FRONTEND_URL,
+  'https://e-learning-management-omega.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:4173'
@@ -36,21 +37,21 @@ const corsOptions = {
     // Cho phép requests không có origin (curl, mobile apps, server-to-server, Render health check)
     if (!origin) return callback(null, true);
 
+    const cleanOrigin = origin.replace(/\/$/, '');
     const isExplicitlyAllowed = allowedOrigins.some((allowed) => {
       const cleanAllowed = allowed.replace(/\/$/, '');
-      const cleanOrigin = origin.replace(/\/$/, '');
       return cleanOrigin === cleanAllowed;
     });
 
     if (
       isExplicitlyAllowed ||
-      origin.endsWith('.vercel.app') ||
+      cleanOrigin.endsWith('.vercel.app') ||
       process.env.NODE_ENV !== 'production'
     ) {
       return callback(null, true);
     }
 
-    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

@@ -149,10 +149,15 @@ class QuizService {
       // Tìm câu trả lời của học viên cho câu hỏi này
       const studentAnswer = answersList.find(ans => ans.questionId === question._id.toString());
       const correctOption = question.options.find(opt => opt.isCorrect === true);
+      const selectedOptionVal = studentAnswer?.selectedOptionId ?? studentAnswer?.selectedOption ?? null;
+
       const isCorrect = Boolean(
         correctOption && 
-        studentAnswer && 
-        studentAnswer.selectedOptionId === correctOption._id.toString()
+        selectedOptionVal && 
+        (
+          selectedOptionVal.toString() === correctOption._id?.toString() ||
+          selectedOptionVal.toString() === correctOption.text?.toString()
+        )
       );
 
       if (isCorrect) {
@@ -164,7 +169,7 @@ class QuizService {
         questionId: question._id,
         text: question.text,
         points: question.points,
-        selectedOptionId: studentAnswer?.selectedOptionId || null,
+        selectedOptionId: studentAnswer?.selectedOptionId || (typeof selectedOptionVal === 'string' ? selectedOptionVal : null),
         correctOptionId: correctOption?._id || null,
         isCorrect,
         explanation: question.explanation
@@ -359,10 +364,15 @@ class QuizService {
       maxScore += question.points;
       const studentAnswer = studentAnswers.find(ans => ans.questionId === question._id.toString());
       const correctOption = question.options.find(opt => opt.isCorrect === true);
+      const selectedOptionVal = studentAnswer?.selectedOptionId ?? studentAnswer?.selectedOption ?? null;
+
       const isCorrect = Boolean(
         correctOption && 
-        studentAnswer && 
-        studentAnswer.selectedOptionId === correctOption._id.toString()
+        selectedOptionVal && 
+        (
+          selectedOptionVal.toString() === correctOption._id?.toString() ||
+          selectedOptionVal.toString() === correctOption.text?.toString()
+        )
       );
 
       if (isCorrect) {
@@ -374,7 +384,7 @@ class QuizService {
         questionId: question._id,
         text: question.text,
         points: question.points,
-        selectedOptionId: studentAnswer?.selectedOptionId || null,
+        selectedOptionId: studentAnswer?.selectedOptionId || (typeof selectedOptionVal === 'string' ? selectedOptionVal : null),
         correctOptionId: correctOption?._id || null,
         isCorrect,
         explanation: question.explanation

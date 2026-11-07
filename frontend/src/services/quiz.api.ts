@@ -66,8 +66,9 @@ export const quizApi = {
     return axiosInstance.get(`/quizzes/${quizId}/take`);
   },
 
-  submitQuiz: (quizId: string, answers: QuizSubmission[]) => {
-    return axiosInstance.post(`/quizzes/${quizId}/submit`, { answers });
+  submitQuiz: (quizId: string, answers: any) => {
+    const payload = Array.isArray(answers) ? { answers } : (answers?.answers ? answers : { answers });
+    return axiosInstance.post(`/quizzes/${quizId}/submit`, payload);
   },
 
   getQuizResults: (quizId: string) => {

@@ -14,6 +14,11 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import './i18n';
 
+// Tự động tải lại trang khi gặp lỗi tải chunk động sau bản cập nhật mới
+window.addEventListener('vite:preloadError', () => {
+  window.location.reload();
+});
+
 const container = document.getElementById('root')!;
 const root = createRoot(container);
 

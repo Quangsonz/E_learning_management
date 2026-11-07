@@ -99,7 +99,7 @@ const Quiz: React.FC = () => {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { refreshProfile } = useAuth();
-  const { success: successToast, info: infoToast } = useToast();
+  const { success: successToast, info: infoToast, error: errorToast } = useToast();
 
   const limitParam = searchParams.get('limit');
   const limit = limitParam ? parseInt(limitParam, 10) : 10;
@@ -134,7 +134,8 @@ const Quiz: React.FC = () => {
   const finishQuiz = () => {
     const answersPayload = Object.entries(answers).map(([questionId, selectedOptionId]) => ({
       questionId,
-      selectedOptionId
+      selectedOptionId,
+      selectedOption: selectedOptionId
     }));
 
     const payload = quizId === 'smart'
@@ -171,6 +172,10 @@ const Quiz: React.FC = () => {
           setCelebrate(false);
           setShowResult(true);
         }, 1800);
+      },
+      onError: (err: any) => {
+        const msg = err.response?.data?.message || t('common.error', 'Có lỗi xảy ra khi nộp bài');
+        errorToast(msg, 'Quiz');
       }
     });
   };
