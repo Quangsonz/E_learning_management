@@ -1,7 +1,5 @@
 const crypto = require('crypto');
 const QRCode = require('qrcode');
-const stripeKey = process.env.STRIPE_SECRET_KEY;
-const stripe = stripeKey ? require('stripe')(stripeKey) : null;
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const Order = require('../models/Order');
@@ -41,124 +39,14 @@ const safeStringCompare = (a, b) => {
 
 class PaymentController {
   // ==================================================
-  // 1. STRIPE PAYMENT INTENT
+  // 1. STRIPE PAYMENT (DEPRECATED)
   // ==================================================
   createPaymentIntent = catchAsync(async (req, res, next) => {
-    if (!stripe) {
-      return next(new AppError('Stripe API key is not configured on the server.', 500));
-    }
-
-    const { courseId } = req.body;
-    const course = await Course.findById(courseId);
-
-    if (!course) {
-      return next(new AppError('Không tìm thấy khóa học này', 404));
-    }
-
-    if (course.status !== 'published') {
-      return next(new AppError('Khóa học chưa được phát hành để thanh toán', 400));
-    }
-
-    // Kiểm tra học viên đã đăng ký khóa này chưa
-    const existingEnrollment = await enrollmentRepository.findByStudentAndCourse(req.user._id, course._id);
-    if (existingEnrollment) {
-      return next(new AppError('Bạn đã đăng ký khóa học này rồi!', 400));
-    }
-
-    const amount = Math.round((course.price || 0) * 100);
-    if (amount <= 0) {
-      return next(new AppError('Khóa học miễn phí. Vui lòng đăng ký trực tiếp.', 400));
-    }
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency: 'usd',
-      metadata: {
-        userId: req.user._id.toString(),
-        courseId: course._id.toString(),
-      },
-    });
-
-    const orderCode = await generateUniqueOrderCode();
-
-    // Tạo đơn hàng pending
-    await Order.create({
-      user: req.user._id,
-      course: course._id,
-      orderCode,
-      amount: amount / 100,
-      currency: 'usd',
-      paymentMethod: 'stripe',
-      stripePaymentIntentId: paymentIntent.id,
-      status: 'pending',
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour for Stripe
-    });
-
-    res.status(200).json({
-      status: 'success',
-      clientSecret: paymentIntent.client_secret,
-      orderCode,
-    });
+    return next(new AppError('Phương thức thanh toán qua Stripe đã ngừng hỗ trợ. Vui lòng thanh toán qua VietQR.', 400));
   });
 
-  // ==================================================
-  // 2. STRIPE WEBHOOK
-  // ==================================================
   webhook = catchAsync(async (req, res, next) => {
-    if (!stripe) {
-      return res.status(500).send('Stripe API key is not configured');
-    }
-
-    const sig = req.headers['stripe-signature'];
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    let event;
-
-    try {
-      event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    } catch (err) {
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    if (event.type === 'payment_intent.succeeded') {
-      const paymentIntent = event.data.object;
-      const { userId, courseId } = paymentIntent.metadata || {};
-
-      // Tìm và cập nhật order
-      const order = await Order.findOne({ stripePaymentIntentId: paymentIntent.id });
-
-      if (order) {
-        // Idempotency: nếu đơn đã được xác nhận trước đó thì không làm lại
-        if (order.status !== 'paid') {
-          order.status = 'paid';
-          order.paidAt = new Date();
-          order.adminNote = 'Xác nhận tự động qua Stripe Webhook';
-          await order.save();
-        }
-
-        if (userId && courseId) {
-          const alreadyEnrolled = await enrollmentRepository.findByStudentAndCourse(userId, courseId);
-          if (!alreadyEnrolled) {
-            try {
-              await enrollmentService.enrollCourse(courseId, { id: userId, _id: userId }, {
-                isFromPayment: true,
-                existingOrderId: order._id,
-              });
-            } catch (err) {
-              console.error('[Stripe Webhook] Auto-enrollment failed:', err);
-              await AuditLog.create({
-                user: userId,
-                action: 'PAYMENT_ENROLLMENT_FAILED',
-                targetModel: 'Course',
-                targetId: courseId,
-                details: { paymentIntentId: paymentIntent.id, error: err.message },
-              }).catch(() => {});
-            }
-          }
-        }
-      }
-    }
-
-    res.status(200).json({ received: true });
+    res.status(200).json({ received: false, message: 'Stripe webhook has been disabled.' });
   });
 
   // ==================================================

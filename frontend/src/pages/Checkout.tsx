@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -12,64 +10,11 @@ import { paymentApi } from '../services/payment.api';
 import { Button, PageShell } from '../components/ui';
 import { useLocalizedValue } from '../utils/localized';
 
-const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || import.meta.env.VITE_STRIPE_PUBLIC_KEY;
-const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
-
-const StripeCheckoutForm = ({ courseId }: { courseId: string }) => {
-  const { t } = useTranslation();
-  const stripe = useStripe();
-  const elements = useElements();
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    if (!stripe || !elements) return;
-
-    const { error: submitError } = await elements.submit();
-    if (submitError) {
-      setError(submitError.message || t('common.error'));
-      setIsLoading(false);
-      return;
-    }
-
-    const { error: confirmError } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/courses/${courseId}/learn`,
-      },
-    });
-
-    if (confirmError) {
-      setError(confirmError.message || t('checkout.failedToast'));
-    }
-    setIsLoading(false);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6 bg-white dark:bg-[#1A1A1A] p-8 rounded-3xl border border-slate-200 dark:border-white/10 shadow-2xl">
-      <PaymentElement id="payment-element" />
-      {error && <div className="text-sm font-medium text-rose-500">{error}</div>}
-      <Button 
-        type="submit" 
-        disabled={isLoading || !stripe || !elements}
-        className="w-full h-14 text-base font-semibold shadow-lg shadow-indigo-500/25 transition-all hover:shadow-indigo-500/40"
-      >
-        {isLoading ? t('checkout.processing') : t('checkout.payCardNow')}
-      </Button>
-    </form>
-  );
-};
-
 const Checkout = () => {
   const { t } = useTranslation();
   const lv = useLocalizedValue();
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const [paymentMethod, setPaymentMethod] = useState<'vietqr' | 'stripe'>('vietqr');
-  const [clientSecret, setClientSecret] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(900);
@@ -146,19 +91,10 @@ const Checkout = () => {
 
   // Khởi tạo VietQR Order
   useEffect(() => {
-    if (courseId && paymentMethod === 'vietqr') {
+    if (courseId) {
       loadQROrder();
     }
-  }, [courseId, paymentMethod, loadQROrder]);
-
-  // Khởi tạo Stripe Intent nếu chuyển sang Stripe
-  useEffect(() => {
-    if (courseId && paymentMethod === 'stripe' && !clientSecret) {
-      paymentApi.createPaymentIntent(courseId)
-        .then((res) => setClientSecret(res.clientSecret))
-        .catch((err) => console.error('Lỗi khởi tạo Stripe intent:', err));
-    }
-  }, [courseId, paymentMethod, clientSecret]);
+  }, [courseId, loadQROrder]);
 
   // Đếm ngược thời gian hết hạn của đơn hàng (1 giây mỗi lần)
   useEffect(() => {
@@ -181,7 +117,7 @@ const Checkout = () => {
   // Real-time Polling: Kiểm tra trạng thái thanh toán từ backend
   useEffect(() => {
     const orderId = orderState?.orderId;
-    if (!orderId || isPaidSuccess || isExpired || paymentMethod !== 'vietqr') {
+    if (!orderId || isPaidSuccess || isExpired) {
       if (pollingRef.current) clearInterval(pollingRef.current);
       return;
     }
@@ -227,7 +163,7 @@ const Checkout = () => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
-  }, [orderState?.orderId, isPaidSuccess, isExpired, paymentMethod, courseId, navigate, queryClient, refreshProfile, successToast, t]);
+  }, [orderState?.orderId, isPaidSuccess, isExpired, courseId, navigate, queryClient, refreshProfile, successToast, t]);
 
   if (isCourseLoading || !courseData) {
     return (
@@ -299,20 +235,6 @@ const Checkout = () => {
     ? (orderState?.fallbackQrDataUrl || '') 
     : (orderState?.qrUrl || '');
 
-  const appearance = {
-    theme: 'stripe' as const,
-    variables: {
-      colorPrimary: '#4f46e5',
-      colorBackground: '#ffffff',
-      colorText: '#0f172a',
-    },
-  };
-
-  const options = {
-    clientSecret: clientSecret || 'mock_secret',
-    appearance,
-  };
-
   const isDemoAllowed = user?.role === 'admin' || import.meta.env.DEV;
 
   return (
@@ -348,38 +270,28 @@ const Checkout = () => {
           {/* Left Column: Payment Details & QR Code */}
           <div className="lg:col-span-7 space-y-8">
 
-            {/* Payment Method Switcher Tabs */}
-            <div className="grid grid-cols-2 gap-3 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('vietqr')}
-                className={`py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                  paymentMethod === 'vietqr'
-                    ? 'bg-white dark:bg-[#1A1A1A] text-indigo-600 dark:text-indigo-400 shadow-md border border-slate-200 dark:border-white/10'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                {t('checkout.vietqr')}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('stripe')}
-                className={`py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                  paymentMethod === 'stripe'
-                    ? 'bg-white dark:bg-[#1A1A1A] text-indigo-600 dark:text-indigo-400 shadow-md border border-slate-200 dark:border-white/10'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-                {t('checkout.stripe')}
-              </button>
+            {/* Payment Method Banner */}
+            <div className="flex items-center justify-between p-3.5 sm:p-4 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-md shadow-indigo-500/20 shrink-0">
+                  QR
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>{t('checkout.vietqr', 'VietQR Napas 24/7')}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
+                      Tự động kích hoạt
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Chuyển khoản liên ngân hàng 24/7 quét mã QR tức thì
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* VietQR Payment Method View */}
-            {paymentMethod === 'vietqr' ? (
-              <div className="space-y-6 bg-white dark:bg-[#1A1A1A] p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-white/10 shadow-2xl relative overflow-hidden">
+            {/* VietQR Payment Card */}
+            <div className="space-y-6 bg-white dark:bg-[#1A1A1A] p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-white/10 shadow-2xl relative overflow-hidden">
                 
                 {/* Timer Bar */}
                 <div className={`flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border transition-colors ${
@@ -605,21 +517,7 @@ const Checkout = () => {
                     </div>
                   </>
                 )}
-
               </div>
-            ) : clientSecret && stripePromise ? (
-              <Elements options={options} stripe={stripePromise}>
-                <StripeCheckoutForm courseId={courseId!} />
-              </Elements>
-            ) : clientSecret && !stripePromise ? (
-              <div className="p-8 text-center bg-amber-50 dark:bg-amber-950/20 rounded-3xl border border-amber-200 dark:border-amber-800/40 text-amber-700 dark:text-amber-400 text-sm">
-                Stripe payment is not currently configured. Please select VietQR payment method.
-              </div>
-            ) : (
-              <div className="animate-pulse bg-slate-100 dark:bg-slate-800 h-[300px] rounded-3xl flex items-center justify-center text-slate-400 text-sm">
-                {t('checkout.connectingStripe')}
-              </div>
-            )}
 
             {/* Trust Badges */}
             <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-200 dark:border-white/10">
@@ -679,7 +577,7 @@ const Checkout = () => {
                 <div className="flex justify-between text-sm items-center">
                   <span className="text-slate-500">{t('checkout.paymentMethod')}</span>
                   <span className="font-semibold text-indigo-600 dark:text-indigo-400 text-right">
-                    {paymentMethod === 'vietqr' ? `VietQR • ${cleanBankName}` : 'Stripe Card'}
+                    VietQR • {cleanBankName}
                   </span>
                 </div>
                 <div className="flex justify-between pt-4 border-t border-slate-200 dark:border-white/10 items-baseline">
