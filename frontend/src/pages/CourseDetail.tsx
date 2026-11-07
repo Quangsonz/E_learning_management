@@ -146,7 +146,8 @@ const CourseDetail: React.FC = () => {
     queryKey: ['course', courseId],
     queryFn: () => courseApi.getCourseById(courseId!),
     enabled: !!courseId,
-    staleTime: 5 * 60 * 1000
+    staleTime: 0,
+    refetchOnMount: 'always'
   });
 
   const hasError = !courseId || isError;

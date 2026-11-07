@@ -216,6 +216,10 @@ class PaymentController {
 
     // Nếu không có đơn hàng hợp lệ hoặc giá khóa học bị thay đổi -> Tạo đơn mới
     if (!order || order.amount !== coursePrice) {
+      if (order && order.amount !== coursePrice) {
+        order.status = 'expired';
+        await order.save();
+      }
       const orderCode = await generateUniqueOrderCode();
       const transferContent = `EL ${orderCode}`;
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 phút

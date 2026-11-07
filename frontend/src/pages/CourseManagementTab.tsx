@@ -27,7 +27,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLocalizedValue } from '../utils/localized';
 import { Upload, Image as ImageIcon, Trash2, Loader2 } from 'lucide-react';
 
-type CourseStatus = 'draft' | 'published';
+type CourseStatus = 'draft' | 'pending_review' | 'published';
 
 type Course = {
   id: string;
@@ -75,6 +75,7 @@ const emptyForm: CourseFormState = {
 
 const statusTone: Record<string, string> = {
   draft: 'status-badge-neutral',
+  pending_review: 'status-badge-warning',
   published: 'status-badge-success'
 };
 
@@ -259,15 +260,19 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
 
   const openEdit = (course: Course) => {
     const rawCourse = responseData?.data?.courses.find((c: any) => c._id === course.id);
+    const salePrice = Number(course.price) || 0;
+    const estPrice = Number(rawCourse?.estimatedPrice || course.estimatedPrice || salePrice);
+    const discount = Number(rawCourse?.discountPercentage || course.discountPercentage || 0);
+
     setEditingCourse(course);
     setForm({
       title: course.title,
-      description: rawCourse?.description || '',
+      description: typeof rawCourse?.description === 'object' ? lv(rawCourse.description) : (rawCourse?.description || ''),
       categoryId: course.categoryId,
       instructorId: course.instructorId || '',
-      price: course.price.toString(),
-      estimatedPrice: (rawCourse?.estimatedPrice !== undefined ? rawCourse.estimatedPrice : course.price).toString(),
-      discountPercentage: (rawCourse?.discountPercentage || 0).toString(),
+      price: salePrice.toString(),
+      estimatedPrice: estPrice.toString(),
+      discountPercentage: discount.toString(),
       status: course.status,
       thumbnailUrl: rawCourse?.thumbnailUrl || rawCourse?.thumbnail || course.thumbnailUrl || ''
     });
@@ -279,6 +284,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['course'] });
       setToast(t('admin.courseManagement.createdSuccess'));
       setCreateOpen(false);
     },
@@ -292,6 +298,9 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['course'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-moderation-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-analytics'] });
       setToast(t('admin.courseManagement.updatedSuccess'));
       setEditOpen(false);
       setEditingCourse(null);
@@ -307,6 +316,7 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: [teacherMode ? 'teacher-courses' : 'admin-courses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['course'] });
       queryClient.invalidateQueries({ queryKey: ['admin-moderation-courses'] });
       queryClient.invalidateQueries({ queryKey: ['admin-analytics'] });
       setToast(vars.status === 'published' ? t('admin.courseManagement.publishedSuccess') : t('admin.courseManagement.withdrawnDraft'));
@@ -332,13 +342,19 @@ const CourseManagementTab: React.FC<CourseManagementTabProps> = ({ teacherMode =
       return;
     }
 
+    const finalPrice = Math.max(0, Number(form.price) || 0);
+    const finalOrigPrice = Math.max(finalPrice, Number(form.estimatedPrice) || finalPrice);
+    const finalDiscount = finalOrigPrice > finalPrice && finalOrigPrice > 0
+      ? Math.round(((finalOrigPrice - finalPrice) / finalOrigPrice) * 100)
+      : (Number(form.discountPercentage) || 0);
+
     const payload: Record<string, any> = {
       title: form.title,
       description: form.description,
       category: form.categoryId,
-      price: Number(form.price),
-      estimatedPrice: Number(form.estimatedPrice || form.price),
-      discountPercentage: Number(form.discountPercentage || 0),
+      price: finalPrice,
+      estimatedPrice: finalOrigPrice,
+      discountPercentage: finalDiscount,
       status: form.status,
       thumbnailUrl: form.thumbnailUrl.trim() || undefined,
     };
@@ -900,9 +916,26 @@ const CourseForm: React.FC<{
   const update = (field: keyof CourseFormState, value: string) => {
     setForm((current) => {
       const next = { ...current, [field]: value };
-      if (field === 'estimatedPrice' || field === 'discountPercentage') {
+      if (field === 'price') {
+        const sale = Number(value) || 0;
         const orig = Number(next.estimatedPrice) || 0;
+        if (orig > sale && sale > 0) {
+          next.discountPercentage = Math.round(((orig - sale) / orig) * 100).toString();
+        } else if (sale >= orig) {
+          next.estimatedPrice = value;
+          next.discountPercentage = '0';
+        }
+      } else if (field === 'estimatedPrice') {
+        const orig = Number(value) || 0;
         const pct = Number(next.discountPercentage) || 0;
+        if (pct > 0) {
+          next.price = Math.round(orig * (1 - pct / 100)).toString();
+        } else {
+          next.price = value;
+        }
+      } else if (field === 'discountPercentage') {
+        const orig = Number(next.estimatedPrice) || 0;
+        const pct = Math.min(100, Math.max(0, Number(value) || 0));
         next.price = Math.round(orig * (1 - pct / 100)).toString();
       }
       return next;
@@ -1098,7 +1131,7 @@ const CourseForm: React.FC<{
 
         <Field label={t('admin.courseManagement.form.discountLabel')} value={form.discountPercentage} onChange={(value) => update('discountPercentage', value)} type="number" placeholder="0" />
 
-        <Field label={t('admin.courseManagement.form.sellingPriceLabel')} value={form.price} onChange={(value) => update('price', value)} type="number" placeholder="0" className="bg-slate-50 dark:bg-slate-800/50 cursor-not-allowed opacity-80" disabled />
+        <Field label={t('admin.courseManagement.form.sellingPriceLabel')} value={form.price} onChange={(value) => update('price', value)} type="number" placeholder="0" />
 
         {!teacherMode && (
           <label className="block space-y-2">
@@ -1124,6 +1157,7 @@ const CourseForm: React.FC<{
             className="h-[46px] w-full rounded-2xl border border-slate-200 bg-white dark:bg-slate-900/50 px-4 text-sm font-medium text-slate-900 dark:text-white outline-none transition duration-sm ease-standard focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
           >
             <option value="draft">{t('admin.courseManagement.form.statusDraft')}</option>
+            <option value="pending_review">{t('admin.courseManagement.form.statusPendingReview', 'Chờ duyệt')}</option>
             <option value="published">{t('admin.courseManagement.form.statusPublished')}</option>
           </select>
         </label>

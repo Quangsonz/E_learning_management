@@ -1053,6 +1053,7 @@
         "selectInstructor": "Select an instructor",
         "statusLabel": "Status",
         "statusDraft": "Draft",
+        "statusPendingReview": "Pending Review",
         "statusPublished": "Published",
         "thumbnailLabel": "Course Thumbnail",
         "thumbnailPlaceholder": "Thumbnail Image URL or upload a file",

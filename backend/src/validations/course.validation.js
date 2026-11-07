@@ -43,7 +43,7 @@ const updateCourse = {
     tags: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
     requirements: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
     whatYouWillLearn: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.string()),
-    status: Joi.string().valid('draft', 'published'),
+    status: Joi.string().valid('draft', 'pending_review', 'published'),
     instructor: Joi.string().custom(objectId)
   })
 };

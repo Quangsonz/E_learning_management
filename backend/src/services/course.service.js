@@ -172,12 +172,34 @@ class CourseService {
       updateData.slug = slugify(updateData.title, { lower: true, strict: true });
     }
 
-    const estPrice = updateData.estimatedPrice !== undefined ? updateData.estimatedPrice : course.estimatedPrice;
-    const discPct = updateData.discountPercentage !== undefined ? updateData.discountPercentage : course.discountPercentage;
-    if (updateData.estimatedPrice !== undefined || updateData.discountPercentage !== undefined) {
-      const estimatedPrice = Number(estPrice) || 0;
-      const discountPercentage = Number(discPct) || 0;
-      updateData.price = Math.round(estimatedPrice * (1 - discountPercentage / 100));
+    if (updateData.price !== undefined) {
+      updateData.price = Number(updateData.price) || 0;
+    }
+
+    if (updateData.estimatedPrice !== undefined) {
+      updateData.estimatedPrice = Number(updateData.estimatedPrice) || 0;
+    }
+
+    if (updateData.discountPercentage !== undefined) {
+      updateData.discountPercentage = Number(updateData.discountPercentage) || 0;
+    }
+
+    // Chỉ tự động tính price từ estimatedPrice & discountPercentage KHI người dùng không truyền giá bán trực tiếp
+    if (updateData.price === undefined) {
+      if (updateData.estimatedPrice !== undefined || updateData.discountPercentage !== undefined) {
+        const estPrice = updateData.estimatedPrice !== undefined ? updateData.estimatedPrice : (course.estimatedPrice || course.price);
+        const discPct = updateData.discountPercentage !== undefined ? updateData.discountPercentage : (course.discountPercentage || 0);
+        const estimatedPrice = Number(estPrice) || 0;
+        const discountPercentage = Number(discPct) || 0;
+        updateData.price = Math.round(estimatedPrice * (1 - discountPercentage / 100));
+      }
+    } else {
+      // Khi đã truyền giá bán thực tế (ví dụ đổi giá trong trang quản trị):
+      // Nếu giá gốc niêm yết không được truyền hoặc nhỏ hơn giá bán, đồng bộ giá gốc bằng giá bán
+      if (updateData.estimatedPrice === undefined && (!course.estimatedPrice || course.estimatedPrice < updateData.price)) {
+        updateData.estimatedPrice = updateData.price;
+        updateData.discountPercentage = 0;
+      }
     }
 
     if (!updateData.thumbnailUrl && updateData.thumbnail) {

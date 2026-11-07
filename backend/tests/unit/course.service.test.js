@@ -39,6 +39,42 @@ describe('CourseService', () => {
     });
   });
 
+  describe('updateCourse', () => {
+    it('should respect explicitly provided selling price when updating course', async () => {
+      const mockCourse = {
+        _id: 'c1',
+        title: 'React Mastery',
+        price: 1290000,
+        estimatedPrice: 1677000,
+        discountPercentage: 20,
+        instructor: { _id: { toString: () => 'teacher1' } }
+      };
+      courseRepository.findById.mockResolvedValue(mockCourse);
+      courseRepository.updateById.mockImplementation((id, data) => Promise.resolve({ ...mockCourse, ...data }));
+
+      // Admin updates selling price to 200,000 without sending discount
+      const updated = await courseService.updateCourse('c1', { price: 200000 }, { id: 'admin1', role: 'admin' });
+      expect(updated.price).toBe(200000);
+      expect(courseRepository.updateById).toHaveBeenCalledWith('c1', expect.objectContaining({ price: 200000 }));
+    });
+
+    it('should compute price from estimatedPrice and discountPercentage if price is omitted', async () => {
+      const mockCourse = {
+        _id: 'c1',
+        title: 'React Mastery',
+        price: 1290000,
+        estimatedPrice: 1677000,
+        discountPercentage: 20,
+        instructor: { _id: { toString: () => 'teacher1' } }
+      };
+      courseRepository.findById.mockResolvedValue(mockCourse);
+      courseRepository.updateById.mockImplementation((id, data) => Promise.resolve({ ...mockCourse, ...data }));
+
+      const updated = await courseService.updateCourse('c1', { estimatedPrice: 2000000, discountPercentage: 50 }, { id: 'admin1', role: 'admin' });
+      expect(updated.price).toBe(1000000);
+    });
+  });
+
   describe('deleteCourse', () => {
     it('should throw error if non-owner teacher tries to delete', async () => {
       const mockCourse = { _id: 'c1', instructor: { _id: { toString: () => 'teacher1' } } };

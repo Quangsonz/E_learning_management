@@ -61,6 +61,7 @@ const CourseBuilder: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['teacher-courses-stats'] });
       queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['course'] });
       setToast({ 
         message: t('teacher.courseBuilder.messages.success', 'Tạo khóa học nháp thành công! Đang chuyển đến trình soạn giáo án...'), 
         type: 'success' 

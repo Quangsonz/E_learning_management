@@ -832,6 +832,7 @@ const ModerationQueue = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-moderation-courses'] });
       queryClient.invalidateQueries({ queryKey: ['admin-courses'] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['course'] });
       queryClient.invalidateQueries({ queryKey: ['admin-analytics'] });
       successToast(vars.status === 'published' ? t('admin.moderation.approve') : t('admin.moderation.reject'));
       setRejectCourse(null);

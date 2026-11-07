@@ -106,6 +106,8 @@ const Checkout = () => {
     queryKey: ['course', courseId],
     queryFn: () => courseApi.getCourseById(courseId!),
     enabled: !!courseId,
+    staleTime: 0,
+    refetchOnMount: 'always'
   });
 
   const loadQROrder = useCallback(async () => {

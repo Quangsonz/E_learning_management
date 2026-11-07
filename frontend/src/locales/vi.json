@@ -1053,6 +1053,7 @@
         "selectInstructor": "Chọn giảng viên",
         "statusLabel": "Trạng thái",
         "statusDraft": "Bản nháp",
+        "statusPendingReview": "Chờ duyệt",
         "statusPublished": "Đã xuất bản",
         "thumbnailLabel": "Ảnh bìa khóa học",
         "thumbnailPlaceholder": "Đường dẫn ảnh bìa (URL hoặc tải tệp lên)",
